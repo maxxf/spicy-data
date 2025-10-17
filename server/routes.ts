@@ -271,6 +271,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/analytics/client-performance", async (req, res) => {
+    try {
+      const performance = await storage.getClientPerformance();
+      res.json(performance);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   app.get("/api/analytics/locations", async (req, res) => {
     try {
       const { clientId } = req.query;

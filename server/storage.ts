@@ -40,6 +40,13 @@ export interface IStorage {
   getDashboardOverview(clientId?: string): Promise<DashboardOverview>;
   getLocationMetrics(clientId?: string): Promise<LocationMetrics[]>;
   getLocationMatchSuggestions(clientId?: string): Promise<LocationMatchSuggestion[]>;
+  getClientPerformance(): Promise<Array<{
+    clientId: string;
+    clientName: string;
+    totalSales: number;
+    totalOrders: number;
+    roas: number;
+  }>>;
 }
 
 export class MemStorage implements IStorage {
@@ -56,12 +63,28 @@ export class MemStorage implements IStorage {
     this.doordashTransactions = new Map();
     this.grubhubTransactions = new Map();
     
-    const defaultClient: Client = {
-      id: "default-client",
-      name: "Demo Client",
-      createdAt: new Date(),
-    };
-    this.clients.set(defaultClient.id, defaultClient);
+    // Add demo clients
+    const demoClients: Client[] = [
+      {
+        id: "default-client",
+        name: "Temaki To-Go",
+        createdAt: new Date(),
+      },
+      {
+        id: "client-2",
+        name: "Bella's Pizza",
+        createdAt: new Date(),
+      },
+      {
+        id: "client-3",
+        name: "Green Leaf Salads",
+        createdAt: new Date(),
+      },
+    ];
+    
+    demoClients.forEach(client => {
+      this.clients.set(client.id, client);
+    });
   }
 
   async createClient(insertClient: InsertClient): Promise<Client> {
@@ -330,6 +353,30 @@ export class MemStorage implements IStorage {
 
   async getLocationMatchSuggestions(clientId?: string): Promise<LocationMatchSuggestion[]> {
     return [];
+  }
+
+  async getClientPerformance(): Promise<Array<{
+    clientId: string;
+    clientName: string;
+    totalSales: number;
+    totalOrders: number;
+    roas: number;
+  }>> {
+    const clients = await this.getAllClients();
+    const performance = [];
+
+    for (const client of clients) {
+      const overview = await this.getDashboardOverview(client.id);
+      performance.push({
+        clientId: client.id,
+        clientName: client.name,
+        totalSales: overview.totalSales,
+        totalOrders: overview.totalOrders,
+        roas: overview.blendedRoas,
+      });
+    }
+
+    return performance;
   }
 }
 

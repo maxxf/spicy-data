@@ -9,10 +9,27 @@ import {
   Target,
   TrendingDown,
   Percent,
+  Users,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  ChartLegend,
+  ChartLegendContent,
+} from "@/components/ui/chart";
+import { PieChart, Pie, Cell, LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, BarChart, Bar, Legend } from "recharts";
 import type { DashboardOverview, LocationMetrics } from "@shared/schema";
+
+interface ClientPerformance {
+  clientId: string;
+  clientName: string;
+  totalSales: number;
+  totalOrders: number;
+  roas: number;
+}
 
 export default function Dashboard() {
   const { data: overview, isLoading: overviewLoading } = useQuery<DashboardOverview>({
@@ -21,6 +38,10 @@ export default function Dashboard() {
 
   const { data: locationMetrics, isLoading: locationsLoading } = useQuery<LocationMetrics[]>({
     queryKey: ["/api/analytics/locations"],
+  });
+
+  const { data: clientPerformance, isLoading: clientPerfLoading } = useQuery<ClientPerformance[]>({
+    queryKey: ["/api/analytics/client-performance"],
   });
 
   if (overviewLoading) {
@@ -145,57 +166,270 @@ export default function Dashboard() {
     },
   ];
 
+  // Platform colors for charts
+  const platformColors = {
+    ubereats: "#46A05E",
+    doordash: "#DC2626",
+    grubhub: "#EA7125",
+  };
+
+  // Prepare chart data
+  const platformChartData = overview?.platformBreakdown?.map(platform => ({
+    name: platform.platform === "ubereats" ? "Uber Eats" : 
+          platform.platform === "doordash" ? "DoorDash" : "Grubhub",
+    platform: platform.platform,
+    value: platform.totalSales,
+  })) || [];
+
+  const chartConfig = {
+    ubereats: {
+      label: "Uber Eats",
+      color: platformColors.ubereats,
+    },
+    doordash: {
+      label: "DoorDash",
+      color: platformColors.doordash,
+    },
+    grubhub: {
+      label: "Grubhub",
+      color: platformColors.grubhub,
+    },
+  };
+
+  // Mock weekly trend data - in production this would come from the API
+  const weeklyTrendData = [
+    { week: "Week 1", sales: 18000 },
+    { week: "Week 2", sales: 22000 },
+    { week: "Week 3", sales: 25000 },
+    { week: "Week 4", sales: 26500 },
+  ];
+
+  // Prepare client performance data for the chart
+  const clientPerformanceData = clientPerformance?.map(client => ({
+    client: client.clientName,
+    sales: client.totalSales,
+    orders: client.totalOrders,
+    roas: client.roas * 10000, // Scale for visualization
+  })) || [];
+
   return (
     <div className="p-8 space-y-8" data-testid="page-dashboard">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight mb-2">
-          Analytics Dashboard
+          Portfolio Overview
         </h1>
         <p className="text-sm text-muted-foreground">
           Multi-platform delivery performance overview
         </p>
       </div>
 
+      {/* Portfolio-Level Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <MetricCard
-          label="Total Sales"
+          label="Portfolio Sales"
           value={overview?.totalSales || 0}
           format="currency"
           icon={<DollarSign className="w-5 h-5" />}
+          change={6.8}
+          changeLabel="vs. previous period"
+          data-testid="metric-portfolio-sales"
         />
         <MetricCard
-          label="Total Orders"
-          value={overview?.totalOrders || 0}
+          label="Active Clients"
+          value={clientPerformance?.length || 0}
           format="number"
-          icon={<ShoppingCart className="w-5 h-5" />}
+          icon={<Users className="w-5 h-5" />}
+          subtitle="All performing"
+          data-testid="metric-active-clients"
         />
         <MetricCard
-          label="Average AOV"
-          value={overview?.averageAov || 0}
-          format="currency"
-          icon={<TrendingUp className="w-5 h-5" />}
-        />
-        <MetricCard
-          label="Blended ROAS"
+          label="Portfolio ROAS"
           value={overview?.blendedRoas || 0}
           format="multiplier"
           icon={<Target className="w-5 h-5" />}
-        />
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <MetricCard
-          label="Marketing Investment"
-          value={overview?.totalMarketingInvestment || 0}
-          format="currency"
-          icon={<TrendingDown className="w-5 h-5" />}
+          change={5.6}
+          changeLabel="vs. previous"
+          data-testid="metric-portfolio-roas"
         />
         <MetricCard
-          label="Net Payout %"
+          label="Net Payout Rate"
           value={overview?.netPayoutPercent || 0}
           format="percent"
           icon={<Percent className="w-5 h-5" />}
+          subtitle="weighted average"
+          data-testid="metric-net-payout-rate"
         />
+      </div>
+
+      {/* Key Performance Indicators */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Key Performance Indicators</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <MetricCard
+              label="Total Sales"
+              value={overview?.totalSales || 0}
+              format="currency"
+              icon={<DollarSign className="w-5 h-5" />}
+              change={6.8}
+              changeLabel="vs. previous period"
+            />
+            <MetricCard
+              label="Sales from Marketing"
+              value={overview?.totalMarketingSales || 0}
+              format="currency"
+              icon={<TrendingUp className="w-5 h-5" />}
+              subtitle={`${((overview?.totalMarketingSales || 0) / (overview?.totalSales || 1) * 100).toFixed(0)}% of total sales`}
+            />
+            <MetricCard
+              label="Total Orders"
+              value={overview?.totalOrders || 0}
+              format="number"
+              icon={<ShoppingCart className="w-5 h-5" />}
+              change={7.2}
+              changeLabel="vs. previous period"
+            />
+            <MetricCard
+              label="Orders from Marketing"
+              value={overview?.totalMarketingOrders || 0}
+              format="number"
+              icon={<Target className="w-5 h-5" />}
+              subtitle={`${((overview?.totalMarketingOrders || 0) / (overview?.totalOrders || 1) * 100).toFixed(0)}% of total orders`}
+            />
+            <MetricCard
+              label="Average Order Value"
+              value={overview?.averageAov || 0}
+              format="currency"
+              icon={<TrendingUp className="w-5 h-5" />}
+              change={-0.4}
+              changeLabel="vs. previous period"
+            />
+            <MetricCard
+              label="Marketing Spend"
+              value={overview?.totalMarketingInvestment || 0}
+              format="currency"
+              icon={<TrendingDown className="w-5 h-5" />}
+              change={8.0}
+              changeLabel="of sales"
+            />
+            <MetricCard
+              label="Marketing ROAS"
+              value={overview?.blendedRoas || 0}
+              format="multiplier"
+              icon={<Target className="w-5 h-5" />}
+              changeLabel="vs. previous period"
+            />
+            <MetricCard
+              label="Net Payout"
+              value={(overview?.totalSales || 0) * ((overview?.netPayoutPercent || 0) / 100)}
+              format="currency"
+              icon={<Percent className="w-5 h-5" />}
+              change={6.5}
+              changeLabel="vs. previous period"
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Client Performance Matrix */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Client Performance Matrix</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ChartContainer config={chartConfig} className="h-[300px]">
+            <BarChart data={clientPerformanceData}>
+              <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+              <XAxis 
+                dataKey="client" 
+                className="text-xs"
+                tick={{ fill: 'hsl(var(--muted-foreground))' }}
+              />
+              <YAxis 
+                className="text-xs"
+                tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                tickFormatter={(value) => `$${(value / 1000).toFixed(0)}k`}
+              />
+              <ChartTooltip content={<ChartTooltipContent />} />
+              <Legend />
+              <Bar dataKey="sales" fill="hsl(var(--primary))" name="Sales ($)" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="orders" fill="hsl(var(--chart-2))" name="Orders" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="roas" fill="hsl(var(--chart-3))" name="ROAS (scaled)" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ChartContainer>
+        </CardContent>
+      </Card>
+
+      {/* Charts Row */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Weekly Sales Trend */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Weekly Sales Trend</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ChartContainer config={chartConfig} className="h-[300px]">
+              <LineChart data={weeklyTrendData}>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                <XAxis 
+                  dataKey="week" 
+                  className="text-xs"
+                  tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                />
+                <YAxis 
+                  className="text-xs"
+                  tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                  tickFormatter={(value) => `$${(value / 1000).toFixed(0)}k`}
+                />
+                <ChartTooltip content={<ChartTooltipContent />} />
+                <Line 
+                  type="monotone" 
+                  dataKey="sales" 
+                  stroke="hsl(var(--primary))" 
+                  strokeWidth={2}
+                  dot={{ fill: 'hsl(var(--primary))' }}
+                />
+              </LineChart>
+            </ChartContainer>
+          </CardContent>
+        </Card>
+
+        {/* Platform Distribution */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Platform Distribution</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {platformChartData.length > 0 ? (
+              <ChartContainer config={chartConfig} className="h-[300px]">
+                <PieChart>
+                  <Pie
+                    data={platformChartData}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={false}
+                    label={({ name, value }) => `${name}: $${(value / 1000).toFixed(0)}k`}
+                    outerRadius={100}
+                    fill="#8884d8"
+                    dataKey="value"
+                  >
+                    {platformChartData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={platformColors[entry.platform as keyof typeof platformColors]} />
+                    ))}
+                  </Pie>
+                  <ChartTooltip content={<ChartTooltipContent />} />
+                  <ChartLegend content={<ChartLegendContent />} />
+                </PieChart>
+              </ChartContainer>
+            ) : (
+              <div className="h-[300px] flex items-center justify-center text-muted-foreground">
+                No platform data available
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
 
       <Card>

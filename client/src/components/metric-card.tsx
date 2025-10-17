@@ -7,6 +7,7 @@ interface MetricCardProps {
   value: string | number;
   change?: number;
   changeLabel?: string;
+  subtitle?: string;
   format?: "currency" | "number" | "percent" | "multiplier";
   icon?: React.ReactNode;
   className?: string;
@@ -17,6 +18,7 @@ export function MetricCard({
   value,
   change,
   changeLabel,
+  subtitle,
   format = "currency",
   icon,
   className,
@@ -75,6 +77,11 @@ export function MetricCard({
               </span>
               {changeLabel && <span className="text-muted-foreground ml-1">{changeLabel}</span>}
             </div>
+          )}
+          {subtitle && !change && (
+            <p className="text-xs text-muted-foreground" data-testid={`text-subtitle-${label.toLowerCase().replace(/\s+/g, "-")}`}>
+              {subtitle}
+            </p>
           )}
         </div>
       </CardContent>
