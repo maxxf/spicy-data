@@ -1,0 +1,35 @@
+
+3P Delivery Dashboard Structure:
+================================
+
+1. KPI DASHBOARD TAB
+   - Total Sales (with week-over-week and MTD tracking)
+   - Sales from Marketing (percentage of total)
+   - Total Orders and Orders from Marketing
+   - Average Order Value (AOV)
+   - Marketing Spend and efficiency (ROAS)
+   - Net Payout tracking
+
+2. PLATFORM ANALYSIS TAB
+   - Individual platform performance (Uber Eats, DoorDash, Grubhub)
+   - Commission rates and fees by platform
+   - Marketing spend allocation
+   - Net payout percentages
+   - Sales mix distribution
+
+3. LOCATION DASHBOARD TAB
+   - Performance by restaurant location
+   - Top performing platforms by location
+   - Marketing efficiency by location
+   - Week-over-week growth tracking
+
+4. MARKETING CAMPAIGNS TAB
+   - Promotions: Tracking discounts, BOGO, free delivery offers
+   - Paid Ads: Sponsored listings, featured placements, search ads
+   - ROI and ROAS calculations
+   - Campaign performance metrics
+
+5. DATA UPLOAD TEMPLATES
+   - Standardized CSV formats for each platform
+   - Required fields for accurate KPI calculation
+   - Weekly data refresh capability

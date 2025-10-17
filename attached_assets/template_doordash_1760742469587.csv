@@ -1,0 +1,4 @@
+Order_Number,Transaction_Date,Store_Location,Order_Subtotal,Taxes,Delivery_Fees,Commission,Marketing_Spend,Error_Charges,Net_Payment,Order_Source
+DD001,09/23/2025,Location 1,32.0,3.2,3.99,8.96,2.0,0,23.04,Marketplace
+DD002,09/23/2025,Location 2,28.5,2.85,2.99,7.98,0.0,0,20.52,Sponsored
+DD003,09/24/2025,Location 3,38.0,3.8,4.99,10.64,3.0,0,27.36,Marketplace

@@ -1,0 +1,4 @@
+Order_Id,Order_Date,Restaurant,Sale_Amount,Tax_Amount,Delivery_Charge,Processing_Fee,Promotion_Cost,Net_Sales,Customer_Type
+GH001,2025-09-23,Store #1,30.0,3.0,2.99,7.5,0.0,22.5,New
+GH002,2025-09-23,Store #2,25.0,2.5,2.99,6.25,1.5,18.75,Returning
+GH003,2025-09-24,Store #3,35.0,3.5,3.99,8.75,0.0,26.25,Returning

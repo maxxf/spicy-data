@@ -1,0 +1,4 @@
+Order_ID,Date,Time,Location,Subtotal,Tax,Delivery_Fee,Service_Fee,Marketing_Promo,Marketing_Amount,Platform_Fee,Net_Payout,Customer_Rating
+UE001,2025-09-23,12:30 PM,Downtown LA,28.5,2.85,2.99,4.28,,0.0,8.55,20.12,5
+UE002,2025-09-23,6:45 PM,Santa Monica,35.0,3.5,3.99,5.25,20% Off,7.0,10.5,24.74,4
+UE003,2025-09-24,1:15 PM,Beverly Hills,42.0,4.2,4.99,6.3,,0.0,12.6,29.69,5

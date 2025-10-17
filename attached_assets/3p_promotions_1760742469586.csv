@@ -1,0 +1,6 @@
+Promotion Name,Platform,Type,Start Date,Orders,Revenue,Cost,ROI,Status
+20% Off First Order,DoorDash,Percentage,09/01/2025,150,"$4,500",$900,400%,Active
+Free Delivery Weekend,Uber Eats,Free Delivery,09/07/2025,200,"$6,000",$600,900%,Completed
+BOGO Tuesday,Grubhub,BOGO,09/10/2025,100,"$3,000","$1,500",100%,Active
+Happy Hour Special,All Platforms,Percentage,09/15/2025,250,"$7,500","$1,500",400%,Active
+$5 Off Orders $25+,DoorDash,Fixed Amount,09/20/2025,180,"$5,400",$900,500%,Active

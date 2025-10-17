@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spice Digital - Multi-Client Delivery Dashboard</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <!-- Enhanced Header with Client & Date Filtering -->
+    <header class="header">
+        <div class="header-content">
+            <div class="header-left">
+                <h1 class="logo">Spice Digital</h1>
+                <span class="subtitle">Multi-Client 3P Delivery Dashboard</span>
+            </div>
+            <div class="header-center">
+                <div class="client-selector">
+                    <label for="clientSelect" class="filter-label">Client:</label>
+                    <select id="clientSelect" class="form-control">
+                        <option value="all">All Clients</option>
+                        <option value="1">Temaki To-Go</option>
+                        <option value="2">Bella's Pizza</option>
+                        <option value="3">Green Leaf Salads</option>
+                    </select>
+                </div>
+                <div class="date-selector">
+                    <label for="dateRange" class="filter-label">Period:</label>
+                    <select id="dateRange" class="form-control">
+                        <option value="thisWeek">This Week</option>
+                        <option value="lastWeek">Last Week</option>
+                        <option value="last30Days">Last 30 Days</option>
+                        <option value="last90Days">Last 90 Days</option>
+                        <option value="ytd">Year to Date</option>
+                        <option value="custom">Custom Range</option>
+                    </select>
+                </div>
+            </div>
+            <div class="header-right">
+                <button class="btn btn--outline btn--sm" id="exportBtn">
+                    <span>📊</span> Export
+                </button>
+                <div class="user-account">
+                    <span>Admin User</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Navigation -->
+    <nav class="nav">
+        <div class="nav-content">
+            <button class="nav-tab active" data-tab="home">📈 Home Dashboard</button>
+            <button class="nav-tab" data-tab="marketing">🎯 Marketing Campaigns</button>
+            <button class="nav-tab" data-tab="platform">📱 Platform Analysis</button>
+            <button class="nav-tab" data-tab="location">📍 Location Dashboard</button>
+            <button class="nav-tab" data-tab="upload">📂 Data Upload</button>
+            <button class="nav-tab" data-tab="clients">👥 Client Management</button>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main">
+        <!-- Home Dashboard Tab -->
+        <div id="home-tab" class="tab-content active">
+            <div class="dashboard-overview">
+                <div class="overview-cards">
+                    <div class="overview-card">
+                        <h3>Portfolio Sales</h3>
+                        <div class="overview-value" id="portfolioSales">$0</div>
+                        <div class="overview-change" id="portfolioSalesChange">vs. previous period</div>
+                    </div>
+                    <div class="overview-card">
+                        <h3>Active Clients</h3>
+                        <div class="overview-value" id="activeClients">3</div>
+                        <div class="overview-change">All performing</div>
+                    </div>
+                    <div class="overview-card">
+                        <h3>Portfolio ROAS</h3>
+                        <div class="overview-value" id="portfolioROAS">0.0x</div>
+                        <div class="overview-change" id="portfolioROASChange">weighted average</div>
+                    </div>
+                    <div class="overview-card">
+                        <h3>Net Payout Rate</h3>
+                        <div class="overview-value" id="netPayoutRate">0%</div>
+                        <div class="overview-change">weighted average</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="dashboard-grid">
+                <!-- Key Metrics Cards -->
+                <div class="metrics-section">
+                    <h2>Key Performance Indicators</h2>
+                    <div class="metrics-grid">
+                        <div class="metric-card">
+                            <div class="metric-header">
+                                <h3>Total Sales</h3>
+                                <span class="trend-indicator" id="totalSalesTrend"></span>
+                            </div>
+                            <div class="metric-value" id="totalSales">$0</div>
+                            <div class="metric-subtext" id="totalSalesChange">vs. previous period</div>
+                        </div>
+                        
+                        <div class="metric-card">
+                            <div class="metric-header">
+                                <h3>Sales from Marketing</h3>
+                                <span class="trend-indicator" id="marketingSalesTrend"></span>
+                            </div>
+                            <div class="metric-value" id="salesFromMarketing">$0</div>
+                            <div class="metric-subtext" id="marketingSalesPercentage">0% of total sales</div>
+                        </div>
+
+                        <div class="metric-card">
+                            <div class="metric-header">
+                                <h3>Total Orders</h3>
+                                <span class="trend-indicator" id="totalOrdersTrend"></span>
+                            </div>
+                            <div class="metric-value" id="totalOrders">0</div>
+                            <div class="metric-subtext" id="totalOrdersChange">vs. previous period</div>
+                        </div>
+
+                        <div class="metric-card">
+                            <div class="metric-header">
+                                <h3>Orders from Marketing</h3>
+                                <span class="trend-indicator" id="marketingOrdersTrend"></span>
+                            </div>
+                            <div class="metric-value" id="ordersFromMarketing">0</div>
+                            <div class="metric-subtext" id="marketingOrdersPercentage">0% of total orders</div>
+                        </div>
+
+                        <div class="metric-card">
+                            <div class="metric-header">
+                                <h3>Average Order Value</h3>
+                                <span class="trend-indicator" id="aovTrend"></span>
+                            </div>
+                            <div class="metric-value" id="aov">$0</div>
+                            <div class="metric-subtext" id="aovChange">vs. previous period</div>
+                        </div>
+
+                        <div class="metric-card">
+                            <div class="metric-header">
+                                <h3>Marketing Spend</h3>
+                                <span class="trend-indicator" id="marketingSpendTrend"></span>
+                            </div>
+                            <div class="metric-value" id="marketingSpend">$0</div>
+                            <div class="metric-subtext" id="marketingSpendPercentage">0% of sales</div>
+                        </div>
+
+                        <div class="metric-card">
+                            <div class="metric-header">
+                                <h3>Marketing ROAS</h3>
+                                <span class="trend-indicator" id="roasTrend"></span>
+                            </div>
+                            <div class="metric-value" id="marketingROAS">0.0x</div>
+                            <div class="metric-subtext" id="roasChange">vs. previous period</div>
+                        </div>
+
+                        <div class="metric-card">
+                            <div class="metric-header">
+                                <h3>Net Payout</h3>
+                                <span class="trend-indicator" id="netPayoutTrend"></span>
+                            </div>
+                            <div class="metric-value" id="netPayout">$0</div>
+                            <div class="metric-subtext" id="netPayoutPercentage">0% of gross sales</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Charts Section -->
+                <div class="charts-section">
+                    <div class="chart-container">
+                        <h3>Client Performance Matrix</h3>
+                        <div class="chart-wrapper" style="position: relative; height: 300px;">
+                            <canvas id="clientMatrixChart"></canvas>
+                        </div>
+                    </div>
+                    
+                    <div class="chart-container">
+                        <h3>Weekly Sales Trend</h3>
+                        <div class="chart-wrapper" style="position: relative; height: 300px;">
+                            <canvas id="salesTrendChart"></canvas>
+                        </div>
+                    </div>
+                    
+                    <div class="chart-container">
+                        <h3>Platform Distribution</h3>
+                        <div class="chart-wrapper" style="position: relative; height: 300px;">
+                            <canvas id="platformMixChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Enhanced Marketing Campaigns Tab -->
+        <div id="marketing-tab" class="tab-content">
+            <div class="marketing-overview">
+                <div class="marketing-summary-cards">
+                    <div class="summary-card promotions">
+                        <div class="summary-icon">🎁</div>
+                        <div class="summary-content">
+                            <h3>Promotions Performance</h3>
+                            <div class="summary-metrics">
+                                <div class="summary-metric">
+                                    <span class="summary-value" id="totalPromotionCost">$0</span>
+                                    <span class="summary-label">Total Cost</span>
+                                </div>
+                                <div class="summary-metric">
+                                    <span class="summary-value" id="totalPromotionROI">0%</span>
+                                    <span class="summary-label">Avg ROI</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="summary-card ads">
+                        <div class="summary-icon">📺</div>
+                        <div class="summary-content">
+                            <h3>Paid Advertising</h3>
+                            <div class="summary-metrics">
+                                <div class="summary-metric">
+                                    <span class="summary-value" id="totalAdSpend">$0</span>
+                                    <span class="summary-label">Total Spend</span>
+                                </div>
+                                <div class="summary-metric">
+                                    <span class="summary-value" id="averageROAS">0.0x</span>
+                                    <span class="summary-label">Avg ROAS</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="marketing-sections">
+                <!-- Promotions Section -->
+                <div class="promotions-section">
+                    <div class="section-header">
+                        <h2>🎁 Promotions & Offers</h2>
+                        <button class="btn btn--sm btn--primary">+ Add Promotion</button>
+                    </div>
+                    <div class="table-container">
+                        <table class="data-table" id="promotionsTable">
+                            <thead>
+                                <tr>
+                                    <th>Promotion Name</th>
+                                    <th>Client</th>
+                                    <th>Platform(s)</th>
+                                    <th>Type</th>
+                                    <th>Status</th>
+                                    <th>Orders</th>
+                                    <th>Revenue Impact</th>
+                                    <th>Discount Cost</th>
+                                    <th>New Customers</th>
+                                    <th>ROI %</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Paid Advertising Section -->
+                <div class="ads-section">
+                    <div class="section-header">
+                        <h2>📺 Paid Advertising Performance</h2>
+                        <button class="btn btn--sm btn--primary">+ Add Campaign</button>
+                    </div>
+                    <div class="table-container">
+                        <table class="data-table" id="adsTable">
+                            <thead>
+                                <tr>
+                                    <th>Campaign Name</th>
+                                    <th>Client</th>
+                                    <th>Platform</th>
+                                    <th>Type</th>
+                                    <th>Impressions</th>
+                                    <th>Clicks</th>
+                                    <th>CTR %</th>
+                                    <th>CPC</th>
+                                    <th>Orders</th>
+                                    <th>Conv. %</th>
+                                    <th>Spend</th>
+                                    <th>Revenue</th>
+                                    <th>ROAS</th>
+                                    <th>CPA</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Platform Analysis Tab -->
+        <div id="platform-tab" class="tab-content">
+            <div class="platform-grid">
+                <div id="platformCards" class="platform-cards">
+                    <!-- Platform cards will be generated by JavaScript -->
+                </div>
+                
+                <div class="platform-charts">
+                    <div class="chart-container">
+                        <h3>Platform Sales Comparison</h3>
+                        <div class="chart-wrapper" style="position: relative; height: 300px;">
+                            <canvas id="platformSalesChart"></canvas>
+                        </div>
+                    </div>
+                    
+                    <div class="chart-container">
+                        <h3>Commission Optimization</h3>
+                        <div class="chart-wrapper" style="position: relative; height: 300px;">
+                            <canvas id="commissionChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Location Dashboard Tab -->
+        <div id="location-tab" class="tab-content">
+            <div class="location-grid">
+                <div class="location-overview">
+                    <h2>Location Performance Overview</h2>
+                    <div class="table-container">
+                        <table class="data-table" id="locationTable">
+                            <thead>
+                                <tr>
+                                    <th>Location</th>
+                                    <th>Client</th>
+                                    <th>Market</th>
+                                    <th>Total Sales</th>
+                                    <th>Orders</th>
+                                    <th>AOV</th>
+                                    <th>Top Platform</th>
+                                    <th>Marketing Efficiency</th>
+                                    <th>Net Margin %</th>
+                                    <th>Growth %</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+                
+                <div class="location-charts">
+                    <div class="chart-container">
+                        <h3>Geographic Performance</h3>
+                        <div class="chart-wrapper" style="position: relative; height: 300px;">
+                            <canvas id="locationSalesChart"></canvas>
+                        </div>
+                    </div>
+                    
+                    <div class="chart-container">
+                        <h3>Location Growth Trends</h3>
+                        <div class="chart-wrapper" style="position: relative; height: 300px;">
+                            <canvas id="locationTrendsChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Data Upload Tab -->
+        <div id="upload-tab" class="tab-content">
+            <div class="upload-grid">
+                <div class="upload-section">
+                    <h2>Multi-Platform Data Upload</h2>
+                    <div class="upload-zones">
+                        <div class="upload-zone" data-platform="uberEats">
+                            <div class="upload-content">
+                                <div class="upload-icon">🚗</div>
+                                <h3>Uber Eats</h3>
+                                <p>Transaction Reports, Payment Summaries</p>
+                                <p class="upload-formats">Supports: CSV, Excel</p>
+                                <input type="file" accept=".csv,.xlsx,.xls" class="file-input">
+                            </div>
+                        </div>
+                        
+                        <div class="upload-zone" data-platform="doorDash">
+                            <div class="upload-content">
+                                <div class="upload-icon">🏃</div>
+                                <h3>DoorDash</h3>
+                                <p>Sales Reports, Financial Reports</p>
+                                <p class="upload-formats">Supports: CSV, Excel</p>
+                                <input type="file" accept=".csv,.xlsx,.xls" class="file-input">
+                            </div>
+                        </div>
+                        
+                        <div class="upload-zone" data-platform="grubhub">
+                            <div class="upload-content">
+                                <div class="upload-icon">🍴</div>
+                                <h3>Grubhub</h3>
+                                <p>Order History, Payment Reports</p>
+                                <p class="upload-formats">Supports: CSV, Excel</p>
+                                <input type="file" accept=".csv,.xlsx,.xls" class="file-input">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="upload-mapping">
+                    <h3>Smart Data Mapping</h3>
+                    <div class="mapping-info">
+                        <div class="mapping-item">
+                            <strong>Automatic Detection:</strong> Column headers are automatically mapped
+                        </div>
+                        <div class="mapping-item">
+                            <strong>Data Validation:</strong> Duplicate and error detection
+                        </div>
+                        <div class="mapping-item">
+                            <strong>Client Assignment:</strong> Auto-assign to selected client
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="upload-history">
+                    <h3>Upload History</h3>
+                    <div id="uploadHistory" class="upload-history-list">
+                        <p class="no-uploads">No uploads yet</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Client Management Tab -->
+        <div id="clients-tab" class="tab-content">
+            <div class="client-management">
+                <div class="client-header">
+                    <h2>Client Management</h2>
+                    <button class="btn btn--primary">+ Add New Client</button>
+                </div>
+                
+                <div class="client-cards">
+                    <div class="client-card" data-client="1">
+                        <div class="client-info">
+                            <h3>Temaki To-Go</h3>
+                            <span class="client-type">Sushi Restaurant</span>
+                            <div class="client-stats">
+                                <div class="stat">
+                                    <span class="stat-value">3</span>
+                                    <span class="stat-label">Locations</span>
+                                </div>
+                                <div class="stat">
+                                    <span class="stat-value">3</span>
+                                    <span class="stat-label">Platforms</span>
+                                </div>
+                                <div class="stat">
+                                    <span class="stat-value">4.2x</span>
+                                    <span class="stat-label">ROAS</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="client-actions">
+                            <button class="btn btn--sm btn--outline">Edit</button>
+                            <button class="btn btn--sm btn--secondary">View Report</button>
+                        </div>
+                    </div>
+                    
+                    <div class="client-card" data-client="2">
+                        <div class="client-info">
+                            <h3>Bella's Pizza</h3>
+                            <span class="client-type">Italian Restaurant</span>
+                            <div class="client-stats">
+                                <div class="stat">
+                                    <span class="stat-value">2</span>
+                                    <span class="stat-label">Locations</span>
+                                </div>
+                                <div class="stat">
+                                    <span class="stat-value">2</span>
+                                    <span class="stat-label">Platforms</span>
+                                </div>
+                                <div class="stat">
+                                    <span class="stat-value">3.8x</span>
+                                    <span class="stat-label">ROAS</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="client-actions">
+                            <button class="btn btn--sm btn--outline">Edit</button>
+                            <button class="btn btn--sm btn--secondary">View Report</button>
+                        </div>
+                    </div>
+                    
+                    <div class="client-card" data-client="3">
+                        <div class="client-info">
+                            <h3>Green Leaf Salads</h3>
+                            <span class="client-type">Healthy Fast-Casual</span>
+                            <div class="client-stats">
+                                <div class="stat">
+                                    <span class="stat-value">1</span>
+                                    <span class="stat-label">Location</span>
+                                </div>
+                                <div class="stat">
+                                    <span class="stat-value">3</span>
+                                    <span class="stat-label">Platforms</span>
+                                </div>
+                                <div class="stat">
+                                    <span class="stat-value">4.6x</span>
+                                    <span class="stat-label">ROAS</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="client-actions">
+                            <button class="btn btn--sm btn--outline">Edit</button>
+                            <button class="btn btn--sm btn--secondary">View Report</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="footer-content">
+            <div class="quick-stats" id="quickStats">
+                <span>Last Updated: <span id="lastUpdated">--</span></span>
+                <span>•</span>
+                <span>Data Points: <span id="dataPoints">--</span></span>
+            </div>
+            <div class="footer-links">
+                <a href="#" target="_blank">Help Center</a>
+                <a href="#" target="_blank">API Documentation</a>
+                <a href="#" target="_blank">Support</a>
+            </div>
+        </div>
+    </footer>
+
+    <script src="app.js"></script>
+</body>
+</html>
