@@ -11,6 +11,7 @@ type Platform = "ubereats" | "doordash" | "grubhub";
 interface FileUploadZoneProps {
   platform: Platform;
   onFileSelect: (file: File, platform: Platform) => void;
+  onFileClear?: (platform: Platform) => void;
   isProcessing?: boolean;
   progress?: number;
   error?: string;
@@ -20,6 +21,7 @@ interface FileUploadZoneProps {
 export function FileUploadZone({
   platform,
   onFileSelect,
+  onFileClear,
   isProcessing = false,
   progress = 0,
   error,
@@ -67,7 +69,10 @@ export function FileUploadZone({
 
   const clearFile = useCallback(() => {
     setSelectedFile(null);
-  }, []);
+    if (onFileClear) {
+      onFileClear(platform);
+    }
+  }, [onFileClear, platform]);
 
   return (
     <Card

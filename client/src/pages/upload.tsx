@@ -40,8 +40,10 @@ export default function UploadPage() {
         title: "Upload successful",
         description: "File processed and data imported successfully",
       });
-      queryClient.invalidateQueries({ queryKey: ["/api/analytics"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/analytics/overview"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/analytics/locations"] });
       queryClient.invalidateQueries({ queryKey: ["/api/locations"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/locations/suggestions"] });
     },
     onError: (error: any) => {
       toast({
@@ -54,6 +56,10 @@ export default function UploadPage() {
 
   const handleFileSelect = (file: File, platform: Platform) => {
     setSelectedFiles((prev) => ({ ...prev, [platform]: file }));
+  };
+
+  const handleFileClear = (platform: Platform) => {
+    setSelectedFiles((prev) => ({ ...prev, [platform]: null }));
   };
 
   const handleUpload = async () => {
@@ -137,16 +143,19 @@ export default function UploadPage() {
         <FileUploadZone
           platform="ubereats"
           onFileSelect={handleFileSelect}
+          onFileClear={handleFileClear}
           isProcessing={uploadMutation.isPending}
         />
         <FileUploadZone
           platform="doordash"
           onFileSelect={handleFileSelect}
+          onFileClear={handleFileClear}
           isProcessing={uploadMutation.isPending}
         />
         <FileUploadZone
           platform="grubhub"
           onFileSelect={handleFileSelect}
+          onFileClear={handleFileClear}
           isProcessing={uploadMutation.isPending}
         />
       </div>
