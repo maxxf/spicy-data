@@ -168,25 +168,73 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
         }
       } else if (platform === "doordash") {
+        // Per new attribution methodology: Only process Marketplace + Completed orders for metrics
+        // But we import ALL orders to calculate net payout correctly
+        let processedCount = 0;
+        
         for (const row of rows) {
-          const locationId = await findOrCreateLocation(clientId, row.Store_Location, "doordash");
+          const locationId = await findOrCreateLocation(
+            clientId, 
+            row.Store_Location || row["Store Location"] || row.store_location, 
+            "doordash"
+          );
+
+          // Helper to safely parse negative values (discounts/offers are negative in CSV)
+          const parseNegativeFloat = (val: any) => {
+            if (!val) return 0;
+            const parsed = parseFloat(val);
+            return isNaN(parsed) ? 0 : parsed;
+          };
 
           await storage.createDoordashTransaction({
             clientId,
             locationId,
-            orderNumber: row.Order_Number,
-            transactionDate: row.Transaction_Date,
-            storeLocation: row.Store_Location,
-            orderSubtotal: parseFloat(row.Order_Subtotal) || 0,
-            taxes: parseFloat(row.Taxes) || 0,
-            deliveryFees: parseFloat(row.Delivery_Fees) || 0,
-            commission: parseFloat(row.Commission) || 0,
-            marketingSpend: parseFloat(row.Marketing_Spend) || 0,
-            errorCharges: parseFloat(row.Error_Charges) || 0,
-            netPayment: parseFloat(row.Net_Payment) || 0,
-            orderSource: row.Order_Source || "Unknown",
+            
+            // Order identification
+            orderNumber: row.Order_Number || row["Order Number"] || row.order_number || "",
+            transactionDate: row.Transaction_Date || row["Transaction Date"] || row.transaction_date || "",
+            storeLocation: row.Store_Location || row["Store Location"] || row.store_location || "",
+            
+            // Status and channel filtering fields
+            channel: row.Channel || row.channel || null,
+            orderStatus: row.Order_Status || row["Order Status"] || row.order_status || null,
+            
+            // Sales metrics (new methodology uses "Sales (excl. tax)")
+            salesExclTax: parseNegativeFloat(row["Sales (excl. tax)"] || row.sales_excl_tax || row.salesExclTax),
+            orderSubtotal: parseNegativeFloat(row.Order_Subtotal || row["Order Subtotal"] || row.order_subtotal),
+            taxes: parseNegativeFloat(row.Taxes || row.taxes),
+            
+            // Fees and charges
+            deliveryFees: parseNegativeFloat(row.Delivery_Fees || row["Delivery Fees"] || row.delivery_fees),
+            commission: parseNegativeFloat(row.Commission || row.commission),
+            errorCharges: parseNegativeFloat(row.Error_Charges || row["Error Charges"] || row.error_charges),
+            
+            // Marketing/promotional fields (typically negative for discounts)
+            offersOnItems: parseNegativeFloat(row["Offers on items (incl. tax)"] || row.offers_on_items),
+            deliveryOfferRedemptions: parseNegativeFloat(row["Delivery Offer Redemptions (incl. tax)"] || row.delivery_offer_redemptions),
+            marketingCredits: parseNegativeFloat(row["Marketing Credits"] || row.marketing_credits),
+            thirdPartyContribution: parseNegativeFloat(row["Third-party Contribution"] || row.third_party_contribution),
+            
+            // Other payments (ad spend, credits, etc.)
+            otherPayments: Math.abs(parseNegativeFloat(row["Other payments"] || row.other_payments)),
+            otherPaymentsDescription: row["Other payments description"] || row.other_payments_description || null,
+            
+            // Legacy marketing field
+            marketingSpend: parseNegativeFloat(row.Marketing_Spend || row["Marketing Spend"] || row.marketing_spend),
+            
+            // Payout (includes all statuses)
+            totalPayout: parseNegativeFloat(row["Total payout"] || row.total_payout || row.Total_Payout),
+            netPayment: parseNegativeFloat(row.Net_Payment || row["Net Payment"] || row.net_payment),
+            
+            // Source
+            orderSource: row.Order_Source || row["Order Source"] || row.order_source || null,
           });
+          
+          processedCount++;
         }
+        
+        res.json({ success: true, rowsProcessed: processedCount });
+        return;
       } else if (platform === "grubhub") {
         for (const row of rows) {
           const locationId = await findOrCreateLocation(clientId, row.Restaurant, "grubhub");
