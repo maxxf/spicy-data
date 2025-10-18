@@ -28,10 +28,14 @@ Preferred communication style: Simple, everyday language.
 
 **Component Architecture:**
 - Modular structure with shared UI components
-- Custom components like MetricCard, DataTable, PlatformBadge, FileUploadZone, ClientSelector
+- Custom components like MetricCard, DataTable, PlatformBadge, FileUploadZone, ClientSelector, PlatformSelector
 - Page-based routing: Dashboard, Campaigns, Upload, Locations
 - Sidebar navigation with a responsive context
-- Client filtering implemented across all analytics pages via the ClientSelector component.
+- Comprehensive filtering system:
+  - Client filtering via ClientSelector component
+  - Platform filtering via PlatformSelector component (All, Uber Eats, DoorDash, Grubhub)
+  - Location tag filtering (e.g., "Corporate" tag for 16 corporate locations)
+  - Date range filtering (planned for weekStart/weekEnd)
 
 ### Backend Architecture
 
@@ -52,7 +56,9 @@ Preferred communication style: Simple, everyday language.
 - `/api/locations/suggestions`: Fuzzy matching for unlinked locations
 - `/api/upload`: CSV file upload for transaction data
 - `/api/upload/marketing`: Marketing CSV upload
-- `/api/analytics/*`: Aggregated platform-level, location-level, and client performance metrics
+- `/api/analytics/*`: Aggregated platform-level, location-level, and client performance metrics with filtering support
+  - Query parameters: `clientId`, `platform` (ubereats|doordash|grubhub), `locationTag`, `weekStart`, `weekEnd`
+  - Filters apply consistently across dashboard overview and location metrics
 - `/api/promotions`: Promotion management
 - `/api/paid-ads`: Paid ad campaign management
 
@@ -69,13 +75,19 @@ Preferred communication style: Simple, everyday language.
 **Location Matching Strategy:**
 - Canonical name as the single source of truth
 - Platform-specific names (uberEatsName, doordashName, grubhubName) map to canonical locations
-- Fuzzy string matching for suggestions and manual verification workflow.
+- Fuzzy string matching for suggestions and manual verification workflow
+- Location tagging system for grouping (e.g., "Corporate" tag applied to 16 corporate locations)
 
 **Analytics Calculations:**
 - ROAS (Return on Ad Spend)
 - Net payout percentages
 - Average Order Value (AOV)
 - Platform-level and location-level aggregations
+- All metrics support multi-dimensional filtering:
+  - By client/brand
+  - By platform (Uber Eats, DoorDash, Grubhub)
+  - By location tag (e.g., Corporate locations only)
+  - By date range (planned)
 
 ### Database Design (Drizzle ORM)
 
