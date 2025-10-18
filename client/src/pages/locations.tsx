@@ -4,7 +4,7 @@ import { DataTable } from "@/components/data-table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { PlatformBadge } from "@/components/platform-badge";
-import { CheckCircle2, AlertCircle, Link as LinkIcon } from "lucide-react";
+import { CheckCircle2, AlertCircle, Link as LinkIcon, Download } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import type { Location, LocationMatchSuggestion, LocationWeeklyFinancial } from "@shared/schema";
@@ -209,15 +209,76 @@ export default function LocationsPage() {
     );
   }
 
+  const handleExport = async (aggregation: "by-location" | "overview") => {
+    try {
+      const params = new URLSearchParams({ clientId: "capriottis", aggregation });
+      const response = await fetch(`/api/export/weekly-financials?${params}`);
+      
+      if (!response.ok) {
+        throw new Error("Export failed");
+      }
+      
+      // Get the filename from Content-Disposition header or use a default
+      const contentDisposition = response.headers.get('Content-Disposition');
+      const filename = contentDisposition 
+        ? contentDisposition.split('filename=')[1].replace(/"/g, '')
+        : `weekly-financials-${aggregation}-${new Date().toISOString().split('T')[0]}.csv`;
+      
+      // Download the file
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      
+      toast({
+        title: "Export successful",
+        description: `Downloaded ${filename}`,
+      });
+    } catch (error: any) {
+      toast({
+        title: "Export failed",
+        description: error.message || "Failed to export data",
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <div className="p-8 space-y-8" data-testid="page-locations">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight mb-2">
-          Location Management
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          Match and verify locations across delivery platforms
-        </p>
+      <div className="flex justify-between items-start">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight mb-2">
+            Location Management
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            Match and verify locations across delivery platforms
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => handleExport("overview")}
+            data-testid="button-export-overview"
+          >
+            <Download className="w-4 h-4 mr-2" />
+            Export Overview
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => handleExport("by-location")}
+            data-testid="button-export-by-location"
+          >
+            <Download className="w-4 h-4 mr-2" />
+            Export by Location
+          </Button>
+        </div>
       </div>
 
       {suggestions && suggestions.length > 0 && (
