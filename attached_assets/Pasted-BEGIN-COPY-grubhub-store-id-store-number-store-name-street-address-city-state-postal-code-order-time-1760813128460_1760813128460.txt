@@ -1,0 +1,154 @@
+BEGIN COPY
+grubhub_store_id,store_number,store_name,street_address,city,state,postal_code,order_time_zone
+10412264,AL443,Capriotti's Sandwich Shop,2003 Whitesburg Dr,Huntsville,AL,35801,America/Chicago
+7993648,443,Capriotti's Sandwich Shop,461 John Henry Way,Madison,AL,35758,America/Chicago
+2693236,AR196,Capriotti's Sandwich Shop,1406 S Walton Blvd,Bentonville,AR,72712,America/Chicago
+7504656,71,Capriotti's Sandwich Shop,3510 E Baseline Rd,Mesa,AZ,85204,America/Phoenix
+280851,AZ104,Capriotti's Sandwich Shop,4017 N Scottsdale Rd Ste 100,Scottsdale,AZ,85251,America/Phoenix
+280862,AZ081,Capriotti's Sandwich Shop,15227 N 87th St Ste 107,Scottsdale,AZ,85260,America/Phoenix
+7804952,482,Capriotti's Sandwich Shop,1830 E Broadway Blvd,Tucson,AZ,85719,America/Phoenix
+1251336,CA164,Capriotti's Sandwich Shop,9171 De Soto Ave Ste E,Chatsworth,CA,91311,America/Los_Angeles
+2745321,CA084,Capriotti's Sandwich Shop,5495 Sepulveda Blvd Ste H,Culver City,CA,90230,America/Los_Angeles
+3049327,,Capriotti's Sandwich Shop,14063 Limonite Ave,Eastvale,CA,92880,America/Los_Angeles
+7357056,Folsom East Bidwell,Capriotti's Sandwich Shop,3230 E Bidwell St,Folsom,CA,95630,America/Los_Angeles
+2598895,CA197,Capriotti's Sandwich Shop,5058 N Palm Ave,Fresno,CA,93704,America/Los_Angeles
+5452752,,Capriotti's Sandwich Shop,2888 E Shepherd Ave,Fresno,CA,93720,America/Los_Angeles
+7357064,CA 171,Capriotti's Sandwich Shop,4060 Douglas Blvd,Granite Bay,CA,95746,America/Los_Angeles
+11352080,CA100265,Capriotti's Sandwich Shop,12831 Moreno Beach Dr,Moreno Valley,CA,92555,America/Los_Angeles
+8229544,425,Capriotti's Sandwich Shop,920 N Haven Ave,Ontario,CA,91764,America/Los_Angeles
+8995856,377,Capriotti's Sandwich Shop,4041 Sunrise Blvd,Rancho Cordova,CA,95742,America/Los_Angeles
+10261416,451 Rancho Mirage,Capriotti's Sandwich Shop,36101 Bob Hope Dr,Rancho Mirage,CA,92270,America/Los_Angeles
+9713992,453,Capriotti's Sandwich Shop,9867 Magnolia Ave,Riverside,CA,92503,America/Los_Angeles
+4438128,,Capriotti's Sandwich Shop,791 Foothill Blvd,San Luis Obispo,CA,93405,America/Los_Angeles
+6924416,CA100455,Capriotti's Sandwich Shop,26889 Sierra Hwy,Santa Clarita,CA,91321,America/Los_Angeles
+5895160,,Capriotti's Sandwich Shop,27630 The Old Rd Pad C,Valencia,CA,91355,America/Los_Angeles
+9235576,236,Capriotti's Sandwich Shop,5715 Atrium Dr,Castle Rock,CO,80108,America/Denver
+7574072,389,Capriotti's Sandwich Shop,1286 Interquest Pkwy,Colorado Springs,CO,80920,America/Denver
+2876235,,Capriotti's Sandwich Shop,140 E Cheyenne Rd STE 110,Colorado Springs,CO,80906,America/Denver
+5896776,,Capriotti's Sandwich Shop,5856 Barnes Rd,Colorado Springs,CO,80922,America/Denver
+3293177,,Capriotti's Sandwich Shop,7939 E Arapahoe Rd,Greenwood Village,CO,80112,America/Denver
+9234080,229,Capriotti's Sandwich Shop,1100 Sergeant Jon Stiles Dr,Highlands Ranch,CO,80129,America/Denver
+9235568,326,Capriotti's Sandwich Shop,11153 S Parker Rd,Parker,CO,80134,America/Denver
+11194832,Enfield,Capriotti's Sandwich Shop,190 Elm St,Enfield,CT,06082,America/New_York
+1044845,DE009,Capriotti's Sandwich Shop,430 Eden Cir,Bear,DE,19701,America/New_York
+2262704,DE007,Capriotti's Sandwich Shop,321 Independence Blvd,Dover,DE,19904,America/New_York
+1947263,,Capriotti's Sandwich Shop,120 Lantana Dr,Hockessin,DE,19707,America/New_York
+2262404,DE020,Capriotti's Sandwich Shop,684 N Dupont Blvd,Milford,DE,19963,America/New_York
+3237659,,Capriotti's Sandwich Shop,25938 Plaza Drive,Millsboro,DE,19966,America/New_York
+1290816,DE003,Capriotti's Sandwich Shop,250 E Main St Ste 241,Newark,DE,19711,America/New_York
+1044849,,Capriotti's Sandwich Shop,4132 Ogletown Stanton Rd,Newark,DE,19713,America/New_York
+1472076,DE025,Capriotti's Sandwich Shop,456 W Glenwood Ave,Smyrna,DE,19977,America/New_York
+2765419,DE004,Capriotti's Sandwich Shop,2124 Silverside Rd,Wilmington,DE,19810,America/New_York
+3245958,,Capriotti's Sandwich Shop,5600 Concord Pike,Wilmington,DE,19803,America/New_York
+1472751,DE018,Capriotti's Sandwich Shop,4522 Kirkwood Hwy,Wilmington,DE,19808,America/New_York
+1472659,DE001,Capriotti's Sandwich Shop,510 N Union St,Wilmington,DE,19805,America/New_York
+1477229,,Capriotti's Sandwich Shop,708 West Basin Rd,Wilmington Manor,DE,19720,America/New_York
+7364896,404,Capriotti's Sandwich Shop,7480 Cortez Rd W,Bradenton,FL,34209,America/New_York
+3203833,,Capriotti's Sandwich Shop,1948 Collier Pkwy,Lutz,FL,33549,America/New_York
+2875563,,Capriotti's Sandwich Shop,12267 State Road 54,Odessa,FL,33556,America/New_York
+6190960,,Capriotti's Sandwich Shop,3817 Northdale Blvd,Tampa,FL,33618,America/New_York
+815979,,Capriotti's Sandwich Shop,777 Townpark Ln NW Ste 104,Kennesaw,GA,30144,America/New_York
+6358344,,Capriotti's Sandwich Shop,4210 Waialae Avenue unit 107,Honolulu,HI,96816,Pacific/Honolulu
+3216399,,Capriotti's Sandwich Shop,4640 1st Ave SE,Cedar Rapids,IA,52402,America/Chicago
+2289971,IA190,Capriotti's Sandwich Shop,13101 University Ave,Clive,IA,50325,America/Chicago
+1391102,IA069,Capriotti's Sandwich Shop,3016 E 53rd St,Davenport,IA,52807,America/Chicago
+6102728,,Capriotti's Sandwich Shop,2565 E 17th St. Suite #2,Ammon,ID,83406,America/Denver
+3231314,,Capriotti's Sandwich Shop,305 W Appleway Ave,Coeur d'Alene,ID,83815,America/Los_Angeles
+10773856,ID100461,Capriotti's Sandwich Shop,264 S Beck Rd,Post Falls,ID,83854,America/Los_Angeles
+10478816,Star,Capriotti's Sandwich Shop,200 N Highbrook Wy,Star,ID,83669,America/Denver
+10886048,Chicago,Capriotti's Sandwich Shop,850 W Superior St,Chicago,IL,60642,America/Chicago
+3293327,12,Capriotti's Sandwich Shop,1730 W Fullerton Ave,Chicago,IL,60614,America/Chicago
+7044336,CAP IL 206,Capriotti's Sandwich Shop Catering,1730 W Fullerton Ave,Chicago,IL,60614,America/Chicago
+5200176,,Capriotti's Sandwich Shop,902 Roby Dr,Hammond,IN,46320,America/Chicago
+1245976,IN144,Capriotti's Sandwich Shop,5320 E 82nd St Ste 105,Indianapolis,IN,46250,America/New_York
+4390440,,Capriotti's Sandwich Shop,11100 North Michigan RoadSTE 103,Zionsville,IN,46077,America/New_York
+5258464,,Capriotti's Sandwich Shop,11902 W 119th St,Overland Park,KS,66210,America/Chicago
+1256603,MD118,Capriotti's Sandwich Shop,2285 Forest Dr,Annapolis,MD,21401,America/New_York
+3354735,,Capriotti's Sandwich Shop,18B Bel Air S Pkwy,Bel Air,MD,21015,America/New_York
+2710087,MD086,Capriotti's Sandwich Shop,106 Marlboro Ave,Easton,MD,21601,America/New_York
+2745349,MD013,Capriotti's Sandwich Shop,202 S Bridge St,Elkton,MD,21921,America/New_York
+5119424,,Capriotti's Sandwich Shop,887 Maryland 3, STE 400,Gambrills,MD,21054,America/New_York
+4703752,,Capriotti's Sandwich Shop,8036 Ritchie HighwaySuite 1D-2,Pasadena,MD,21122,America/New_York
+11285352,Anoka,Capriotti's Sandwich Shop,601 E Main St,Anoka,MN,55303,America/Chicago
+3195789,,Capriotti's Sandwich Shop,10406 NE Cookingham Dr,Kansas City,MO,64157,America/Chicago
+7715600,412,Capriotti's Sandwich Shop,9532 Manchester Rd,St. Louis,MO,63119,America/Chicago
+11448488,Pearl Riverwind East,Capriotti's Sandwich Shop,190 Riverwind E Dr,Pearl,MS,39208,America/Chicago
+6099744,,Capriotti's Sandwich Shop,2040 Freeman Park Drive,Charlotte,NC,28273,America/New_York
+7874720,407,Capriotti's Sandwich Shop,4323 Park Rd,Charlotte,NC,28209,America/New_York
+12040168,Marlton,Capriotti's Sandwich Shop,1041 NJ-73,Evesham,NJ,08053,America/New_York
+10374016,NJ100463,Capriotti's Sandwich Shop,301 N Harrison St,Princeton,NJ,08540,America/New_York
+1026823,NV048,Capriotti's Sandwich Shop,1010 Nevada Way,Boulder City,NV,89005,America/Los_Angeles
+7619600,191,Capriotti's Sandwich Shop,2190 E William St,Carson City,NV,89701,America/Los_Angeles
+1026776,NV040,Capriotti's Sandwich Shop,90 S Stephanie St,Henderson,NV,89012,America/Los_Angeles
+1278529,NV103,Capriotti's Sandwich Shop,170 N Boulder Hwy,Henderson,NV,89015,America/Los_Angeles
+1026731,NV034,Capriotti's Sandwich Shop,11155 S Eastern Ave,Henderson,NV,89052,America/Los_Angeles
+1278532,NV051,Capriotti's Sandwich Shop,771 E Horizon Dr Ste 128,Henderson,NV,89015,America/Los_Angeles
+321666,NV062,Capriotti's Sandwich Shop,2300 Paseo Verde Pkwy,Henderson,NV,89052,America/Los_Angeles
+2421104,,Capriottis Sandwich Shop,3455 St Rose Pkwy,Henderson,NV,89052,America/Los_Angeles
+695584,NV139,Capriotti's Sandwich Shop,7540 Oso Blanca Rd,Las Vegas,NV,89149,America/Los_Angeles
+311881,NV031,Capriotti's Sandwich Shop,1311 W. Craig Road, E,Las Vegas,NV,89032,America/Los_Angeles
+1414782,NV059,Capriotti's Sandwich Shop,11350 Southern Highlands Pkwy,Las Vegas,NV,89141,America/Los_Angeles
+384341,NV041,Capriotti's Sandwich Shop,1200 N Town Center Dr,Las Vegas,NV,89144,America/Los_Angeles
+321675,NV056,Capriotti's Sandwich Shop,325 N Nellis Blvd Ste 120,Las Vegas,NV,89110,America/Los_Angeles
+321680,NV049,Capriotti's Sandwich Shop,6965 S Rainbow Blvd Ste 104,Las Vegas,NV,89118,America/Los_Angeles
+384541,NV024,Capriotti's Sandwich Shop,3830 E Flamingo St,Las Vegas,NV,89121,America/Los_Angeles
+1257294,NV023,Capriotti's Sandwich Shop,4983 W Flamingo Rd Ste D,Las Vegas,NV,89103,America/Los_Angeles
+705371,NV026,Capriotti's Sandwich Shop,7291 S Eastern Ave Ste F,Las Vegas,NV,89119,America/Los_Angeles
+695568,NV021,Capriotti's Sandwich Shop,7440 W Cheyenne Ave Ste 101,Las Vegas,NV,89128,America/Los_Angeles
+7806768,478,Capriotti's Sandwich Shop,7720 S Las Vegas Blvd,Las Vegas,NV,89123,America/Los_Angeles
+321876,NV075,Capriotti's Sandwich Shop,4949 N Rancho Dr,Las Vegas,NV,89130,America/Los_Angeles
+8585264,NV019,Capriotti's Sandwich Shop,6340 W Charleston Blvd,Las Vegas,NV,89146,America/Los_Angeles
+1026872,NV142,Capriotti's Sandwich Shop,5020 Blue Diamond Rd,Las Vegas,NV,89139,America/Los_Angeles
+695705,NV147,Capriotti's Sandwich Shop,3355 Novat St Ste 150,Las Vegas,NV,89129,America/Los_Angeles
+1257296,NV043,Capriotti's Sandwich Shop,7240 W Azure Dr Ste 155,Las Vegas,NV,89130,America/Los_Angeles
+10474496,NV100486,Capriotti's Sandwich Shop,3720 Sunset Rd,Las Vegas,NV,89120,America/Los_Angeles
+1013073,NV022,Capriotti's Sandwich Shop,8450 W Sahara Ave Ste 116,Las Vegas,NV,89117,America/Los_Angeles
+321694,NV035,Capriotti's Sandwich Shop,4825 S Fort Apache Rd Ste K,Las Vegas,NV,89147,America/Los_Angeles
+321427,NV044,Capriotti's Sandwich Shop,11011 W Charleston Blvd,Las Vegas,NV,89135,America/Los_Angeles
+1026827,NV058,Capriotti's Sandwich Shop,8090 Blue Diamond Rd,Las Vegas,NV,89178,America/Los_Angeles
+3285348,,Capriotti's Sandwich Shop,4111 Boulder Hwy,Las Vegas,NV,89121,America/Los_Angeles
+1278416,NV036,Capriotti's Sandwich Shop,9620 Las Vegas Blvd S Ste E5,Las Vegas,NV,89123,America/Los_Angeles
+516741,NV028,Capriotti's Sandwich Shop,4480 Paradise Rd,Las Vegas,NV,89169,America/Los_Angeles
+1278614,NV008,Capriotti's Sandwich Shop,322 W Sahara Ave,Las Vegas,NV,89102,America/Los_Angeles
+1278731,NV121,Capriotti's Sandwich Shop,11010 Lavender Hill Dr Ste 160,Las Vegas,NV,89135,America/Los_Angeles
+1945745,,Capriottis Sandwich Shop,1122 S Maryland Pkwy,Las Vegas,NV,89104,America/Los_Angeles
+1407053,NV126,Capriotti's Sandwich Shop,2620 Nature Park Dr,North Las Vegas,NV,89084,America/Los_Angeles
+347944,NV055,Capriotti's Sandwich Shop,7300 N Aliante Pkwy,North Las Vegas,NV,89084,America/Los_Angeles
+1278807,,Capriotti’s Sandwich Shop,3820 E Craig Rd,North Las Vegas,NV,89030,America/Los_Angeles
+1414880,NV079,Capriotti's Sandwich Shop,810 N Sierra St,Reno,NV,89503,America/Los_Angeles
+7619608,152,Capriotti's Sandwich Shop,1280 E Plumb Ln,Reno,NV,89502,America/Los_Angeles
+1408880,NV067,Capriotti's Sandwich Shop,5140 Kietzke Lne,Reno,NV,89511,America/Los_Angeles
+2051422,NV054,Capriotti's Sandwich Shop,1530 S Stanford Way Ste B,Sparks,NV,89431,America/Los_Angeles
+9232784,467,Capriotti's Sandwich Shop,142 Los Altos Pkwy,Sparks,NV,89436,America/Los_Angeles
+3293431,268,Capriotti's Sandwich Shop,373 Smithtown Bypass,Hauppauge,NY,11788,America/New_York
+6879672,419,Capriotti's Sandwich Shop,6442 S Raccoon Rd,Canfield,OH,44406,America/New_York
+10859640,Warren,Capriotti's Sandwich Shop,2484 Niles Cortland Rd SE,Warren,OH,44484,America/New_York
+2794757,OK213,Capriotti's Sandwich Shop,915 E Kenosha Street,Broken Arrow,OK,74012,America/Chicago
+5579360,,Capriotti's Sandwich Shop,8115 S Olympia Ave W,Tulsa,OK,74132,America/Chicago
+3354463,230,Capriotti's Sandwich Shop,13140 Southeast 172nd Avenue #134,Happy Valley,OR,97086,America/Los_Angeles
+2472962,,Capriotti’s Sandwich Shop,2818 NE Halsey Street Portland,Portland,OR,97232,America/Los_Angeles
+3217317,,Capriotti's Sandwich Shop,5585 Hamilton Blvd,Allentown,PA,18106,America/New_York
+5174904,,Capriotti's Sandwich Shop,10 St Francis Way Ste. 10,Cranberry Township,PA,16066,America/New_York
+10478888,PA100505,Capriotti's Sandwich Shop,1086 E Lancaster Ave,Downingtown,PA,19335,America/New_York
+3235323,PA014,Capriotti's Sandwich Shop,301 Byers Dr,Glen Mills,PA,19342,America/New_York
+5182088,,Capriotti's Sandwich Shop,467 N Sumneytown Pike Building B Unit 302,North Wales,PA,19454,America/New_York
+2650804,PA220,Capriotti's Sandwich Shop,1814 E Ridge Pike,Royersford,PA,19468,America/New_York
+2710456,PA080,Capriotti's Sandwich Shop,141 S State Rd,Springfield,PA,19064,America/New_York
+3265301,PA016,Capriotti's Sandwich Shop,607 E Market St,West Chester,PA,19382,America/New_York
+1426018,PA032,Capriotti's Sandwich Shop,827 W Baltimore Pike,West Grove,PA,19390,America/New_York
+2855912,SC237,Capriotti's Sandwich Shop,810 Brayden Parkway suite 103,Fort Mill,SC,29708,America/New_York
+1191660,SD162,Capriotti's Sandwich Shop,2504 S Marion Rd,Sioux Falls,SD,57106,America/Chicago
+2728250,SD187,Capriotti's Sandwich Shop,3617 W Avera Dr,Sioux Falls,SD,57108,America/Chicago
+8500656,100444,Capriotti's Sandwich Shop,3655 Catclaw Dr,Abilene,TX,79606,America/Chicago
+3278768,,Capriotti's Sandwich Shop,505 University Drive East,College Station,TX,77840,America/Chicago
+5216440,,Capriotti's Sandwich Shop,801 International Parkway Suite 530,Flower Mound,TX,75022,America/Chicago
+11584616,Frisco,Capriotti's Sandwich Shop,1612 FM 423,Frisco,TX,75034,America/Chicago
+8844736,380,Capriotti's Sandwich Shop,3194 W University Dr,McKinney,TX,75071,America/Chicago
+1040127,UT155,Capriotti's Sandwich Shop,1881 W Traverse Pkwy,Lehi,UT,84043,America/Denver
+3055744,UT154,Capriotti's Sandwich Shop,6002 S State St,Murray,UT,84107,America/Denver
+3056607,UT156,Capriotti's Sandwich Shop,4608 W Partridge Hill Ln,Riverton,UT,84065,America/Denver
+1296584,UT108,Capriotti's Sandwich Shop,250 Red Cliffs Dr,St. George,UT,84790,America/Denver
+3055831,UT132,Capriotti's Sandwich Shop,2569 S 5600 W #350,West Valley,UT,84120,America/Denver
+7910688,355,Capriotti's Sandwich Shop,2203 Plank Rd,Fredericksburg,VA,22401,America/New_York
+5524352,,Capriotti's Sandwich Shop,3951 Brambleton Avenue Southwest,Roanoke,VA,24018,America/New_York
+END COPY
