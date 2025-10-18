@@ -1,16 +1,17 @@
 import { useState } from "react";
 import { FileUploadZone } from "@/components/file-upload-zone";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { Upload, CheckCircle2 } from "lucide-react";
+import { Upload, CheckCircle2, TrendingUp } from "lucide-react";
 import type { Client } from "@shared/schema";
 
 type Platform = "ubereats" | "doordash" | "grubhub";
+type MarketingDataType = "doordash-promotions" | "doordash-ads" | "uber-campaigns" | "uber-offers";
 
 export default function UploadPage() {
   const [selectedFiles, setSelectedFiles] = useState<Record<Platform, File | null>>({
@@ -19,6 +20,8 @@ export default function UploadPage() {
     grubhub: null,
   });
   const [selectedClient, setSelectedClient] = useState<string>("");
+  const [marketingFile, setMarketingFile] = useState<File | null>(null);
+  const [marketingDataType, setMarketingDataType] = useState<MarketingDataType | "">("");
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -97,6 +100,64 @@ export default function UploadPage() {
       ubereats: null,
       doordash: null,
       grubhub: null,
+    });
+  };
+
+  const uploadMarketingMutation = useMutation({
+    mutationFn: async ({ file, dataType, clientId }: { file: File; dataType: MarketingDataType; clientId: string }) => {
+      const formData = new FormData();
+      formData.append("file", file);
+      
+      // Parse platform and dataType from combined selection
+      const [platform, type] = dataType.split("-");
+      formData.append("platform", platform);
+      formData.append("dataType", type);
+      formData.append("clientId", clientId);
+
+      return apiRequest("POST", "/api/upload/marketing", formData);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Marketing data uploaded",
+        description: "Campaign performance data imported successfully",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/analytics/promotions"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/analytics/paid-ads"] });
+      setMarketingFile(null);
+      setMarketingDataType("");
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Upload failed",
+        description: error.message || "Failed to process marketing data",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleMarketingUpload = async () => {
+    if (!selectedClient) {
+      toast({
+        title: "Client required",
+        description: "Please select a client before uploading",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!marketingFile || !marketingDataType) {
+      toast({
+        title: "Missing information",
+        description: "Please select both a data type and a file",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    await uploadMarketingMutation.mutateAsync({
+      file: marketingFile,
+      dataType: marketingDataType,
+      clientId: selectedClient,
     });
   };
 
@@ -179,6 +240,125 @@ export default function UploadPage() {
             </>
           )}
         </Button>
+      </div>
+
+      <div className="border-t pt-8">
+        <div className="mb-6">
+          <h2 className="text-xl font-semibold tracking-tight mb-2 flex items-center gap-2">
+            <TrendingUp className="w-5 h-5" />
+            Marketing Data Upload
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            Import campaign performance data from promotions and paid advertising
+          </p>
+        </div>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Select Data Type</CardTitle>
+            <CardDescription>
+              Choose the type of marketing data you're uploading
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="space-y-2 max-w-md">
+              <Label htmlFor="marketing-type-select">Data Type</Label>
+              <Select value={marketingDataType} onValueChange={(val) => setMarketingDataType(val as MarketingDataType)}>
+                <SelectTrigger id="marketing-type-select" data-testid="select-marketing-type">
+                  <SelectValue placeholder="Choose data type..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="doordash-promotions" data-testid="option-type-doordash-promotions">
+                    DoorDash - Promotions
+                  </SelectItem>
+                  <SelectItem value="doordash-ads" data-testid="option-type-doordash-ads">
+                    DoorDash - Paid Ads
+                  </SelectItem>
+                  <SelectItem value="uber-campaigns" data-testid="option-type-uber-campaigns">
+                    Uber Eats - Campaign Location Data
+                  </SelectItem>
+                  <SelectItem value="uber-offers" data-testid="option-type-uber-offers">
+                    Uber Eats - Offers & Campaigns
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {marketingDataType && (
+              <div className="space-y-2">
+                <Label>Upload CSV File</Label>
+                <div
+                  className="border-2 border-dashed rounded-lg p-8 text-center hover-elevate cursor-pointer transition-colors"
+                  onClick={() => document.getElementById("marketing-file-input")?.click()}
+                  data-testid="zone-marketing-upload"
+                >
+                  <input
+                    id="marketing-file-input"
+                    type="file"
+                    accept=".csv"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) setMarketingFile(file);
+                    }}
+                    data-testid="input-marketing-file"
+                  />
+                  {marketingFile ? (
+                    <div className="space-y-2">
+                      <CheckCircle2 className="w-8 h-8 mx-auto text-success" />
+                      <p className="font-medium">{marketingFile.name}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {(marketingFile.size / 1024).toFixed(2)} KB
+                      </p>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setMarketingFile(null);
+                        }}
+                        data-testid="button-clear-marketing-file"
+                      >
+                        Clear
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <Upload className="w-8 h-8 mx-auto text-muted-foreground" />
+                      <p className="font-medium">Drop CSV file here or click to browse</p>
+                      <p className="text-sm text-muted-foreground">
+                        Upload your {marketingDataType.replace("-", " ")} CSV file
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {marketingFile && marketingDataType && (
+              <div className="flex justify-end">
+                <Button
+                  size="lg"
+                  onClick={handleMarketingUpload}
+                  disabled={uploadMarketingMutation.isPending}
+                  data-testid="button-upload-marketing"
+                >
+                  {uploadMarketingMutation.isPending ? (
+                    <>
+                      <Upload className="w-4 h-4 mr-2 animate-spin" />
+                      Processing...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 className="w-4 h-4 mr-2" />
+                      Upload Marketing Data
+                    </>
+                  )}
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

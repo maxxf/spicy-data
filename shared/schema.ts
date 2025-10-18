@@ -79,6 +79,7 @@ export const grubhubTransactions = pgTable("grubhub_transactions", {
 
 export const promotions = pgTable("promotions", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  campaignId: varchar("campaign_id"), // External campaign ID from platform
   clientId: varchar("client_id").notNull().references(() => clients.id),
   name: text("name").notNull(),
   platforms: text("platforms").array().notNull(),
@@ -93,6 +94,7 @@ export const promotions = pgTable("promotions", {
 
 export const paidAdCampaigns = pgTable("paid_ad_campaigns", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  campaignId: varchar("campaign_id"), // External campaign ID from platform
   clientId: varchar("client_id").notNull().references(() => clients.id),
   name: text("name").notNull(),
   platform: text("platform").notNull(),
@@ -112,6 +114,32 @@ export const paidAdCampaigns = pgTable("paid_ad_campaigns", {
   roas: real("roas").default(0).notNull(),
   cpa: real("cpa").default(0).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Campaign location metrics - stores location-level performance for campaigns
+export const campaignLocationMetrics = pgTable("campaign_location_metrics", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  campaignId: varchar("campaign_id").notNull(),
+  campaignType: text("campaign_type").notNull(), // 'promotion' or 'paid_ad'
+  clientId: varchar("client_id").notNull().references(() => clients.id),
+  locationId: varchar("location_id").references(() => locations.id),
+  locationName: text("location_name").notNull(),
+  platform: text("platform").notNull(),
+  dateStart: text("date_start"),
+  dateEnd: text("date_end"),
+  impressions: integer("impressions").default(0),
+  clicks: integer("clicks").default(0),
+  orders: integer("orders").default(0).notNull(),
+  revenue: real("revenue").default(0).notNull(),
+  spend: real("spend").default(0).notNull(),
+  discount: real("discount").default(0),
+  roas: real("roas").default(0),
+  ctr: real("ctr").default(0),
+  conversionRate: real("conversion_rate").default(0),
+  cpc: real("cpc").default(0),
+  cpa: real("cpa").default(0),
+  newCustomers: integer("new_customers").default(0),
+  uploadedAt: timestamp("uploaded_at").defaultNow().notNull(),
 });
 
 // Insert schemas
@@ -150,6 +178,11 @@ export const insertPaidAdCampaignSchema = createInsertSchema(paidAdCampaigns).om
   createdAt: true,
 });
 
+export const insertCampaignLocationMetricSchema = createInsertSchema(campaignLocationMetrics).omit({
+  id: true,
+  uploadedAt: true,
+});
+
 // TypeScript types
 export type Client = typeof clients.$inferSelect;
 export type InsertClient = z.infer<typeof insertClientSchema>;
@@ -171,6 +204,9 @@ export type InsertPromotion = z.infer<typeof insertPromotionSchema>;
 
 export type PaidAdCampaign = typeof paidAdCampaigns.$inferSelect;
 export type InsertPaidAdCampaign = z.infer<typeof insertPaidAdCampaignSchema>;
+
+export type CampaignLocationMetric = typeof campaignLocationMetrics.$inferSelect;
+export type InsertCampaignLocationMetric = z.infer<typeof insertCampaignLocationMetricSchema>;
 
 // Analytics types
 export type PlatformMetrics = {

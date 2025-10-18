@@ -15,6 +15,8 @@ import {
   type PaidAdCampaign,
   type InsertPaidAdCampaign,
   type PaidAdCampaignMetrics,
+  type CampaignLocationMetric,
+  type InsertCampaignLocationMetric,
   type DashboardOverview,
   type LocationMetrics,
   type PlatformMetrics,
@@ -56,6 +58,7 @@ export interface IStorage {
 
   createPromotion(promotion: InsertPromotion): Promise<Promotion>;
   getPromotion(id: string): Promise<Promotion | undefined>;
+  getPromotionByCampaignId(campaignId: string): Promise<Promotion | undefined>;
   getAllPromotions(clientId?: string): Promise<Promotion[]>;
   updatePromotion(id: string, updates: Partial<InsertPromotion>): Promise<Promotion | undefined>;
   deletePromotion(id: string): Promise<boolean>;
@@ -63,10 +66,15 @@ export interface IStorage {
 
   createPaidAdCampaign(campaign: InsertPaidAdCampaign): Promise<PaidAdCampaign>;
   getPaidAdCampaign(id: string): Promise<PaidAdCampaign | undefined>;
+  getPaidAdCampaignByCampaignId(campaignId: string): Promise<PaidAdCampaign | undefined>;
   getAllPaidAdCampaigns(clientId?: string): Promise<PaidAdCampaign[]>;
   updatePaidAdCampaign(id: string, updates: Partial<InsertPaidAdCampaign>): Promise<PaidAdCampaign | undefined>;
   deletePaidAdCampaign(id: string): Promise<boolean>;
   getPaidAdCampaignMetrics(clientId?: string): Promise<PaidAdCampaignMetrics[]>;
+
+  createCampaignLocationMetric(metric: InsertCampaignLocationMetric): Promise<CampaignLocationMetric>;
+  getCampaignLocationMetrics(clientId?: string): Promise<CampaignLocationMetric[]>;
+  getCampaignLocationMetricByKey(campaignId: string, locationId: string | null, dateStart: string | null): Promise<CampaignLocationMetric | undefined>;
 }
 
 export class MemStorage implements IStorage {
@@ -77,6 +85,7 @@ export class MemStorage implements IStorage {
   private grubhubTransactions: Map<string, GrubhubTransaction>;
   private promotions: Map<string, Promotion>;
   private paidAdCampaigns: Map<string, PaidAdCampaign>;
+  private campaignLocationMetrics: Map<string, CampaignLocationMetric>;
 
   constructor() {
     this.clients = new Map();
@@ -86,6 +95,7 @@ export class MemStorage implements IStorage {
     this.grubhubTransactions = new Map();
     this.promotions = new Map();
     this.paidAdCampaigns = new Map();
+    this.campaignLocationMetrics = new Map();
     
     // Add demo clients
     const demoClients: Client[] = [
@@ -404,6 +414,10 @@ export class MemStorage implements IStorage {
     return this.promotions.get(id);
   }
 
+  async getPromotionByCampaignId(campaignId: string): Promise<Promotion | undefined> {
+    return Array.from(this.promotions.values()).find(p => p.campaignId === campaignId);
+  }
+
   async getAllPromotions(clientId?: string): Promise<Promotion[]> {
     const allPromotions = Array.from(this.promotions.values());
     if (clientId) {
@@ -455,6 +469,10 @@ export class MemStorage implements IStorage {
     return this.paidAdCampaigns.get(id);
   }
 
+  async getPaidAdCampaignByCampaignId(campaignId: string): Promise<PaidAdCampaign | undefined> {
+    return Array.from(this.paidAdCampaigns.values()).find(c => c.campaignId === campaignId);
+  }
+
   async getAllPaidAdCampaigns(clientId?: string): Promise<PaidAdCampaign[]> {
     const allCampaigns = Array.from(this.paidAdCampaigns.values());
     if (clientId) {
@@ -478,6 +496,45 @@ export class MemStorage implements IStorage {
 
   async getPaidAdCampaignMetrics(clientId?: string): Promise<PaidAdCampaignMetrics[]> {
     return await this.getAllPaidAdCampaigns(clientId);
+  }
+
+  async createCampaignLocationMetric(insertMetric: InsertCampaignLocationMetric): Promise<CampaignLocationMetric> {
+    const id = randomUUID();
+    const metric: CampaignLocationMetric = { 
+      ...insertMetric, 
+      id, 
+      uploadedAt: new Date(),
+      impressions: insertMetric.impressions ?? 0,
+      clicks: insertMetric.clicks ?? 0,
+      discount: insertMetric.discount ?? 0,
+      roas: insertMetric.roas ?? 0,
+      ctr: insertMetric.ctr ?? 0,
+      conversionRate: insertMetric.conversionRate ?? 0,
+      cpc: insertMetric.cpc ?? 0,
+      cpa: insertMetric.cpa ?? 0,
+      newCustomers: insertMetric.newCustomers ?? 0,
+      dateStart: insertMetric.dateStart ?? null,
+      dateEnd: insertMetric.dateEnd ?? null,
+      locationId: insertMetric.locationId ?? null,
+    };
+    this.campaignLocationMetrics.set(id, metric);
+    return metric;
+  }
+
+  async getCampaignLocationMetrics(clientId?: string): Promise<CampaignLocationMetric[]> {
+    const allMetrics = Array.from(this.campaignLocationMetrics.values());
+    if (clientId) {
+      return allMetrics.filter(m => m.clientId === clientId);
+    }
+    return allMetrics;
+  }
+
+  async getCampaignLocationMetricByKey(campaignId: string, locationId: string | null, dateStart: string | null): Promise<CampaignLocationMetric | undefined> {
+    return Array.from(this.campaignLocationMetrics.values()).find(
+      m => m.campaignId === campaignId && 
+           m.locationId === locationId && 
+           m.dateStart === dateStart
+    );
   }
 }
 

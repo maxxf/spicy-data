@@ -248,43 +248,45 @@ export default function Dashboard() {
         />
       </div>
 
-      {/* Portfolio-Level Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <MetricCard
-          label="Portfolio Sales"
-          value={overview?.totalSales || 0}
-          format="currency"
-          icon={<DollarSign className="w-5 h-5" />}
-          change={6.8}
-          changeLabel="vs. previous period"
-          data-testid="metric-portfolio-sales"
-        />
-        <MetricCard
-          label="Active Clients"
-          value={clientPerformance?.length || 0}
-          format="number"
-          icon={<Users className="w-5 h-5" />}
-          subtitle="All performing"
-          data-testid="metric-active-clients"
-        />
-        <MetricCard
-          label="Portfolio ROAS"
-          value={overview?.blendedRoas || 0}
-          format="multiplier"
-          icon={<Target className="w-5 h-5" />}
-          change={5.6}
-          changeLabel="vs. previous"
-          data-testid="metric-portfolio-roas"
-        />
-        <MetricCard
-          label="Net Payout Rate"
-          value={overview?.netPayoutPercent || 0}
-          format="percent"
-          icon={<Percent className="w-5 h-5" />}
-          subtitle="weighted average"
-          data-testid="metric-net-payout-rate"
-        />
-      </div>
+      {/* Portfolio-Level Metrics - Only shown in "All Clients" view */}
+      {isPortfolioView && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <MetricCard
+            label="Portfolio Sales"
+            value={overview?.totalSales || 0}
+            format="currency"
+            icon={<DollarSign className="w-5 h-5" />}
+            change={6.8}
+            changeLabel="vs. previous period"
+            data-testid="metric-portfolio-sales"
+          />
+          <MetricCard
+            label="Active Clients"
+            value={clientPerformance?.length || 0}
+            format="number"
+            icon={<Users className="w-5 h-5" />}
+            subtitle="All performing"
+            data-testid="metric-active-clients"
+          />
+          <MetricCard
+            label="Portfolio ROAS"
+            value={overview?.blendedRoas || 0}
+            format="multiplier"
+            icon={<Target className="w-5 h-5" />}
+            change={5.6}
+            changeLabel="vs. previous"
+            data-testid="metric-portfolio-roas"
+          />
+          <MetricCard
+            label="Net Payout Rate"
+            value={overview?.netPayoutPercent || 0}
+            format="percent"
+            icon={<Percent className="w-5 h-5" />}
+            subtitle="weighted average"
+            data-testid="metric-net-payout-rate"
+          />
+        </div>
+      )}
 
       {/* Key Performance Indicators */}
       <Card>

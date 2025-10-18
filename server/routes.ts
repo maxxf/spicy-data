@@ -215,6 +215,372 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Helper function to upsert campaign location metrics (prevent duplicates on re-upload)
+  async function upsertCampaignLocationMetric(metric: InsertCampaignLocationMetric) {
+    const existing = await storage.getCampaignLocationMetricByKey(
+      metric.campaignId,
+      metric.locationId ?? null,
+      metric.dateStart ?? null
+    );
+    
+    if (existing) {
+      // Metric already exists for this campaign/location/date, skip it
+      return existing;
+    }
+    
+    return await storage.createCampaignLocationMetric(metric);
+  }
+
+  // Marketing data upload endpoint
+  app.post("/api/upload/marketing", upload.single("file"), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: "No file uploaded" });
+      }
+
+      const { platform, clientId, dataType } = req.body;
+      
+      if (!platform || !clientId || !dataType) {
+        return res.status(400).json({ error: "Platform, clientId, and dataType are required" });
+      }
+
+      const rows = parseCSV(req.file.buffer);
+      let processedCount = 0;
+      const campaignsProcessed = new Map<string, { name: string; type: string; startDate: string; endDate: string | null; totals: { orders: number; revenue: number; spend: number; discount: number; newCustomers: number } }>();
+
+      if (platform === "doordash" && dataType === "promotions") {
+        // DoorDash Promotions CSV
+        for (const row of rows) {
+          const campaignId = row["Campaign Id"];
+          const campaignName = row["Campaign Name"] || `Campaign ${campaignId}`;
+          const startDate = row["Campaign Start Date"];
+          const endDate = row["Campaign End Date"] === "None" ? null : row["Campaign End Date"];
+          
+          const locationId = await findOrCreateLocation(clientId, row["Store Name"], "doordash");
+          
+          const revenue = parseFloat(row["Sales"]) || 0;
+          const spend = parseFloat(row["Marketing Fees | (Including any applicable taxes)"]) || 0;
+          const discount = parseFloat(row["Customer Discounts from Marketing | (Funded by you)"]) || 0;
+          const orders = parseInt(row["Orders"]) || 0;
+          const roas = parseFloat(row["ROAS"]) || 0;
+          const newCustomers = parseInt(row["New Cx Acquired"]) || 0;
+          
+          // Aggregate campaign-level totals
+          if (!campaignsProcessed.has(campaignId)) {
+            campaignsProcessed.set(campaignId, {
+              name: campaignName,
+              type: "promotion",
+              startDate,
+              endDate,
+              totals: { orders: 0, revenue: 0, spend: 0, discount: 0, newCustomers: 0 }
+            });
+          }
+          const campaign = campaignsProcessed.get(campaignId)!;
+          campaign.totals.orders += orders;
+          campaign.totals.revenue += revenue;
+          campaign.totals.spend += spend;
+          campaign.totals.discount += discount;
+          campaign.totals.newCustomers += newCustomers;
+          
+          // Store location-level metrics (upsert to prevent duplicates)
+          await upsertCampaignLocationMetric({
+            campaignId,
+            campaignType: "promotion",
+            clientId,
+            locationId,
+            locationName: row["Store Name"],
+            platform: "doordash",
+            dateStart: startDate,
+            dateEnd: endDate,
+            orders,
+            revenue,
+            spend,
+            discount,
+            roas,
+            newCustomers,
+          });
+          
+          processedCount++;
+        }
+        
+        // Create promotion records
+        for (const [campaignId, data] of campaignsProcessed) {
+          const existing = await storage.getPromotionByCampaignId(campaignId);
+          if (!existing) {
+            await storage.createPromotion({
+              campaignId,
+              name: data.name,
+              clientId,
+              platforms: ["doordash"],
+              type: data.type,
+              status: "active",
+              startDate: data.startDate,
+              endDate: data.endDate,
+              discountPercent: null,
+              discountAmount: data.totals.discount > 0 ? data.totals.discount : null,
+            });
+          }
+        }
+      } else if (platform === "doordash" && dataType === "ads") {
+        // DoorDash Ads CSV - Paid Ad Campaigns
+        const adCampaignsData = new Map<string, { name: string; startDate: string; endDate: string | null; totals: { impressions: number; clicks: number; orders: number; revenue: number; spend: number; cpa: number } }>();
+        
+        for (const row of rows) {
+          const campaignId = row["Campaign Id"];
+          const campaignName = row["Campaign Name"] || `Ad Campaign ${campaignId}`;
+          const startDate = row["Campaign Start Date"];
+          const endDate = row["Campaign End Date"] === "None" ? null : row["Campaign End Date"];
+          
+          const locationId = await findOrCreateLocation(clientId, row["Store Name"], "doordash");
+          
+          const clicks = parseInt(row["Clicks"]) || 0;
+          const orders = parseInt(row["Orders"]) || 0;
+          const revenue = parseFloat(row["Sales"]) || 0;
+          const spend = parseFloat(row["Marketing Fees | (Including any applicable taxes)"]) || 0;
+          const roas = parseFloat(row["ROAS"]) || 0;
+          const cpa = parseFloat(row["Average CPA"]) || 0;
+          const newCustomers = parseInt(row["New Cx Acquired"]) || 0;
+          
+          // Aggregate campaign-level totals
+          if (!adCampaignsData.has(campaignId)) {
+            adCampaignsData.set(campaignId, {
+              name: campaignName,
+              startDate,
+              endDate,
+              totals: { impressions: 0, clicks: 0, orders: 0, revenue: 0, spend: 0, cpa: 0 }
+            });
+          }
+          const campaign = adCampaignsData.get(campaignId)!;
+          campaign.totals.clicks += clicks;
+          campaign.totals.orders += orders;
+          campaign.totals.revenue += revenue;
+          campaign.totals.spend += spend;
+          if (cpa > 0) campaign.totals.cpa = cpa; // Use last seen CPA value
+          
+          await upsertCampaignLocationMetric({
+            campaignId,
+            campaignType: "paid_ad",
+            clientId,
+            locationId,
+            locationName: row["Store Name"],
+            platform: "doordash",
+            dateStart: startDate,
+            dateEnd: endDate,
+            clicks,
+            orders,
+            revenue,
+            spend,
+            roas,
+            cpa,
+            newCustomers,
+          });
+          
+          processedCount++;
+        }
+        
+        // Create paid ad campaign records
+        for (const [campaignId, data] of adCampaignsData) {
+          const existing = await storage.getPaidAdCampaignByCampaignId(campaignId);
+          if (!existing) {
+            await storage.createPaidAdCampaign({
+              campaignId,
+              name: data.name,
+              clientId,
+              platform: "doordash",
+              type: "paid_ad",
+              status: "active",
+              startDate: data.startDate,
+              endDate: data.endDate,
+              budget: null,
+              impressions: data.totals.impressions,
+              clicks: data.totals.clicks,
+              ctr: data.totals.clicks / (data.totals.impressions || 1),
+              cpc: data.totals.spend / (data.totals.clicks || 1),
+              orders: data.totals.orders,
+              conversionRate: (data.totals.orders / (data.totals.clicks || 1)) * 100,
+              spend: data.totals.spend,
+              revenue: data.totals.revenue,
+              roas: data.totals.revenue / (data.totals.spend || 1),
+              cpa: data.totals.cpa,
+            });
+          }
+        }
+      } else if (platform === "uber" && dataType === "campaigns") {
+        // Uber Campaign Location CSV - Paid Ad Campaigns
+        const uberCampaignsData = new Map<string, { name: string; startDate: string; endDate: string | null; totals: { impressions: number; clicks: number; orders: number; revenue: number; spend: number; ctr: number; cpc: number; cpa: number; conversionRate: number } }>();
+        
+        for (const row of rows) {
+          // Use Campaign UUID as the primary identifier (not Location UUID)
+          const campaignId = row["Campaign UUID"];
+          if (!campaignId) {
+            console.warn("Skipping row without Campaign UUID");
+            continue;
+          }
+          
+          const campaignName = row["Campaign name"] || `Uber Campaign ${campaignId.substring(0, 8)}`;
+          const locationName = row["Location name"];
+          const startDate = row["Start date"];
+          const endDate = row["End date"];
+          
+          const locationId = await findOrCreateLocation(clientId, locationName, "ubereats");
+          
+          const impressions = parseInt(row["Impressions"]) || 0;
+          const clicks = parseInt(row["Clicks"]) || 0;
+          const orders = parseInt(row["Orders"]) || 0;
+          const revenue = parseFloat(row["Sales"]?.replace(/,/g, "")) || 0;
+          const spend = parseFloat(row["Ad spend"]) || 0;
+          const roas = parseFloat(row["Return on Ad Spend"]) || 0;
+          const ctr = parseFloat(row["Click through rate"]) || 0;
+          const conversionRate = parseFloat(row["Conversion rate"]) || 0;
+          const cpc = parseFloat(row["Cost per click"]) || 0;
+          const cpa = parseFloat(row["Cost per order"]) || 0;
+          
+          // Aggregate campaign-level totals
+          if (!uberCampaignsData.has(campaignId)) {
+            uberCampaignsData.set(campaignId, {
+              name: campaignName,
+              startDate,
+              endDate,
+              totals: { impressions: 0, clicks: 0, orders: 0, revenue: 0, spend: 0, ctr: 0, cpc: 0, cpa: 0, conversionRate: 0 }
+            });
+          }
+          const campaign = uberCampaignsData.get(campaignId)!;
+          campaign.totals.impressions += impressions;
+          campaign.totals.clicks += clicks;
+          campaign.totals.orders += orders;
+          campaign.totals.revenue += revenue;
+          campaign.totals.spend += spend;
+          
+          await upsertCampaignLocationMetric({
+            campaignId,
+            campaignType: "paid_ad",
+            clientId,
+            locationId,
+            locationName,
+            platform: "ubereats",
+            dateStart: startDate,
+            dateEnd: endDate,
+            impressions,
+            clicks,
+            orders,
+            revenue,
+            spend,
+            roas,
+            ctr,
+            conversionRate,
+            cpc,
+            cpa,
+          });
+          
+          processedCount++;
+        }
+        
+        // Create paid ad campaign records
+        for (const [campaignId, data] of uberCampaignsData) {
+          const existing = await storage.getPaidAdCampaignByCampaignId(campaignId);
+          if (!existing) {
+            await storage.createPaidAdCampaign({
+              campaignId,
+              name: data.name,
+              clientId,
+              platform: "ubereats",
+              type: "paid_ad",
+              status: "active",
+              startDate: data.startDate,
+              endDate: data.endDate,
+              budget: null,
+              impressions: data.totals.impressions,
+              clicks: data.totals.clicks,
+              ctr: data.totals.clicks / (data.totals.impressions || 1),
+              cpc: data.totals.spend / (data.totals.clicks || 1),
+              orders: data.totals.orders,
+              conversionRate: (data.totals.orders / (data.totals.clicks || 1)) * 100,
+              spend: data.totals.spend,
+              revenue: data.totals.revenue,
+              roas: data.totals.revenue / (data.totals.spend || 1),
+              cpa: data.totals.spend / (data.totals.orders || 1),
+            });
+          }
+        }
+      } else if (platform === "uber" && dataType === "offers") {
+        // Uber Offers/Campaigns CSV - Promotions
+        const uberOffersData = new Map<string, { name: string; startDate: string; endDate: string | null; totals: { orders: number; revenue: number; newCustomers: number } }>();
+        
+        for (const row of rows) {
+          const campaignId = row["Campaign UUID"];
+          const campaignName = row["Campaign name"] || `Uber Offer ${campaignId.substring(0, 8)}`;
+          const startDate = row["Start date"];
+          const endDate = row["End date"];
+          
+          const revenue = parseFloat(row["Sales (USD)"]?.replace(/[$,]/g, "")) || 0;
+          const orders = parseInt(row["Orders"]) || 0;
+          const newCustomers = parseInt(row["New customers"]) || 0;
+          
+          // Aggregate campaign-level totals
+          if (!uberOffersData.has(campaignId)) {
+            uberOffersData.set(campaignId, {
+              name: campaignName,
+              startDate,
+              endDate,
+              totals: { orders: 0, revenue: 0, newCustomers: 0 }
+            });
+          }
+          const campaign = uberOffersData.get(campaignId)!;
+          campaign.totals.orders += orders;
+          campaign.totals.revenue += revenue;
+          campaign.totals.newCustomers += newCustomers;
+          
+          // Note: This CSV doesn't have location-level data, so we'll create a single aggregate record
+          await upsertCampaignLocationMetric({
+            campaignId,
+            campaignType: "promotion",
+            clientId,
+            locationId: null,
+            locationName: "All Stores",
+            platform: "ubereats",
+            dateStart: startDate,
+            dateEnd: endDate,
+            orders,
+            revenue,
+            spend: 0,
+            newCustomers,
+          });
+          
+          processedCount++;
+        }
+        
+        // Create promotion records
+        for (const [campaignId, data] of uberOffersData) {
+          const existing = await storage.getPromotionByCampaignId(campaignId);
+          if (!existing) {
+            await storage.createPromotion({
+              campaignId,
+              name: data.name,
+              clientId,
+              platforms: ["ubereats"],
+              type: "promotion",
+              status: "active",
+              startDate: data.startDate,
+              endDate: data.endDate,
+              discountPercent: null,
+              discountAmount: null,
+            });
+          }
+        }
+      } else {
+        return res.status(400).json({ error: `Unsupported platform/dataType combination: ${platform}/${dataType}` });
+      }
+
+      res.json({
+        success: true,
+        rowsProcessed: processedCount,
+      });
+    } catch (error: any) {
+      console.error("Marketing upload error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   app.get("/api/locations", async (req, res) => {
     try {
       const { clientId } = req.query;
