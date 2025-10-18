@@ -41,6 +41,79 @@ import {
 } from "@shared/schema";
 import type { IStorage } from "./storage";
 
+// Helper function to calculate DoorDash metrics using consistent attribution logic
+export function calculateDoorDashMetrics(txns: DoordashTransaction[]) {
+  let totalOrders = 0;
+  let totalSales = 0;
+  let marketingDrivenSales = 0;
+  let adSpend = 0;
+  let offerDiscountValue = 0;
+  let netPayout = 0;
+  let ordersFromMarketing = 0;
+
+  txns.forEach((t) => {
+    const isMarketplace = !t.channel || t.channel === "Marketplace";
+    const isCompleted = !t.orderStatus || t.orderStatus === "Delivered" || t.orderStatus === "Picked Up";
+    
+    // Net payout for ALL orders
+    netPayout += t.totalPayout || t.netPayment || 0;
+    
+    // Only count Marketplace + Completed for sales and order metrics
+    if (isMarketplace && isCompleted) {
+      totalOrders++;
+      const sales = t.salesExclTax || t.orderSubtotal || 0;
+      totalSales += sales;
+      
+      // Ad Spend from Other Payments (only negative values = expenses)
+      if (t.otherPayments && t.otherPayments < 0) {
+        adSpend += Math.abs(t.otherPayments);
+      }
+      
+      // Offer/Discount Value
+      const offersValue = Math.abs(t.offersOnItems || 0) + 
+                        Math.abs(t.deliveryOfferRedemptions || 0) +
+                        Math.abs(t.marketingCredits || 0) +
+                        Math.abs(t.thirdPartyContribution || 0);
+      offerDiscountValue += offersValue;
+      
+      // Marketing Attribution
+      const hasMarketing = (t.offersOnItems < 0) || 
+                          (t.deliveryOfferRedemptions < 0) || 
+                          (t.marketingCredits > 0) || 
+                          (t.thirdPartyContribution > 0);
+      
+      if (hasMarketing) {
+        marketingDrivenSales += sales;
+        ordersFromMarketing++;
+      }
+    }
+  });
+
+  return {
+    totalOrders,
+    totalSales,
+    marketingDrivenSales,
+    adSpend,
+    offerDiscountValue,
+    netPayout,
+    ordersFromMarketing,
+  };
+}
+
+// Helper to parse UberEats date (M/D/YY format) and check if in range
+export function isUberEatsDateInRange(dateStr: string, weekStart: string, weekEnd: string): boolean {
+  // Parse M/D/YY format to YYYY-MM-DD
+  const parts = dateStr.split('/');
+  if (parts.length !== 3) return false;
+  
+  const month = parts[0].padStart(2, '0');
+  const day = parts[1].padStart(2, '0');
+  const year = parts[2].length === 2 ? '20' + parts[2] : parts[2];
+  const normalized = `${year}-${month}-${day}`;
+  
+  return normalized >= weekStart && normalized <= weekEnd;
+}
+
 export class DbStorage implements IStorage {
   private db;
 
@@ -272,7 +345,8 @@ export class DbStorage implements IStorage {
 
     const calculatePlatformMetrics = (
       txns: any[],
-      platform: "ubereats" | "doordash" | "grubhub"
+      platform: "ubereats" | "doordash" | "grubhub",
+      dateFilter?: { weekStart: string; weekEnd: string }
     ) => {
       let totalOrders = 0;
       let totalSales = 0;
@@ -282,8 +356,39 @@ export class DbStorage implements IStorage {
       let netPayout = 0;
       let ordersFromMarketing = 0;
 
+      if (platform === "doordash") {
+        // Use shared helper for consistent DoorDash attribution
+        const metrics = calculateDoorDashMetrics(txns as DoordashTransaction[]);
+        return {
+          platform,
+          totalSales: metrics.totalSales,
+          marketingDrivenSales: metrics.marketingDrivenSales,
+          organicSales: metrics.totalSales - metrics.marketingDrivenSales,
+          totalOrders: metrics.totalOrders,
+          ordersFromMarketing: metrics.ordersFromMarketing,
+          organicOrders: metrics.totalOrders - metrics.ordersFromMarketing,
+          aov: metrics.totalOrders > 0 ? metrics.totalSales / metrics.totalOrders : 0,
+          adSpend: metrics.adSpend,
+          offerDiscountValue: metrics.offerDiscountValue,
+          totalMarketingInvestment: metrics.adSpend + metrics.offerDiscountValue,
+          marketingInvestmentPercent:
+            metrics.totalSales > 0 ? ((metrics.adSpend + metrics.offerDiscountValue) / metrics.totalSales) * 100 : 0,
+          marketingRoas:
+            (metrics.adSpend + metrics.offerDiscountValue) > 0
+              ? metrics.marketingDrivenSales / (metrics.adSpend + metrics.offerDiscountValue)
+              : 0,
+          netPayout: metrics.netPayout,
+          netPayoutPercent: metrics.totalSales > 0 ? (metrics.netPayout / metrics.totalSales) * 100 : 0,
+        };
+      }
+
       txns.forEach((t) => {
         if (platform === "ubereats") {
+          // Apply date filter for UberEats
+          if (dateFilter && !isUberEatsDateInRange(t.date, dateFilter.weekStart, dateFilter.weekEnd)) {
+            return;
+          }
+          
           totalOrders++;
           totalSales += t.subtotal;
           netPayout += t.netPayout;
@@ -292,47 +397,6 @@ export class DbStorage implements IStorage {
             offerDiscountValue += marketingAmt;
             marketingDrivenSales += t.subtotal;
             ordersFromMarketing++;
-          }
-        } else if (platform === "doordash") {
-          // NEW ATTRIBUTION METHODOLOGY FOR DOORDASH
-          
-          // 1. Order Filtering: ONLY count Marketplace + Completed/Delivered/Picked Up orders for sales metrics
-          const isMarketplace = !t.channel || t.channel === "Marketplace";
-          const isCompleted = !t.orderStatus || t.orderStatus === "Delivered" || t.orderStatus === "Picked Up";
-          
-          // 2. Net Payout: Sum ALL order statuses (including refunds, cancellations)
-          netPayout += t.totalPayout || t.netPayment || 0;
-          
-          // Only count Marketplace + Completed for sales and order metrics
-          if (isMarketplace && isCompleted) {
-            totalOrders++;
-            
-            // 3. Sales Calculation: Use "Sales (excl. tax)" as primary metric
-            const sales = t.salesExclTax || t.orderSubtotal || 0;
-            totalSales += sales;
-            
-            // 4. Marketing Investment Components
-            // Ad Spend = absolute value of all "Other payments"
-            const adSpendAmount = Math.abs(t.otherPayments || 0);
-            adSpend += adSpendAmount;
-            
-            // Offer/Discount Value = abs(promotional discounts) + credits
-            const offersValue = Math.abs(t.offersOnItems || 0) + 
-                              Math.abs(t.deliveryOfferRedemptions || 0) +
-                              Math.abs(t.marketingCredits || 0) +
-                              Math.abs(t.thirdPartyContribution || 0);
-            offerDiscountValue += offersValue;
-            
-            // 5. Marketing Attribution: Order has marketing if any promotional activity
-            const hasMarketing = (t.offersOnItems < 0) || 
-                                (t.deliveryOfferRedemptions < 0) || 
-                                (t.marketingCredits > 0) || 
-                                (t.thirdPartyContribution > 0);
-            
-            if (hasMarketing) {
-              marketingDrivenSales += sales;
-              ordersFromMarketing++;
-            }
           }
         } else if (platform === "grubhub") {
           totalOrders++;
@@ -370,10 +434,14 @@ export class DbStorage implements IStorage {
       };
     };
 
+    const dateFilter = filters?.weekStart && filters?.weekEnd 
+      ? { weekStart: filters.weekStart, weekEnd: filters.weekEnd }
+      : undefined;
+
     let platformBreakdown = [
-      calculatePlatformMetrics(uberTxns, "ubereats"),
-      calculatePlatformMetrics(doorTxns, "doordash"),
-      calculatePlatformMetrics(grubTxns, "grubhub"),
+      calculatePlatformMetrics(uberTxns, "ubereats", dateFilter),
+      calculatePlatformMetrics(doorTxns, "doordash", dateFilter),
+      calculatePlatformMetrics(grubTxns, "grubhub", dateFilter),
     ];
 
     // Filter by platform if specified
@@ -477,41 +545,56 @@ export class DbStorage implements IStorage {
       for (const { name: platform, txns } of platforms) {
         if (txns.length === 0) continue;
 
-        const totalSales = txns.reduce((sum, t) => {
-          if (platform === "ubereats") return sum + t.subtotal;
-          if (platform === "doordash") return sum + t.orderSubtotal;
-          return sum + t.saleAmount;
-        }, 0);
+        let totalOrders = 0;
+        let totalSales = 0;
+        let marketingDrivenSales = 0;
+        let adSpend = 0;
+        let offerDiscountValue = 0;
+        let netPayout = 0;
+        let ordersFromMarketing = 0;
 
-        const marketingAmount = txns.reduce((sum, t) => {
-          if (platform === "ubereats") return sum + (t.marketingPromo ? t.marketingAmount : 0);
-          if (platform === "doordash") return sum + t.marketingSpend;
-          return sum + t.promotionCost;
-        }, 0);
+        if (platform === "doordash") {
+          // Use shared helper for consistent DoorDash attribution
+          const ddMetrics = calculateDoorDashMetrics(txns as DoordashTransaction[]);
+          totalOrders = ddMetrics.totalOrders;
+          totalSales = ddMetrics.totalSales;
+          marketingDrivenSales = ddMetrics.marketingDrivenSales;
+          adSpend = ddMetrics.adSpend;
+          offerDiscountValue = ddMetrics.offerDiscountValue;
+          netPayout = ddMetrics.netPayout;
+          ordersFromMarketing = ddMetrics.ordersFromMarketing;
+        } else {
+          txns.forEach((t) => {
+            if (platform === "ubereats") {
+              // Apply date filter for UberEats
+              if (filters?.weekStart && filters?.weekEnd && 
+                  !isUberEatsDateInRange(t.date, filters.weekStart, filters.weekEnd)) {
+                return;
+              }
+              
+              totalOrders++;
+              totalSales += t.subtotal;
+              netPayout += t.netPayout;
+              if (t.marketingPromo) {
+                const marketingAmt = t.marketingAmount || 0;
+                offerDiscountValue += marketingAmt;
+                marketingDrivenSales += t.subtotal;
+                ordersFromMarketing++;
+              }
+            } else if (platform === "grubhub") {
+              totalOrders++;
+              totalSales += t.saleAmount;
+              netPayout += t.netSales;
+              if (t.promotionCost && t.promotionCost > 0) {
+                offerDiscountValue += t.promotionCost;
+                marketingDrivenSales += t.saleAmount;
+                ordersFromMarketing++;
+              }
+            }
+          });
+        }
 
-        const netPayout = txns.reduce((sum, t) => {
-          if (platform === "ubereats") return sum + t.netPayout;
-          if (platform === "doordash") return sum + t.netPayment;
-          return sum + t.netSales;
-        }, 0);
-
-        const ordersFromMarketing = txns.filter((t) => {
-          if (platform === "ubereats") return t.marketingPromo;
-          if (platform === "doordash") return t.marketingSpend > 0;
-          return t.promotionCost > 0;
-        }).length;
-
-        const marketingDrivenSales = txns
-          .filter((t) => {
-            if (platform === "ubereats") return t.marketingPromo;
-            if (platform === "doordash") return t.marketingSpend > 0;
-            return t.promotionCost > 0;
-          })
-          .reduce((sum, t) => {
-            if (platform === "ubereats") return sum + t.subtotal;
-            if (platform === "doordash") return sum + t.orderSubtotal;
-            return sum + t.saleAmount;
-          }, 0);
+        const totalMarketingInvestment = adSpend + offerDiscountValue;
 
         metrics.push({
           locationId: location.id,
@@ -520,15 +603,15 @@ export class DbStorage implements IStorage {
           totalSales,
           marketingDrivenSales,
           organicSales: totalSales - marketingDrivenSales,
-          totalOrders: txns.length,
+          totalOrders,
           ordersFromMarketing,
-          organicOrders: txns.length - ordersFromMarketing,
-          aov: totalSales / txns.length,
-          adSpend: 0,
-          offerDiscountValue: marketingAmount,
-          totalMarketingInvestment: marketingAmount,
-          marketingInvestmentPercent: totalSales > 0 ? (marketingAmount / totalSales) * 100 : 0,
-          marketingRoas: marketingAmount > 0 ? marketingDrivenSales / marketingAmount : 0,
+          organicOrders: totalOrders - ordersFromMarketing,
+          aov: totalOrders > 0 ? totalSales / totalOrders : 0,
+          adSpend,
+          offerDiscountValue,
+          totalMarketingInvestment,
+          marketingInvestmentPercent: totalSales > 0 ? (totalMarketingInvestment / totalSales) * 100 : 0,
+          marketingRoas: totalMarketingInvestment > 0 ? marketingDrivenSales / totalMarketingInvestment : 0,
           netPayout,
           netPayoutPercent: totalSales > 0 ? (netPayout / totalSales) * 100 : 0,
         });

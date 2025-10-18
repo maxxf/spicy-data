@@ -1,129 +1,146 @@
-/**
- * Generate sample weekly financial data for locations via API
- * This script creates sample weekly financial snapshots for testing the UI
- */
+import { db } from "../server/db";
+import { locations, locationWeeklyFinancials, doordashTransactions, grubhubTransactions, uberEatsTransactions } from "../shared/schema";
+import { eq, sql, and } from "drizzle-orm";
+import { calculateDoorDashMetrics, isUberEatsDateInRange } from "../server/db-storage";
 
-const API_BASE = "http://localhost:5000";
-
-async function apiRequest(method: string, path: string, body?: any) {
-  const response = await fetch(`${API_BASE}${path}`, {
-    method,
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: body ? JSON.stringify(body) : undefined,
-  });
-  
-  if (!response.ok) {
-    const text = await response.text();
-    console.error(`API request failed (${response.status}): ${path}`);
-    console.error(`Response: ${text.substring(0, 200)}`);
-    throw new Error(`API request failed: ${response.statusText}`);
-  }
-  
-  const contentType = response.headers.get("content-type");
-  if (!contentType || !contentType.includes("application/json")) {
-    const text = await response.text();
-    console.error(`Expected JSON response but got: ${contentType}`);
-    console.error(`Response body: ${text.substring(0, 200)}`);
-    throw new Error(`Invalid response type: ${contentType}`);
-  }
-  
-  return response.json();
-}
-
+// Generate location weekly financials from transaction data
 async function generateWeeklyFinancials() {
-  console.log("Generating sample weekly financial data via API...");
+  const weekStart = "2025-10-06";
+  const weekEnd = "2025-10-12";
+  const clientId = "83506705-b408-4f0a-a9b0-e5b585db3b7d"; // Capriotti's
 
-  // Get all locations
-  let locations = await apiRequest("GET", "/api/locations");
-  
-  if (locations.length === 0) {
-    console.log("No locations found. Creating sample locations...");
-    
-    // Create sample locations for Capriotti's
-    const sampleLocations = [
-      { canonicalName: "NV067 Reno Meadows", uberEatsName: "Capriotti's - Reno Meadows", doordashName: "Capriotti's (Reno Meadows)", grubhubName: "Capriotti's Reno" },
-      { canonicalName: "NV900478 LV S Las Vegas", uberEatsName: "Capriotti's - S Las Vegas", doordashName: "Capriotti's (Las Vegas South)", grubhubName: null },
-    ];
-    
-    for (const loc of sampleLocations) {
-      await apiRequest("POST", "/api/locations", {
-        clientId: "capriottis",
-        canonicalName: loc.canonicalName,
-        uberEatsName: loc.uberEatsName,
-        doordashName: loc.doordashName,
-        grubhubName: loc.grubhubName,
-        isVerified: true,
-      });
-    }
-    
-    locations = await apiRequest("GET", "/api/locations");
-    console.log(`Created ${locations.length} sample locations`);
-  }
+  console.log(`\nGenerating weekly financials for ${weekStart} to ${weekEnd}...\n`);
 
-  console.log(`Found ${locations.length} locations`);
+  // Get all locations for this client
+  const allLocations = await db
+    .select()
+    .from(locations)
+    .where(eq(locations.clientId, clientId));
 
-  // Generate 6 weeks of data (9/1/2025 to 10/6/2025)
-  const weeks = [
-    { start: "2025-09-01", end: "2025-09-07" },
-    { start: "2025-09-08", end: "2025-09-14" },
-    { start: "2025-09-15", end: "2025-09-21" },
-    { start: "2025-09-22", end: "2025-09-28" },
-    { start: "2025-09-29", end: "2025-10-05" },
-    { start: "2025-10-06", end: "2025-10-12" },
-  ];
+  console.log(`Found ${allLocations.length} locations`);
+
+  // Get all transactions for the week
+  const [uberTxns, doorTxns, grubTxns] = await Promise.all([
+    db.select().from(uberEatsTransactions).where(eq(uberEatsTransactions.clientId, clientId)),
+    db.select().from(doordashTransactions).where(
+      and(
+        eq(doordashTransactions.clientId, clientId),
+        sql`${doordashTransactions.transactionDate} >= ${weekStart}`,
+        sql`${doordashTransactions.transactionDate} <= ${weekEnd}`
+      )
+    ),
+    db.select().from(grubhubTransactions).where(
+      and(
+        eq(grubhubTransactions.clientId, clientId),
+        sql`${grubhubTransactions.orderDate} >= ${weekStart}`,
+        sql`${grubhubTransactions.orderDate} <= ${weekEnd}`
+      )
+    ),
+  ]);
+
+  console.log(`Transactions: UberEats=${uberTxns.length}, DoorDash=${doorTxns.length}, Grubhub=${grubTxns.length}`);
+
+  // Delete existing records for this week
+  await db.delete(locationWeeklyFinancials).where(
+    and(
+      eq(locationWeeklyFinancials.clientId, clientId),
+      eq(locationWeeklyFinancials.weekStartDate, weekStart)
+    )
+  );
 
   let recordsCreated = 0;
+  let totalSales = 0;
+  let totalMarketing = 0;
+  let totalPayout = 0;
 
-  for (const location of locations) {
-    for (const week of weeks) {
-      // Generate realistic sample data with some variance
-      const baseSales = Math.floor(Math.random() * 3000) + 4000; // $4k-$7k
-      const marketingPercent = Math.floor(Math.random() * 6) + 5; // 5-10%
-      const marketingSales = Math.floor((baseSales * marketingPercent) / 100);
-      const marketingSpend = Math.floor(marketingSales / (Math.random() * 3 + 3)); // ROAS 3-6
-      const roas = marketingSales / marketingSpend;
-      
-      // Payout calculations (70-88% of sales)
-      const payoutPercent = Math.floor(Math.random() * 18) + 70; // 70-88%
-      const payout = Math.floor((baseSales * payoutPercent) / 100);
-      
-      // COGS (46% of payout)
-      const payoutWithCogs = Math.floor(payout * 0.54); // Remaining after 46% COGS
+  for (const location of allLocations) {
+    // Get transactions for this location
+    const locationUber = uberTxns.filter(t => t.locationId === location.id);
+    const locationDoor = doorTxns.filter(t => t.locationId === location.id);
+    const locationGrub = grubTxns.filter(t => t.locationId === location.id);
 
-      await apiRequest("POST", "/api/location-weekly-financials", {
+    let sales = 0;
+    let marketingSales = 0;
+    let marketingSpend = 0;
+    let payout = 0;
+
+    // UberEats (with date filtering)
+    locationUber.forEach(t => {
+      // Apply date filter
+      if (!isUberEatsDateInRange(t.date, weekStart, weekEnd)) {
+        return;
+      }
+      
+      sales += t.subtotal;
+      payout += t.netPayout;
+      if (t.marketingPromo) {
+        const marketingAmt = t.marketingAmount || 0;
+        marketingSpend += marketingAmt;
+        marketingSales += t.subtotal;
+      }
+    });
+
+    // DoorDash (using shared attribution helper)
+    const ddMetrics = calculateDoorDashMetrics(locationDoor);
+    sales += ddMetrics.totalSales;
+    marketingSales += ddMetrics.marketingDrivenSales;
+    marketingSpend += ddMetrics.adSpend + ddMetrics.offerDiscountValue;
+    payout += ddMetrics.netPayout;
+
+    // Grubhub
+    locationGrub.forEach(t => {
+      sales += t.saleAmount;
+      payout += t.netSales;
+      if (t.promotionCost && t.promotionCost > 0) {
+        marketingSpend += t.promotionCost;
+        marketingSales += t.saleAmount;
+      }
+    });
+
+    // Only create record if location has sales
+    if (sales > 0) {
+      const marketingPercent = sales > 0 ? (marketingSpend / sales) * 100 : 0;
+      const roas = marketingSpend > 0 ? marketingSales / marketingSpend : 0;
+      const payoutPercent = sales > 0 ? (payout / sales) * 100 : 0;
+      const payoutWithCogs = payout - (sales * 0.46);
+
+      await db.insert(locationWeeklyFinancials).values({
         locationId: location.id,
-        clientId: location.clientId,
-        weekStartDate: week.start,
-        weekEndDate: week.end,
-        sales: baseSales,
+        clientId: clientId,
+        weekStartDate: weekStart,
+        weekEndDate: weekEnd,
+        sales,
         marketingSales,
         marketingSpend,
         marketingPercent,
-        roas: parseFloat(roas.toFixed(1)),
+        roas,
         payout,
         payoutPercent,
         payoutWithCogs,
       });
 
       recordsCreated++;
+      totalSales += sales;
+      totalMarketing += marketingSpend;
+      totalPayout += payout;
     }
   }
 
-  console.log(`✓ Created ${recordsCreated} weekly financial records`);
-  console.log(`  ${locations.length} locations × ${weeks.length} weeks`);
+  console.log(`\nCreated ${recordsCreated} location weekly financial records`);
+  console.log(`Total Sales: $${totalSales.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
+  console.log(`Total Marketing: $${totalMarketing.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
+  console.log(`Total Payout: $${totalPayout.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
+  console.log(`Payout %: ${totalSales > 0 ? ((totalPayout / totalSales) * 100).toFixed(2) : 0}%`);
 }
 
-// Run if called directly
 if (import.meta.url === `file://${process.argv[1]}`) {
   generateWeeklyFinancials()
     .then(() => {
-      console.log("\n✓ Weekly financials generation complete!");
+      console.log("\n✅ Weekly financials generated successfully");
       process.exit(0);
     })
     .catch((error) => {
-      console.error("✗ Error generating weekly financials:", error);
+      console.error("❌ Error:", error);
       process.exit(1);
     });
 }
