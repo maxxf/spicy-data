@@ -279,9 +279,9 @@ export class DbStorage implements IStorage {
         } else if (platform === "doordash") {
           // NEW ATTRIBUTION METHODOLOGY FOR DOORDASH
           
-          // 1. Order Filtering: ONLY count Marketplace + Completed orders for sales metrics
+          // 1. Order Filtering: ONLY count Marketplace + Completed/Delivered/Picked Up orders for sales metrics
           const isMarketplace = !t.channel || t.channel === "Marketplace";
-          const isCompleted = !t.orderStatus || t.orderStatus === "Completed";
+          const isCompleted = !t.orderStatus || t.orderStatus === "Delivered" || t.orderStatus === "Picked Up";
           
           // 2. Net Payout: Sum ALL order statuses (including refunds, cancellations)
           netPayout += t.totalPayout || t.netPayment || 0;
