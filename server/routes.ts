@@ -847,6 +847,169 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/export/weekly-financials", async (req, res) => {
+    try {
+      const { clientId, aggregation = "by-location" } = req.query;
+      
+      if (!clientId) {
+        return res.status(400).json({ error: "clientId is required" });
+      }
+
+      const financials = await storage.getLocationWeeklyFinancialsByClient(clientId as string);
+      const locations = await storage.getLocationsByClient(clientId as string);
+      
+      const locationMap = new Map(locations.map(loc => [loc.id, loc.canonicalName]));
+      
+      // Group financials by week to get all unique weeks
+      const weekSet = new Set<string>();
+      financials.forEach(f => weekSet.add(f.weekStartDate));
+      const weeks = Array.from(weekSet).sort();
+      
+      // Create CSV content
+      const csvRows: string[] = [];
+      
+      // Header row
+      csvRows.push(['Location', 'Metric', ...weeks].join(','));
+      
+      if (aggregation === "overview") {
+        // Aggregate all locations into overview
+        const weeklyTotals = new Map<string, {
+          sales: number;
+          marketingSales: number;
+          marketingSpend: number;
+          payout: number;
+          payoutWithCogs: number;
+          count: number;
+        }>();
+        
+        financials.forEach(f => {
+          const existing = weeklyTotals.get(f.weekStartDate) || {
+            sales: 0,
+            marketingSales: 0,
+            marketingSpend: 0,
+            payout: 0,
+            payoutWithCogs: 0,
+            count: 0
+          };
+          
+          weeklyTotals.set(f.weekStartDate, {
+            sales: existing.sales + f.sales,
+            marketingSales: existing.marketingSales + f.marketingSales,
+            marketingSpend: existing.marketingSpend + f.marketingSpend,
+            payout: existing.payout + f.payout,
+            payoutWithCogs: existing.payoutWithCogs + f.payoutWithCogs,
+            count: existing.count + 1
+          });
+        });
+        
+        // Calculate derived metrics
+        const metrics = [
+          'Total Net Sales',
+          'Marketing Driven Sales',
+          'Organic Sales',
+          'Marketing Spend / Sales %',
+          'Marketing ROAS',
+          'Net Payout $',
+          'Net Payout %',
+          'Payout with COGS (46%)'
+        ];
+        
+        metrics.forEach(metric => {
+          const values = weeks.map(week => {
+            const totals = weeklyTotals.get(week);
+            if (!totals) return '';
+            
+            switch (metric) {
+              case 'Total Net Sales':
+                return `$${totals.sales.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+              case 'Marketing Driven Sales':
+                return `$${totals.marketingSales.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+              case 'Organic Sales':
+                return `$${(totals.sales - totals.marketingSales).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+              case 'Marketing Spend / Sales %':
+                return totals.sales > 0 ? `${((totals.marketingSpend / totals.sales) * 100).toFixed(0)}%` : '0%';
+              case 'Marketing ROAS':
+                return totals.marketingSpend > 0 ? (totals.marketingSales / totals.marketingSpend).toFixed(1) : '0';
+              case 'Net Payout $':
+                return `$${totals.payout.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+              case 'Net Payout %':
+                return totals.sales > 0 ? `${((totals.payout / totals.sales) * 100).toFixed(0)}%` : '0%';
+              case 'Payout with COGS (46%)':
+                return `$${totals.payoutWithCogs.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+              default:
+                return '';
+            }
+          });
+          
+          csvRows.push(['OVERVIEW', metric, ...values].join(','));
+        });
+      } else {
+        // By location
+        const locationGroups = new Map<string, any[]>();
+        financials.forEach(f => {
+          const name = locationMap.get(f.locationId) || f.locationId;
+          if (!locationGroups.has(name)) {
+            locationGroups.set(name, []);
+          }
+          locationGroups.get(name)!.push(f);
+        });
+        
+        locationGroups.forEach((locFinancials, locationName) => {
+          const weeklyData = new Map(locFinancials.map(f => [f.weekStartDate, f]));
+          
+          const metrics = [
+            'Total Net Sales',
+            'Marketing Driven Sales', 
+            'Organic Sales',
+            'Marketing Spend / Sales %',
+            'Marketing ROAS',
+            'Net Payout $',
+            'Net Payout %',
+            'Payout with COGS (46%)'
+          ];
+          
+          metrics.forEach(metric => {
+            const values = weeks.map(week => {
+              const data = weeklyData.get(week);
+              if (!data) return '';
+              
+              switch (metric) {
+                case 'Total Net Sales':
+                  return `$${data.sales.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+                case 'Marketing Driven Sales':
+                  return `$${data.marketingSales.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+                case 'Organic Sales':
+                  return `$${(data.sales - data.marketingSales).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+                case 'Marketing Spend / Sales %':
+                  return `${data.marketingPercent.toFixed(0)}%`;
+                case 'Marketing ROAS':
+                  return data.roas.toFixed(1);
+                case 'Net Payout $':
+                  return `$${data.payout.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+                case 'Net Payout %':
+                  return `${data.payoutPercent.toFixed(0)}%`;
+                case 'Payout with COGS (46%)':
+                  return `$${data.payoutWithCogs.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+                default:
+                  return '';
+              }
+            });
+            
+            csvRows.push([locationName, metric, ...values].join(','));
+          });
+        });
+      }
+      
+      const csvContent = csvRows.join('\n');
+      
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', `attachment; filename="weekly-financials-${aggregation}-${new Date().toISOString().split('T')[0]}.csv"`);
+      res.send(csvContent);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   const httpServer = createServer(app);
 
   return httpServer;
