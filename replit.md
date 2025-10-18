@@ -8,22 +8,30 @@ The system serves multi-tenant use cases where a single instance manages data fo
 
 ## Recent Changes (October 18, 2025)
 
-**Phase 1 - Read-Only Reporting Dashboard:**
+**Phase 1 - Read-Only Reporting Dashboard (COMPLETED):**
 - **Purpose Clarification**: This is strictly a reporting and insights dashboard (not for campaign/promotion creation)
 - **Primary Client**: Capriotti's configured as the main client for data ingestion
 - **Client Selection System**: 
   - Added ClientSelector component for switching between portfolio view and client-specific views
   - Default view starts with Capriotti's selected
   - Admin/portfolio view available via "All Clients" option
-  - Client filtering implemented across Dashboard, Promotions, and Paid Ads pages
-- **Read-Only UI Updates**:
-  - Removed creation dialogs from Promotions and Paid Ads pages
+  - Client filtering implemented across Dashboard, Promotions, and Paid Ads pages via query parameters
+- **Read-Only UI Implementation**:
+  - Removed ALL mutations (useMutation, apiRequest POST/PATCH/DELETE) from Promotions and Paid Ads pages
+  - Removed ALL form components, dialog components, and creation/editing UI from Promotions and Paid Ads
   - Changed empty states to guide users to upload marketing data files
-  - Updated action buttons to "View Details" instead of "Delete"
+  - Retained "View Details" buttons as read-only navigation actions
+  - Removed "Client" columns from Promotions and Paid Ads tables (filtering happens at API query level)
+  - Client filtering works via useQuery with clientId parameter passed to backend endpoints
+- **Dashboard Client Filtering**:
+  - Client Performance Matrix conditionally renders only in portfolio view (when selectedClientId is null/"All Clients")
+  - When specific client selected, dashboard shows only that client's metrics
+  - All metric cards, charts, and tables respect client filter state
 - **Marketing Data Structure**:
-  - Promotions table with metrics (impressions, clicks, redemptions, discount, revenue, ROAS)
+  - Promotions table with metrics (impressions, clicks, redemptions, discount, revenue, ROI)
   - Paid Ad Campaigns table with performance metrics (CTR, CPC, conversion rate, spend, revenue, ROAS, CPA)
   - Both tables include platform, status, dates, and client relationships
+  - Data ingestion will happen via CSV upload (marketing data upload feature planned)
 
 **Previous Changes (October 17, 2025):**
 - Portfolio-level metrics: Portfolio Sales, Active Clients, Portfolio ROAS, Net Payout Rate
