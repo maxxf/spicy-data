@@ -9,8 +9,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import Dashboard from "@/pages/dashboard";
 import UploadPage from "@/pages/upload";
 import LocationsPage from "@/pages/locations";
-import PromotionsPage from "@/pages/promotions";
-import PaidAdsPage from "@/pages/paid-ads";
+import CampaignsPage from "@/pages/campaigns";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -19,8 +18,7 @@ function Router() {
       <Route path="/" component={Dashboard} />
       <Route path="/upload" component={UploadPage} />
       <Route path="/locations" component={LocationsPage} />
-      <Route path="/promotions" component={PromotionsPage} />
-      <Route path="/paid-ads" component={PaidAdsPage} />
+      <Route path="/campaigns" component={CampaignsPage} />
       <Route component={NotFound} />
     </Switch>
   );
