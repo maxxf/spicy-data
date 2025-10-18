@@ -55,8 +55,10 @@ export function calculateDoorDashMetrics(txns: DoordashTransaction[]) {
     const isMarketplace = !t.channel || t.channel === "Marketplace";
     const isCompleted = !t.orderStatus || t.orderStatus === "Delivered" || t.orderStatus === "Picked Up";
     
-    // Net payout for ALL orders
-    netPayout += t.totalPayout || t.netPayment || 0;
+    // Net payout for Marketplace orders only (all statuses)
+    if (isMarketplace) {
+      netPayout += t.totalPayout || t.netPayment || 0;
+    }
     
     // Only count Marketplace + Completed for sales and order metrics
     if (isMarketplace && isCompleted) {
@@ -64,9 +66,9 @@ export function calculateDoorDashMetrics(txns: DoordashTransaction[]) {
       const sales = t.salesExclTax || t.orderSubtotal || 0;
       totalSales += sales;
       
-      // Ad Spend from Other Payments (only negative values = expenses)
-      if (t.otherPayments && t.otherPayments < 0) {
-        adSpend += Math.abs(t.otherPayments);
+      // Ad Spend from Other Payments (marketing fees stored as positive values)
+      if (t.otherPayments && t.otherPayments > 0) {
+        adSpend += t.otherPayments;
       }
       
       // Offer/Discount Value

@@ -148,6 +148,14 @@ async function main() {
       return isNaN(num) ? 0 : num;
     };
 
+    // Parse marketing columns correctly
+    const merchantFundedDiscount = parseFloat(row["Customer discounts from marketing | (funded by you)"]) || 0;
+    const doordashFundedDiscount = parseFloat(row["Customer discounts from marketing | (funded by DoorDash)"]) || 0;
+    const thirdPartyDiscount = parseFloat(row["Customer discounts from marketing | (funded by a third-party)"]) || 0;
+    const marketingFees = parseFloat(row["Marketing fees | (including any applicable taxes)"]) || 0;
+    const marketingCredit = parseFloat(row["DoorDash marketing credit"]) || 0;
+    const thirdPartyContrib = parseFloat(row["Third-party contribution"]) || 0;
+    
     doordashTransactionsToInsert.push({
       clientId: client.id,
       locationId,
@@ -161,16 +169,19 @@ async function main() {
       taxes: parseFloat(row["Subtotal tax passed to merchant"] || row.subtotal_tax_passed_to_merchant),
       deliveryFees: 0,
       commission: parseFloat(row.Commission || row.commission),
-      errorCharges: 0,
-      offersOnItems: parseFloat(row.Discount || row.discount) * -1, // Make negative
-      deliveryOfferRedemptions: 0,
-      marketingCredits: 0,
-      thirdPartyContribution: 0,
-      otherPayments: Math.abs(parseFloat(row["Payment processing fee"] || row.payment_processing_fee)),
-      otherPaymentsDescription: row.Description || row.description || null,
-      marketingSpend: 0,
-      totalPayout: parseFloat(row["Total payout"] || row.total_payout),
-      netPayment: parseFloat(row["Total payout"] || row.total_payout),
+      errorCharges: parseFloat(row["Error charges"]) || 0,
+      // Marketing fields - use actual column names from CSV
+      offersOnItems: Math.abs(merchantFundedDiscount), 
+      deliveryOfferRedemptions: Math.abs(doordashFundedDiscount),
+      marketingCredits: Math.abs(marketingCredit),
+      thirdPartyContribution: Math.abs(thirdPartyDiscount + thirdPartyContrib),
+      // Marketing fees as "ad spend" (negative in CSV means expense)
+      otherPayments: Math.abs(marketingFees),
+      otherPaymentsDescription: marketingFees !== 0 ? "Marketing fees" : null,
+      marketingSpend: Math.abs(marketingFees),
+      // Payout - use "Net total" column
+      totalPayout: parseFloat(row["Net total"] || row.net_total),
+      netPayment: parseFloat(row["Net total"] || row.net_total),
       orderSource: row.Channel || row.channel || null,
     });
   }
@@ -219,9 +230,9 @@ async function main() {
       saleAmount: parseFloat(row.subtotal),
       taxAmount: parseFloat(row.subtotal_sales_tax),
       deliveryCharge: parseFloat(row.self_delivery_charge),
-      processingFee: parseFloat(row.merchant_service_fee),
-      promotionCost: Math.abs(parseFloat(row.merchant_promotion_subsidy || row.grubhub_promotion_subsidy)),
-      netSales: parseFloat(row.total_payout),
+      processingFee: parseFloat(row.processing_fee) || parseFloat(row.merchant_service_fee),
+      promotionCost: Math.abs(parseFloat(row.merchant_funded_promotion)),
+      netSales: parseFloat(row.merchant_net_total),
       customerType: row.gh_plus_customer || "non GH+",
     });
   }
