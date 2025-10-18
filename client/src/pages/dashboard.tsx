@@ -1,5 +1,7 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { MetricCard } from "@/components/metric-card";
+import { ClientSelector } from "@/components/client-selector";
 import { DataTable } from "@/components/data-table";
 import { PlatformBadge } from "@/components/platform-badge";
 import {
@@ -32,12 +34,26 @@ interface ClientPerformance {
 }
 
 export default function Dashboard() {
+  const [selectedClientId, setSelectedClientId] = useState<string | null>("capriottis");
+
   const { data: overview, isLoading: overviewLoading } = useQuery<DashboardOverview>({
-    queryKey: ["/api/analytics/overview"],
+    queryKey: ["/api/analytics/overview", selectedClientId],
+    queryFn: async () => {
+      const params = selectedClientId ? `?clientId=${selectedClientId}` : "";
+      const response = await fetch(`/api/analytics/overview${params}`);
+      if (!response.ok) throw new Error("Failed to fetch overview");
+      return response.json();
+    },
   });
 
   const { data: locationMetrics, isLoading: locationsLoading } = useQuery<LocationMetrics[]>({
-    queryKey: ["/api/analytics/locations"],
+    queryKey: ["/api/analytics/locations", selectedClientId],
+    queryFn: async () => {
+      const params = selectedClientId ? `?clientId=${selectedClientId}` : "";
+      const response = await fetch(`/api/analytics/locations${params}`);
+      if (!response.ok) throw new Error("Failed to fetch locations");
+      return response.json();
+    },
   });
 
   const { data: clientPerformance, isLoading: clientPerfLoading } = useQuery<ClientPerformance[]>({
@@ -212,15 +228,24 @@ export default function Dashboard() {
     roas: client.roas * 10000, // Scale for visualization
   })) || [];
 
+  const isPortfolioView = !selectedClientId;
+
   return (
     <div className="p-8 space-y-8" data-testid="page-dashboard">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight mb-2">
-          Portfolio Overview
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          Multi-platform delivery performance overview
-        </p>
+      <div className="flex justify-between items-start">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight mb-2">
+            {isPortfolioView ? "Portfolio Overview" : "Client Dashboard"}
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            {isPortfolioView ? "Multi-platform delivery performance overview" : "Client-specific performance metrics"}
+          </p>
+        </div>
+        <ClientSelector
+          selectedClientId={selectedClientId}
+          onClientChange={setSelectedClientId}
+          showAllOption={true}
+        />
       </div>
 
       {/* Portfolio-Level Metrics */}
@@ -333,34 +358,36 @@ export default function Dashboard() {
         </CardContent>
       </Card>
 
-      {/* Client Performance Matrix */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Client Performance Matrix</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ChartContainer config={chartConfig} className="h-[300px]">
-            <BarChart data={clientPerformanceData}>
-              <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-              <XAxis 
-                dataKey="client" 
-                className="text-xs"
-                tick={{ fill: 'hsl(var(--muted-foreground))' }}
-              />
-              <YAxis 
-                className="text-xs"
-                tick={{ fill: 'hsl(var(--muted-foreground))' }}
-                tickFormatter={(value) => `$${(value / 1000).toFixed(0)}k`}
-              />
-              <ChartTooltip content={<ChartTooltipContent />} />
-              <Legend />
-              <Bar dataKey="sales" fill="hsl(var(--primary))" name="Sales ($)" radius={[4, 4, 0, 0]} />
-              <Bar dataKey="orders" fill="hsl(var(--chart-2))" name="Orders" radius={[4, 4, 0, 0]} />
-              <Bar dataKey="roas" fill="hsl(var(--chart-3))" name="ROAS (scaled)" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ChartContainer>
-        </CardContent>
-      </Card>
+      {/* Client Performance Matrix - Only show in portfolio view */}
+      {isPortfolioView && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Client Performance Matrix</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ChartContainer config={chartConfig} className="h-[300px]">
+              <BarChart data={clientPerformanceData}>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                <XAxis 
+                  dataKey="client" 
+                  className="text-xs"
+                  tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                />
+                <YAxis 
+                  className="text-xs"
+                  tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                  tickFormatter={(value) => `$${(value / 1000).toFixed(0)}k`}
+                />
+                <ChartTooltip content={<ChartTooltipContent />} />
+                <Legend />
+                <Bar dataKey="sales" fill="hsl(var(--primary))" name="Sales ($)" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="orders" fill="hsl(var(--chart-2))" name="Orders" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="roas" fill="hsl(var(--chart-3))" name="ROAS (scaled)" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ChartContainer>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Charts Row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

@@ -90,18 +90,8 @@ export class MemStorage implements IStorage {
     // Add demo clients
     const demoClients: Client[] = [
       {
-        id: "default-client",
-        name: "Temaki To-Go",
-        createdAt: new Date(),
-      },
-      {
-        id: "client-2",
-        name: "Bella's Pizza",
-        createdAt: new Date(),
-      },
-      {
-        id: "client-3",
-        name: "Green Leaf Salads",
+        id: "capriottis",
+        name: "Capriotti's",
         createdAt: new Date(),
       },
     ];
