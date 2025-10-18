@@ -132,6 +132,25 @@ async function main() {
   const clientId = capriottis.id;
   console.log(`✓ Found client: ${capriottis.name} (${clientId})\n`);
 
+  // Cache locations to avoid repeated lookups
+  const locationCache = new Map<string, string>(); // key: platform:locationName -> locationId
+  const allLocations = await storage.getLocationsByClient(clientId);
+  for (const loc of allLocations) {
+    if (loc.uberEatsName) locationCache.set(`ubereats:${loc.uberEatsName}`, loc.id);
+    if (loc.doordashName) locationCache.set(`doordash:${loc.doordashName}`, loc.id);
+    if (loc.grubhubName) locationCache.set(`grubhub:${loc.grubhubName}`, loc.id);
+  }
+  
+  async function getCachedLocation(locationName: string, platform: "ubereats" | "doordash" | "grubhub"): Promise<string> {
+    const key = `${platform}:${locationName}`;
+    if (locationCache.has(key)) {
+      return locationCache.get(key)!;
+    }
+    const locationId = await findOrCreateLocation(clientId, locationName, platform);
+    locationCache.set(key, locationId);
+    return locationId;
+  }
+
   // 1. Process Uber Eats transactions
   console.log("1. Processing Uber Eats transactions...");
   try {
@@ -145,7 +164,7 @@ async function main() {
       from_line: 2,
     });
     
-    let count = 0;
+    const transactions: any[] = [];
     for (const row of rows) {
       try {
         const storeName = row["Store Name"];
@@ -158,8 +177,8 @@ async function main() {
         
         if (!storeName || !orderDate || !orderId) continue;
         
-        const locationId = await findOrCreateLocation(clientId, storeName, "ubereats");
-        await storage.createUberEatsTransaction({
+        const locationId = await getCachedLocation(storeName, "ubereats");
+        transactions.push({
           clientId,
           locationId,
           orderId: orderId,
@@ -176,7 +195,6 @@ async function main() {
           netPayout: totalPayout,
           customerRating: null,
         });
-        count++;
       } catch (err: any) {
         // Skip rows with missing location data
         if (!err.message.includes("Empty location")) {
@@ -184,7 +202,8 @@ async function main() {
         }
       }
     }
-    console.log(`   ✓ Imported ${count} Uber Eats transactions\n`);
+    await (storage as any).createUberEatsTransactionsBatch(transactions);
+    console.log(`   ✓ Imported ${transactions.length} Uber Eats transactions\n`);
   } catch (error: any) {
     console.log(`   ⚠ Skipped Uber Eats: ${error.message}\n`);
   }
@@ -196,7 +215,7 @@ async function main() {
     const buffer = readFileSync(doorFile);
     const rows = parseCSV(buffer);
     
-    let count = 0;
+    const transactions: any[] = [];
     for (const row of rows) {
       try {
         const storeName = row["Store name"];
@@ -209,8 +228,8 @@ async function main() {
         
         if (!storeName || !orderDate || !orderNumber) continue;
         
-        const locationId = await findOrCreateLocation(clientId, storeName, "doordash");
-        await storage.createDoordashTransaction({
+        const locationId = await getCachedLocation(storeName, "doordash");
+        transactions.push({
           clientId,
           locationId,
           orderNumber: orderNumber,
@@ -225,14 +244,14 @@ async function main() {
           netPayment: netTotal,
           orderSource: row["Channel"] || "Unknown",
         });
-        count++;
       } catch (err: any) {
         if (!err.message.includes("Empty location")) {
           console.log(`     Skipped row: ${err.message}`);
         }
       }
     }
-    console.log(`   ✓ Imported ${count} DoorDash transactions\n`);
+    await (storage as any).createDoordashTransactionsBatch(transactions);
+    console.log(`   ✓ Imported ${transactions.length} DoorDash transactions\n`);
   } catch (error: any) {
     console.log(`   ⚠ Skipped DoorDash: ${error.message}\n`);
   }
@@ -244,7 +263,7 @@ async function main() {
     const buffer = readFileSync(grubFile);
     const rows = parseCSV(buffer);
     
-    let count = 0;
+    const transactions: any[] = [];
     for (const row of rows) {
       try {
         const storeName = row["store_name"];
@@ -257,8 +276,8 @@ async function main() {
         
         if (!storeName || !orderDate || !orderNumber) continue;
         
-        const locationId = await findOrCreateLocation(clientId, storeName, "grubhub");
-        await storage.createGrubhubTransaction({
+        const locationId = await getCachedLocation(storeName, "grubhub");
+        transactions.push({
           clientId,
           locationId,
           orderId: orderNumber,
@@ -272,22 +291,18 @@ async function main() {
           netSales: netTotal,
           customerType: row["gh_plus_customer"] || "Regular",
         });
-        count++;
       } catch (err: any) {
         if (!err.message.includes("Empty location")) {
           console.log(`     Skipped row: ${err.message}`);
         }
       }
     }
-    console.log(`   ✓ Imported ${count} Grubhub transactions\n`);
+    await (storage as any).createGrubhubTransactionsBatch(transactions);
+    console.log(`   ✓ Imported ${transactions.length} Grubhub transactions\n`);
   } catch (error: any) {
     console.log(`   ⚠ Skipped Grubhub: ${error.message}\n`);
   }
 
-  // Skip marketing data for now to avoid timeout
-  console.log("4. Skipping marketing data import (can be done separately)...\n");
-  
-  /* 
   // 4. Process DoorDash promotions
   console.log("4. Processing DoorDash promotions...");
   try {
@@ -304,7 +319,7 @@ async function main() {
       const startDate = row["Campaign Start Date"];
       const endDate = row["Campaign End Date"] === "None" ? null : row["Campaign End Date"];
       
-      const locationId = await findOrCreateLocation(clientId, row["Store Name"], "doordash");
+      const locationId = await getCachedLocation(row["Store Name"], "doordash");
       
       const revenue = parseFloat(row["Sales"]) || 0;
       const spend = parseFloat(row["Marketing Fees | (Including any applicable taxes)"]) || 0;
@@ -387,7 +402,7 @@ async function main() {
       const startDate = row["Campaign Start Date"];
       const endDate = row["Campaign End Date"] === "None" ? null : row["Campaign End Date"];
       
-      const locationId = await findOrCreateLocation(clientId, row["Store Name"], "doordash");
+      const locationId = await getCachedLocation(row["Store Name"], "doordash");
       
       const clicks = parseInt(row["Clicks"]) || 0;
       const orders = parseInt(row["Orders"]) || 0;
@@ -462,7 +477,6 @@ async function main() {
   } catch (error: any) {
     console.log(`   ⚠ Skipped DoorDash paid ads: ${error.message}\n`);
   }
-  */
 
   // Summary
   console.log("\n=== Summary ===");

@@ -122,6 +122,19 @@ export class DbStorage implements IStorage {
     return created;
   }
 
+  async createUberEatsTransactionsBatch(
+    transactions: InsertUberEatsTransaction[]
+  ): Promise<void> {
+    if (transactions.length === 0) return;
+    
+    // Insert in chunks of 500
+    const chunkSize = 500;
+    for (let i = 0; i < transactions.length; i += chunkSize) {
+      const chunk = transactions.slice(i, i + chunkSize);
+      await this.db.insert(uberEatsTransactions).values(chunk);
+    }
+  }
+
   async getUberEatsTransactionsByClient(clientId: string): Promise<UberEatsTransaction[]> {
     return await this.db
       .select()
@@ -139,6 +152,19 @@ export class DbStorage implements IStorage {
     return created;
   }
 
+  async createDoordashTransactionsBatch(
+    transactions: InsertDoordashTransaction[]
+  ): Promise<void> {
+    if (transactions.length === 0) return;
+    
+    // Insert in chunks of 500
+    const chunkSize = 500;
+    for (let i = 0; i < transactions.length; i += chunkSize) {
+      const chunk = transactions.slice(i, i + chunkSize);
+      await this.db.insert(doordashTransactions).values(chunk);
+    }
+  }
+
   async getDoordashTransactionsByClient(clientId: string): Promise<DoordashTransaction[]> {
     return await this.db
       .select()
@@ -154,6 +180,19 @@ export class DbStorage implements IStorage {
       .values(transaction)
       .returning();
     return created;
+  }
+
+  async createGrubhubTransactionsBatch(
+    transactions: InsertGrubhubTransaction[]
+  ): Promise<void> {
+    if (transactions.length === 0) return;
+    
+    // Insert in chunks of 500
+    const chunkSize = 500;
+    for (let i = 0; i < transactions.length; i += chunkSize) {
+      const chunk = transactions.slice(i, i + chunkSize);
+      await this.db.insert(grubhubTransactions).values(chunk);
+    }
   }
 
   async getGrubhubTransactionsByClient(clientId: string): Promise<GrubhubTransaction[]> {
