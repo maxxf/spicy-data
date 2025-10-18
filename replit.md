@@ -49,6 +49,12 @@ Preferred communication style: Simple, everyday language.
 - Platform-specific parsing logic for Uber Eats, DoorDash, and Grubhub
 - String similarity matching for location reconciliation
 - Transaction validation and data normalization
+- **DoorDash Attribution Methodology (Updated)**:
+  - Order Filtering: Only Marketplace channel + Completed status counted for sales/order metrics
+  - Sales Calculation: Uses "Sales (excl. tax)" as primary metric
+  - Marketing Investment: Ad Spend (from "Other payments") + Offer Value (promotional discounts + credits)
+  - Marketing Attribution: Orders with promotional offers, delivery offers, marketing credits, or third-party contributions
+  - Net Payout: Sums ALL order statuses (including refunds, cancellations)
 
 **API Endpoints:**
 - `/api/clients`: Client management
