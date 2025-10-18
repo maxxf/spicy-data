@@ -1,0 +1,22 @@
+----- BEGIN CSV -----
+Name,Code,Address,City,State,ZIP,Country,Status,Rating,StatusNote,SalesToday,OrdersToday
+Capriotti's Sandwich Shop (11350 S. Highlands Pkwy),,11350 S. Highlands Pkwy,,, ,USA,Offline,4.7,Paused by staff 21 hours ago,$0,0
+Capriotti's Sandwich Shop (IA090),IA090,4640 1st Avenue NE, Suite B,,, ,USA,Offline,4.6,Paused by staff 23 hours ago,$0,0
+Capriotti's Sandwich Shop (IA190),IA190,13101 University Ave,Clive,IA,50325,USA,Offline,4.6,Paused by staff 8 minutes ago,$47.37,1
+Capriotti's Sandwich Shop (NV037),NV037,1146 W Sunset Rd,,, ,USA,Offline,4.6,Paused by staff 1 month ago,$0,0
+Capriotti's Sandwich Shop (NV058),NV058,8090 Blue Diamond, Ste 190,,, ,USA,Offline,4.7,Paused by staff 5 hours ago,$32.57,2
+Capriotti's (TX444),TX100444,3655 Catclaw Drive,,, ,USA,Open,4.6,Open Since 7:01 AM,$103.89,3
+Capriotti's Sandwich Shop (301 N Harrison St),NJ100463,301 N Harrison St., Unit 470,,, ,USA,Open,4.4,Open Since 7:00 AM,$20.38,1
+Capriotti's Sandwich Shop (36101 Bob Hope Drive #G2),,36101 Bob Hope Drive #G2,,, ,USA,Open,4.5,Open Since 10:00 AM,$132.96,2
+Capriotti's Sandwich Shop (AL100443),,461 John Henry Way,,, ,USA,Open,4.6,Open Since 8:00 AM,$132.67,3
+Capriotti's Sandwich Shop (AZ081),AZ081,15227 N 87th St,Scottsdale,AZ,85260,USA,Open,4.6,Open Since 10:00 AM,$14.39,1
+Capriotti's Sandwich Shop (AR100196),AR100196,1406 S Walton Blvd,,, ,USA,Closed,4.8,Opens 8:00 AM Saturday,$112.40,4
+Capriotti's Sandwich Shop (DE001),DE001,510 N Union St,Wilmington,DE,19805,USA,Closed,4.6,Opens 8:00 AM Saturday,$124.65,4
+Capriotti's Sandwich Shop (DE002),DE002,708 W Basin Rd,,, ,USA,Closed,4.7,Opens 8:00 AM Saturday,$51.65,3
+Capriotti's Sandwich Shop (DE003),DE003,241 Newark Shopping Center,,, ,USA,Closed,4.7,Opens 7:00 AM Saturday,$0,0
+Capriotti's Sandwich Shop (DE004),DE004,2122 Silverside Rd,,, ,USA,Closed,4.8,Opens 7:00 AM Saturday,$0,0
+Capriotti's Sandwich Shop (TX100380),TX100380,3194 West University Drive,,, ,USA,Open,4.6,Open Since 7:01 AM,$251.04,7
+Capriotti's Sandwich Shop (VA100355),VA100355,2203 Plank Road,,, ,USA,Closed,4.6,Opens 7:00 AM Saturday,$39.66,2
+[TEMP CLOSE] Capriotti's Sandwich Shop (IL140),IL140,180 North Wabash Ave,,, ,USA,Closed,4.8,Opens 7:30 AM Friday,$0,0
+----- END CSV -----
+
