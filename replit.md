@@ -8,6 +8,20 @@ The system serves multi-tenant use cases where a single instance manages data fo
 
 ## Recent Changes (October 18, 2025)
 
+**Phase 3 - Location Weekly Financials Feature (COMPLETED):**
+- **Weekly Financial Summary Table**: New table on Locations page showing weekly financial snapshots per location
+- **Schema Addition**: locationWeeklyFinancials table tracking 8 key metrics per location per week:
+  - Sales (excl. tax), Marketing Sales, Marketing Spend, Marketing %, ROAS
+  - Payout $, Payout %, Payout with COGS (46%)
+- **Color-Coded Metrics**: Visual indicators for performance tracking:
+  - Marketing %: Yellow background highlighting
+  - Payout %: Red (<75%), Orange (75-82%), Yellow (82-86%), Green (≥86%)
+- **API Endpoints**: 
+  - GET /api/analytics/location-weekly-financials (query by clientId or locationId)
+  - POST /api/location-weekly-financials (create weekly financial records)
+- **Data Generation**: Script at scripts/generate-weekly-financials.ts populates sample weekly data via API
+- **UI Implementation**: Responsive table with location grouping, metric rows, and week columns showing 6 weeks of data
+
 **Phase 2 - Marketing Data Upload System (COMPLETED):**
 - **Campaign Tracking**: Added campaignId field to promotions and paidAdCampaigns tables for linking platform campaign identifiers
 - **Campaign Location Metrics Table**: New table storing location-level performance data per campaign (impressions, clicks, orders, revenue, spend, ROAS, etc.)
