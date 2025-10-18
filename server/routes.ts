@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertPromotionSchema, insertPaidAdCampaignSchema } from "@shared/schema";
+import { insertPromotionSchema, insertPaidAdCampaignSchema, insertLocationSchema } from "@shared/schema";
 import multer from "multer";
 import { parse } from "csv-parse/sync";
 import { z } from "zod";
@@ -589,6 +589,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         : await storage.getAllLocations();
       res.json(locations);
     } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/locations", async (req, res) => {
+    try {
+      const validatedData = insertLocationSchema.parse(req.body);
+      const location = await storage.createLocation(validatedData);
+      res.status(201).json(location);
+    } catch (error: any) {
+      if (error.name === "ZodError") {
+        return res.status(400).json({ error: "Invalid location data", details: error.errors });
+      }
       res.status(500).json({ error: error.message });
     }
   });

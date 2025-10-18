@@ -8,6 +8,22 @@ The system serves multi-tenant use cases where a single instance manages data fo
 
 ## Recent Changes (October 18, 2025)
 
+**Phase 2 - Marketing Data Upload System (COMPLETED):**
+- **Campaign Tracking**: Added campaignId field to promotions and paidAdCampaigns tables for linking platform campaign identifiers
+- **Campaign Location Metrics Table**: New table storing location-level performance data per campaign (impressions, clicks, orders, revenue, spend, ROAS, etc.)
+- **CSV Upload Implementation**: Completed marketing data upload for all 4 supported formats:
+  - DoorDash Promotions: Promotional campaign performance by store
+  - DoorDash Paid Ads: Paid advertising campaign performance by store
+  - Uber Campaign Locations: Campaign performance data per location
+  - Uber Offers/Campaigns: Offer-based campaign aggregated data
+- **Deduplication Logic**:
+  - Campaign records deduplicated by campaignId (prevents duplicate campaign creation on re-upload)
+  - Location metrics deduplicated by (campaignId, locationId, dateStart) tuple
+  - Upsert logic ensures re-uploads update existing metrics instead of duplicating
+- **Data Aggregation**: Campaign-level totals automatically calculated from location-level data
+- **Location Matching**: Marketing data uses same fuzzy matching algorithm (0.8 threshold) to link store names to canonical locations
+- **Upload UI**: Marketing upload section on Upload page with platform selector, data type selector, and file upload zone
+
 **Phase 1 - Read-Only Reporting Dashboard (COMPLETED):**
 - **Purpose Clarification**: This is strictly a reporting and insights dashboard (not for campaign/promotion creation)
 - **Primary Client**: Capriotti's configured as the main client for data ingestion
@@ -31,7 +47,6 @@ The system serves multi-tenant use cases where a single instance manages data fo
   - Promotions table with metrics (impressions, clicks, redemptions, discount, revenue, ROI)
   - Paid Ad Campaigns table with performance metrics (CTR, CPC, conversion rate, spend, revenue, ROAS, CPA)
   - Both tables include platform, status, dates, and client relationships
-  - Data ingestion will happen via CSV upload (marketing data upload feature planned)
 
 **Previous Changes (October 17, 2025):**
 - Portfolio-level metrics: Portfolio Sales, Active Clients, Portfolio ROAS, Net Payout Rate
@@ -82,9 +97,10 @@ Preferred communication style: Simple, everyday language.
 
 **API Endpoints:**
 - `/api/clients` - Client management (GET, POST)
-- `/api/locations` - Location management and cross-platform matching
+- `/api/locations` - Location management and cross-platform matching (GET, POST)
 - `/api/locations/suggestions` - Fuzzy matching suggestions for unlinked locations
 - `/api/upload` - CSV file upload with multipart form data handling for transaction data
+- `/api/upload/marketing` - Marketing CSV upload with platform/data type detection and campaign creation
 - `/api/analytics/overview` - Aggregated platform-level metrics (supports ?clientId filter)
 - `/api/analytics/locations` - Location-level performance metrics (supports ?clientId filter)
 - `/api/analytics/client-performance` - Multi-client performance comparison
@@ -99,8 +115,9 @@ Preferred communication style: Simple, everyday language.
 1. **Clients** - Restaurant brands/chains (Primary: Capriotti's)
 2. **Locations** - Physical restaurant locations with platform-specific name mappings
 3. **Transactions** - Platform-specific payment/order records (separate tables per platform: uberEatsTransactions, doordashTransactions, grubhubTransactions)
-4. **Promotions** - Marketing promotional campaigns with performance metrics
-5. **Paid Ad Campaigns** - Paid advertising campaigns with performance metrics (impressions, clicks, spend, revenue, ROAS)
+4. **Promotions** - Marketing promotional campaigns with performance metrics and campaignId for platform tracking
+5. **Paid Ad Campaigns** - Paid advertising campaigns with performance metrics (impressions, clicks, spend, revenue, ROAS) and campaignId
+6. **Campaign Location Metrics** - Location-level performance data for each campaign (links campaigns to specific store locations with detailed metrics)
 
 **Location Matching Strategy:**
 - Canonical name serves as the single source of truth
@@ -150,11 +167,24 @@ Preferred communication style: Simple, everyday language.
 - Marketing attribution based on promotional fields and discount columns
 - Metadata extraction includes order IDs, dates, fees, and payout calculations
 
-**Marketing Data Upload (Planned):**
-- Support for ingesting promotional campaign performance data
-- Support for ingesting paid advertising campaign data
-- Platform-specific marketing CSV formats to be documented
-- Will populate promotions and paidAdCampaigns tables with performance metrics
+**Marketing Data Upload (COMPLETED):**
+1. User selects platform (DoorDash, Uber Eats) and data type (Promotions, Ads, Campaigns, Offers)
+2. Uploads CSV file via drag-and-drop or file picker on Upload page
+3. Multipart form data sent to server with platform, clientId, dataType, and file
+4. Server processes CSV based on platform/data type:
+   - **DoorDash Promotions**: Campaign Id, Campaign Name, Store Name, dates, Sales, Discounts, ROAS, New Customers
+   - **DoorDash Ads**: Campaign Id, Campaign Name, Store Name, dates, Clicks, Orders, Sales, Marketing Fees, ROAS, CPA
+   - **Uber Campaigns**: Campaign UUID, Campaign name, Location name, dates, Impressions, Clicks, Orders, Sales, Ad spend, ROAS, CTR, CPC
+   - **Uber Offers**: Campaign UUID, Campaign name, dates, Sales, Orders, New customers (aggregated across all stores)
+5. Location matching: Uses fuzzy matching (0.8 threshold) to link store names to existing canonical locations
+6. Campaign aggregation: Calculates campaign-level totals from location-level rows
+7. Deduplication:
+   - Campaign records checked by campaignId (skip if exists)
+   - Location metrics checked by (campaignId, locationId, dateStart) tuple (upsert logic)
+8. Storage:
+   - Creates/updates promotion or paidAdCampaign records
+   - Stores location-level metrics in campaignLocationMetrics table
+9. Client receives success feedback via toast with rowsProcessed count
 
 ## External Dependencies
 
