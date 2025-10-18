@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertPromotionSchema, insertPaidAdCampaignSchema, insertLocationSchema } from "@shared/schema";
+import { insertPromotionSchema, insertPaidAdCampaignSchema, insertLocationSchema, insertLocationWeeklyFinancialSchema } from "@shared/schema";
 import multer from "multer";
 import { parse } from "csv-parse/sync";
 import { z } from "zod";
@@ -830,6 +830,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         res.status(400).json({ error: "Either clientId or locationId is required" });
       }
     } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/location-weekly-financials", async (req, res) => {
+    try {
+      const validatedData = insertLocationWeeklyFinancialSchema.parse(req.body);
+      const financial = await storage.createLocationWeeklyFinancial(validatedData);
+      res.json(financial);
+    } catch (error: any) {
+      if (error.name === "ZodError") {
+        return res.status(400).json({ error: "Validation failed", details: error.errors });
+      }
       res.status(500).json({ error: error.message });
     }
   });

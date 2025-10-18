@@ -7,8 +7,9 @@ import { PlatformBadge } from "@/components/platform-badge";
 import { CheckCircle2, AlertCircle, Link as LinkIcon } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import type { Location, LocationMatchSuggestion } from "@shared/schema";
+import type { Location, LocationMatchSuggestion, LocationWeeklyFinancial } from "@shared/schema";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useMemo } from "react";
 
 export default function LocationsPage() {
   const { toast } = useToast();
@@ -20,6 +21,16 @@ export default function LocationsPage() {
 
   const { data: suggestions, isLoading: suggestionsLoading } = useQuery<LocationMatchSuggestion[]>({
     queryKey: ["/api/locations/suggestions"],
+  });
+
+  const { data: weeklyFinancials, isLoading: financialsLoading } = useQuery<LocationWeeklyFinancial[]>({
+    queryKey: ["/api/analytics/location-weekly-financials"],
+    queryFn: async () => {
+      const params = new URLSearchParams({ clientId: "capriottis" });
+      const response = await fetch(`/api/analytics/location-weekly-financials?${params}`);
+      if (!response.ok) throw new Error("Failed to fetch weekly financials");
+      return response.json();
+    },
   });
 
   const matchMutation = useMutation({
@@ -85,6 +96,37 @@ export default function LocationsPage() {
         ),
     },
   ];
+
+  // Group weekly financials by location
+  const locationFinancials = useMemo(() => {
+    if (!weeklyFinancials || !locations) return new Map();
+    
+    const grouped = new Map<string, { location: Location; weeks: LocationWeeklyFinancial[] }>();
+    
+    weeklyFinancials.forEach(wf => {
+      const location = locations.find(l => l.id === wf.locationId);
+      if (!location) return;
+      
+      if (!grouped.has(wf.locationId)) {
+        grouped.set(wf.locationId, { location, weeks: [] });
+      }
+      grouped.get(wf.locationId)!.weeks.push(wf);
+    });
+    
+    // Sort weeks by date for each location
+    grouped.forEach(data => {
+      data.weeks.sort((a, b) => a.weekStartDate.localeCompare(b.weekStartDate));
+    });
+    
+    return grouped;
+  }, [weeklyFinancials, locations]);
+
+  // Get all unique weeks across all locations
+  const allWeeks = useMemo(() => {
+    if (!weeklyFinancials) return [];
+    const weeks = Array.from(new Set(weeklyFinancials.map(wf => wf.weekStartDate)));
+    return weeks.sort();
+  }, [weeklyFinancials]);
 
   const suggestionColumns = [
     {
@@ -194,6 +236,96 @@ export default function LocationsPage() {
               data={suggestions}
               columns={suggestionColumns}
             />
+          </CardContent>
+        </Card>
+      )}
+
+      {locationFinancials.size > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Weekly Financial Summary</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse text-sm" data-testid="table-weekly-financials">
+                <thead>
+                  <tr className="border-b">
+                    <th className="text-left p-3 font-semibold bg-muted/50">Location</th>
+                    <th className="text-left p-3 font-semibold bg-muted/50">Metric</th>
+                    {allWeeks.map(week => (
+                      <th key={week} className="text-right p-3 font-semibold bg-muted/50 whitespace-nowrap">
+                        {new Date(week).toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: 'numeric' })}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {Array.from(locationFinancials.values()).map(({ location, weeks }) => {
+                    // Create a map of week data for easy lookup
+                    const weekMap = new Map<string, LocationWeeklyFinancial>(weeks.map((w: LocationWeeklyFinancial) => [w.weekStartDate, w]));
+                    
+                    const metrics = [
+                      { label: "Sales (excl. tax)", key: "sales", format: (v: number) => `$${v.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}` },
+                      { label: "Marketing Sales", key: "marketingSales", format: (v: number) => `$${v.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}` },
+                      { label: "Marketing Spend", key: "marketingSpend", format: (v: number) => `$${v.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}` },
+                      { label: "Marketing %", key: "marketingPercent", format: (v: number) => `${Math.round(v)}%` },
+                      { label: "ROAS", key: "roas", format: (v: number) => v.toFixed(1) },
+                      { label: "Payout $", key: "payout", format: (v: number) => `$${v.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}` },
+                      { label: "Payout %", key: "payoutPercent", format: (v: number) => `${Math.round(v)}%` },
+                      { label: "Payout with COGS (46%)", key: "payoutWithCogs", format: (v: number) => `$${v.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}` },
+                    ];
+
+                    return metrics.map((metric, idx) => (
+                      <tr key={`${location.id}-${metric.key}`} className={idx === 0 ? "border-t-2" : ""}>
+                        {idx === 0 && (
+                          <td 
+                            rowSpan={metrics.length} 
+                            className="p-3 font-medium bg-muted/30 border-r align-top"
+                            data-testid={`location-name-${location.canonicalName}`}
+                          >
+                            {location.canonicalName}
+                          </td>
+                        )}
+                        <td className="p-3 text-muted-foreground">{metric.label}</td>
+                        {allWeeks.map(week => {
+                          const data: LocationWeeklyFinancial | undefined = weekMap.get(week);
+                          if (!data) {
+                            return <td key={week} className="p-3 text-center text-muted-foreground">—</td>;
+                          }
+                          const value = data[metric.key as keyof LocationWeeklyFinancial] as number;
+                          
+                          // Apply color coding based on metric type and value
+                          let cellClassName = "p-3 text-right font-mono";
+                          if (metric.key === "marketingPercent") {
+                            cellClassName += " bg-yellow-100 dark:bg-yellow-950/30";
+                          } else if (metric.key === "payoutPercent") {
+                            if (value < 75) {
+                              cellClassName += " bg-red-100 dark:bg-red-950/30";
+                            } else if (value < 82) {
+                              cellClassName += " bg-orange-100 dark:bg-orange-950/30";
+                            } else if (value < 86) {
+                              cellClassName += " bg-yellow-100 dark:bg-yellow-950/30";
+                            } else {
+                              cellClassName += " bg-green-100 dark:bg-green-950/30";
+                            }
+                          }
+                          
+                          return (
+                            <td 
+                              key={week} 
+                              className={cellClassName}
+                              data-testid={`cell-${location.canonicalName}-${metric.key}-${week}`}
+                            >
+                              {metric.format(value)}
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    ));
+                  })}
+                </tbody>
+              </table>
+            </div>
           </CardContent>
         </Card>
       )}
