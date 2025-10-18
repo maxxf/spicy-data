@@ -32,8 +32,16 @@ async function main() {
   const allLocations = await db.select().from(locations).where(eq(locations.clientId, client.id));
   console.log(`Found ${allLocations.length} locations for matching`);
 
+  // Cache for location lookups to avoid repeated fuzzy matching
+  const locationCache = new Map<string, string>(); // storeName -> locationId
+
   // Helper: Find or create location
   async function findOrCreateLocation(storeName: string, platform: "ubereats" | "doordash" | "grubhub") {
+    // Check cache first
+    const cacheKey = `${platform}:${storeName}`;
+    if (locationCache.has(cacheKey)) {
+      return locationCache.get(cacheKey)!;
+    }
     // First try exact match on platform-specific name
     const platformField = platform === "ubereats" ? "uberEatsName" : platform === "doordash" ? "doordashName" : "grubhubName";
     let location = allLocations.find(
@@ -43,6 +51,7 @@ async function main() {
     );
 
     if (location) {
+      locationCache.set(cacheKey, location.id);
       return location.id;
     }
 
@@ -69,6 +78,7 @@ async function main() {
 
       await db.update(locations).set(updates).where(eq(locations.id, bestMatch.location.id));
       console.log(`Matched "${storeName}" to "${bestMatch.location.canonicalName}" (score: ${bestMatch.score.toFixed(2)})`);
+      locationCache.set(cacheKey, bestMatch.location.id);
       return bestMatch.location.id;
     }
 
@@ -87,6 +97,7 @@ async function main() {
 
     allLocations.push(newLocation);
     console.log(`Created new location: "${storeName}"`);
+    locationCache.set(cacheKey, newLocation.id);
     return newLocation.id;
   }
 
@@ -140,11 +151,17 @@ async function main() {
   console.log(`Parsed ${ubereatsRows.length} UberEats rows`);
 
   const ubereatsTransactionsToInsert = [];
+  let processedCount = 0;
   for (const row of ubereatsRows) {
     const storeName = row["Store Name"] || "";
     if (!storeName || storeName.trim() === "") continue;
 
     const locationId = await findOrCreateLocation(storeName, "ubereats");
+    
+    processedCount++;
+    if (processedCount % 500 === 0) {
+      console.log(`Processed ${processedCount}/${ubereatsRows.length} UberEats rows...`);
+    }
 
     const parseFloatSafe = (val: any) => {
       if (!val || val === "") return 0;
@@ -172,7 +189,7 @@ async function main() {
       marketingPromo: (offersOnItems > 0 || deliveryOfferRedemptions > 0 || marketingAdjustment !== 0 || otherPayments !== 0) ? "Yes" : null,
       marketingAmount: offersOnItems + deliveryOfferRedemptions + Math.abs(marketingAdjustment) + otherPayments,
       platformFee: parseFloatSafe(row["Marketplace Fee"]),
-      netPayout: parseFloatSafe(row["Total Payout"]),
+      netPayout: parseFloatSafe(row["Total payout"]), // lowercase 'p'!
       customerRating: null,
     });
   }
