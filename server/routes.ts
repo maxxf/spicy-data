@@ -816,6 +816,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/analytics/location-weekly-financials", async (req, res) => {
+    try {
+      const { clientId, locationId } = req.query;
+      
+      if (locationId) {
+        const financials = await storage.getLocationWeeklyFinancials(locationId as string);
+        res.json(financials);
+      } else if (clientId) {
+        const financials = await storage.getLocationWeeklyFinancialsByClient(clientId as string);
+        res.json(financials);
+      } else {
+        res.status(400).json({ error: "Either clientId or locationId is required" });
+      }
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   const httpServer = createServer(app);
 
   return httpServer;
