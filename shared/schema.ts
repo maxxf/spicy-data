@@ -47,17 +47,46 @@ export const doordashTransactions = pgTable("doordash_transactions", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   clientId: varchar("client_id").notNull().references(() => clients.id),
   locationId: varchar("location_id").references(() => locations.id),
+  
+  // Order identification
   orderNumber: text("order_number").notNull(),
   transactionDate: text("transaction_date").notNull(),
   storeLocation: text("store_location").notNull(),
-  orderSubtotal: real("order_subtotal").notNull(),
-  taxes: real("taxes").notNull(),
-  deliveryFees: real("delivery_fees").notNull(),
-  commission: real("commission").notNull(),
-  marketingSpend: real("marketing_spend").notNull(),
-  errorCharges: real("error_charges").notNull(),
-  netPayment: real("net_payment").notNull(),
-  orderSource: text("order_source").notNull(),
+  
+  // Order status and channel (for filtering per new methodology)
+  channel: text("channel"), // e.g., "Marketplace", "Caviar", etc.
+  orderStatus: text("order_status"), // e.g., "Completed", "Cancelled", "Refund", etc.
+  
+  // Sales metrics (updated methodology)
+  salesExclTax: real("sales_excl_tax").notNull().default(0), // Primary sales metric per new methodology
+  orderSubtotal: real("order_subtotal").notNull().default(0), // Legacy field
+  taxes: real("taxes").notNull().default(0),
+  
+  // Fees and charges
+  deliveryFees: real("delivery_fees").notNull().default(0),
+  commission: real("commission").notNull().default(0),
+  errorCharges: real("error_charges").notNull().default(0),
+  
+  // Marketing and promotional fields (new methodology)
+  offersOnItems: real("offers_on_items").notNull().default(0), // Negative for discounts
+  deliveryOfferRedemptions: real("delivery_offer_redemptions").notNull().default(0), // Negative for discounts
+  marketingCredits: real("marketing_credits").notNull().default(0),
+  thirdPartyContribution: real("third_party_contribution").notNull().default(0),
+  
+  // Other payments (ad spend, credits, fees - new methodology)
+  otherPayments: real("other_payments").notNull().default(0), // Absolute value of misc payments
+  otherPaymentsDescription: text("other_payments_description"), // Description of payment type
+  
+  // Legacy marketing field
+  marketingSpend: real("marketing_spend").notNull().default(0),
+  
+  // Payout (new methodology uses totalPayout for all statuses)
+  totalPayout: real("total_payout").notNull().default(0), // Includes all statuses
+  netPayment: real("net_payment").notNull().default(0), // Legacy field
+  
+  // Source
+  orderSource: text("order_source"),
+  
   uploadedAt: timestamp("uploaded_at").defaultNow().notNull(),
 });
 
