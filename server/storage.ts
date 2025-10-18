@@ -17,6 +17,8 @@ import {
   type PaidAdCampaignMetrics,
   type CampaignLocationMetric,
   type InsertCampaignLocationMetric,
+  type LocationWeeklyFinancial,
+  type InsertLocationWeeklyFinancial,
   type DashboardOverview,
   type LocationMetrics,
   type PlatformMetrics,
@@ -79,6 +81,7 @@ export interface IStorage {
   createLocationWeeklyFinancial(financial: InsertLocationWeeklyFinancial): Promise<LocationWeeklyFinancial>;
   getLocationWeeklyFinancials(locationId: string): Promise<LocationWeeklyFinancial[]>;
   getLocationWeeklyFinancialsByClient(clientId: string): Promise<LocationWeeklyFinancial[]>;
+  deleteLocationWeeklyFinancialsByClient(clientId: string): Promise<number>;
 }
 
 export class MemStorage implements IStorage {
@@ -569,6 +572,36 @@ export class MemStorage implements IStorage {
         return a.weekStartDate.localeCompare(b.weekStartDate);
       });
   }
+
+  async deleteLocationWeeklyFinancialsByClient(clientId: string): Promise<number> {
+    const toDelete = Array.from(this.locationWeeklyFinancials.entries())
+      .filter(([_, f]) => f.clientId === clientId);
+    
+    toDelete.forEach(([id, _]) => {
+      this.locationWeeklyFinancials.delete(id);
+    });
+    
+    return toDelete.length;
+  }
 }
 
-export const storage = new MemStorage();
+import { DbStorage } from "./db-storage";
+
+export const storage = new DbStorage();
+
+// Seed initial client
+(async () => {
+  try {
+    const allClients = await storage.getAllClients();
+    const capriottisExists = allClients.some(c => c.name === "Capriotti's");
+    
+    if (!capriottisExists) {
+      await storage.createClient({
+        name: "Capriotti's",
+      });
+      console.log("✓ Seeded Capriotti's client");
+    }
+  } catch (error) {
+    console.error("Error seeding client:", error);
+  }
+})();
