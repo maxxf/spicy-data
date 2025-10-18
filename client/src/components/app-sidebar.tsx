@@ -1,4 +1,4 @@
-import { LayoutDashboard, Upload, MapPin, BarChart3, Percent, Target } from "lucide-react";
+import { LayoutDashboard, Upload, MapPin, BarChart3, Megaphone } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import {
   Sidebar,
@@ -20,14 +20,9 @@ const navigation = [
     icon: LayoutDashboard,
   },
   {
-    title: "Promotions",
-    url: "/promotions",
-    icon: Percent,
-  },
-  {
-    title: "Paid Ads",
-    url: "/paid-ads",
-    icon: Target,
+    title: "Campaigns",
+    url: "/campaigns",
+    icon: Megaphone,
   },
   {
     title: "Upload Data",
