@@ -298,7 +298,7 @@ export class MemStorage implements IStorage {
     platform: "ubereats" | "doordash" | "grubhub",
     transactions: any[]
   ): PlatformMetrics {
-    const totalOrders = transactions.length;
+    let totalOrders = 0;
     let totalSales = 0;
     let marketingDrivenSales = 0;
     let adSpend = 0;
@@ -307,25 +307,57 @@ export class MemStorage implements IStorage {
 
     transactions.forEach((t) => {
       if (platform === "ubereats") {
+        totalOrders++;
         totalSales += t.subtotal;
         netPayout += t.netPayout;
-        adSpend += t.platformFee;
-        offerDiscountValue += t.marketingAmount;
-        if (t.marketingAmount > 0) {
+        if (t.marketingPromo) {
+          offerDiscountValue += t.marketingAmount;
           marketingDrivenSales += t.subtotal;
         }
       } else if (platform === "doordash") {
-        totalSales += t.orderSubtotal;
-        netPayout += t.netPayment;
-        adSpend += t.commission;
-        offerDiscountValue += t.marketingSpend;
-        if (t.marketingSpend > 0) {
-          marketingDrivenSales += t.orderSubtotal;
+        // NEW ATTRIBUTION METHODOLOGY FOR DOORDASH
+        
+        // 1. Order Filtering: ONLY count Marketplace + Completed orders for sales metrics
+        const isMarketplace = !t.channel || t.channel === "Marketplace";
+        const isCompleted = !t.orderStatus || t.orderStatus === "Completed";
+        
+        // 2. Net Payout: Sum ALL order statuses (including refunds, cancellations)
+        netPayout += t.totalPayout || t.netPayment || 0;
+        
+        // Only count Marketplace + Completed for sales and order metrics
+        if (isMarketplace && isCompleted) {
+          totalOrders++;
+          
+          // 3. Sales Calculation: Use "Sales (excl. tax)" as primary metric
+          const sales = t.salesExclTax || t.orderSubtotal || 0;
+          totalSales += sales;
+          
+          // 4. Marketing Investment Components
+          // Ad Spend = absolute value of all "Other payments" 
+          const adSpendAmount = Math.abs(t.otherPayments || 0);
+          adSpend += adSpendAmount;
+          
+          // Offer/Discount Value = abs(promotional discounts) + credits
+          const offersValue = Math.abs(t.offersOnItems || 0) + 
+                            Math.abs(t.deliveryOfferRedemptions || 0) +
+                            Math.abs(t.marketingCredits || 0) +
+                            Math.abs(t.thirdPartyContribution || 0);
+          offerDiscountValue += offersValue;
+          
+          // 5. Marketing Attribution: Order has marketing if any promotional activity
+          const hasMarketing = (t.offersOnItems < 0) || 
+                              (t.deliveryOfferRedemptions < 0) || 
+                              (t.marketingCredits > 0) || 
+                              (t.thirdPartyContribution > 0);
+          
+          if (hasMarketing) {
+            marketingDrivenSales += sales;
+          }
         }
       } else if (platform === "grubhub") {
+        totalOrders++;
         totalSales += t.saleAmount;
         netPayout += t.netSales;
-        adSpend += t.processingFee;
         offerDiscountValue += t.promotionCost;
         if (t.promotionCost > 0) {
           marketingDrivenSales += t.saleAmount;
@@ -336,7 +368,17 @@ export class MemStorage implements IStorage {
     const organicSales = totalSales - marketingDrivenSales;
     const ordersFromMarketing = transactions.filter(t => {
       if (platform === "ubereats") return t.marketingAmount > 0;
-      if (platform === "doordash") return t.marketingSpend > 0;
+      if (platform === "doordash") {
+        // Only count completed marketplace orders
+        const isMarketplace = !t.channel || t.channel === "Marketplace";
+        const isCompleted = !t.orderStatus || t.orderStatus === "Completed";
+        if (!isMarketplace || !isCompleted) return false;
+        
+        return (t.offersOnItems < 0) || 
+               (t.deliveryOfferRedemptions < 0) || 
+               (t.marketingCredits > 0) || 
+               (t.thirdPartyContribution > 0);
+      }
       return t.promotionCost > 0;
     }).length;
     const organicOrders = totalOrders - ordersFromMarketing;
