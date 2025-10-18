@@ -215,6 +215,23 @@ export class DbStorage implements IStorage {
       grubConditions.push(eq(grubhubTransactions.clientId, filters.clientId));
     }
 
+    // Add date range filtering
+    if (filters?.weekStart && filters?.weekEnd) {
+      doorConditions.push(
+        and(
+          sql`${doordashTransactions.transactionDate} >= ${filters.weekStart}`,
+          sql`${doordashTransactions.transactionDate} <= ${filters.weekEnd}`
+        )!
+      );
+      grubConditions.push(
+        and(
+          sql`${grubhubTransactions.orderDate} >= ${filters.weekStart}`,
+          sql`${grubhubTransactions.orderDate} <= ${filters.weekEnd}`
+        )!
+      );
+      // UberEats dates are in different format (M/D/YY), handled differently
+    }
+
     if (filters?.locationTag) {
       const taggedLocations = await this.db
         .select({ id: locations.id })
@@ -413,6 +430,22 @@ export class DbStorage implements IStorage {
       uberConditions.push(eq(uberEatsTransactions.clientId, filters.clientId));
       doorConditions.push(eq(doordashTransactions.clientId, filters.clientId));
       grubConditions.push(eq(grubhubTransactions.clientId, filters.clientId));
+    }
+
+    // Add date range filtering
+    if (filters?.weekStart && filters?.weekEnd) {
+      doorConditions.push(
+        and(
+          sql`${doordashTransactions.transactionDate} >= ${filters.weekStart}`,
+          sql`${doordashTransactions.transactionDate} <= ${filters.weekEnd}`
+        )!
+      );
+      grubConditions.push(
+        and(
+          sql`${grubhubTransactions.orderDate} >= ${filters.weekStart}`,
+          sql`${grubhubTransactions.orderDate} <= ${filters.weekEnd}`
+        )!
+      );
     }
 
     const [uberTxns, doorTxns, grubTxns] = await Promise.all([
