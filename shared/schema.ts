@@ -142,6 +142,24 @@ export const campaignLocationMetrics = pgTable("campaign_location_metrics", {
   uploadedAt: timestamp("uploaded_at").defaultNow().notNull(),
 });
 
+// Location weekly financials - stores weekly financial summary per location
+export const locationWeeklyFinancials = pgTable("location_weekly_financials", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  locationId: varchar("location_id").notNull().references(() => locations.id),
+  clientId: varchar("client_id").notNull().references(() => clients.id),
+  weekStartDate: text("week_start_date").notNull(), // Format: YYYY-MM-DD
+  weekEndDate: text("week_end_date").notNull(), // Format: YYYY-MM-DD
+  sales: real("sales").default(0).notNull(), // Total sales excluding tax
+  marketingSales: real("marketing_sales").default(0).notNull(), // Sales from marketing campaigns
+  marketingSpend: real("marketing_spend").default(0).notNull(), // Total marketing spend
+  marketingPercent: real("marketing_percent").default(0).notNull(), // Marketing % of total sales
+  roas: real("roas").default(0).notNull(), // Return on ad spend
+  payout: real("payout").default(0).notNull(), // Net payout amount
+  payoutPercent: real("payout_percent").default(0).notNull(), // Payout as % of sales
+  payoutWithCogs: real("payout_with_cogs").default(0).notNull(), // Payout minus COGS (46%)
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 // Insert schemas
 export const insertClientSchema = createInsertSchema(clients).omit({
   id: true,
@@ -183,6 +201,11 @@ export const insertCampaignLocationMetricSchema = createInsertSchema(campaignLoc
   uploadedAt: true,
 });
 
+export const insertLocationWeeklyFinancialSchema = createInsertSchema(locationWeeklyFinancials).omit({
+  id: true,
+  createdAt: true,
+});
+
 // TypeScript types
 export type Client = typeof clients.$inferSelect;
 export type InsertClient = z.infer<typeof insertClientSchema>;
@@ -207,6 +230,9 @@ export type InsertPaidAdCampaign = z.infer<typeof insertPaidAdCampaignSchema>;
 
 export type CampaignLocationMetric = typeof campaignLocationMetrics.$inferSelect;
 export type InsertCampaignLocationMetric = z.infer<typeof insertCampaignLocationMetricSchema>;
+
+export type LocationWeeklyFinancial = typeof locationWeeklyFinancials.$inferSelect;
+export type InsertLocationWeeklyFinancial = z.infer<typeof insertLocationWeeklyFinancialSchema>;
 
 // Analytics types
 export type PlatformMetrics = {

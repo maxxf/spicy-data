@@ -75,6 +75,10 @@ export interface IStorage {
   createCampaignLocationMetric(metric: InsertCampaignLocationMetric): Promise<CampaignLocationMetric>;
   getCampaignLocationMetrics(clientId?: string): Promise<CampaignLocationMetric[]>;
   getCampaignLocationMetricByKey(campaignId: string, locationId: string | null, dateStart: string | null): Promise<CampaignLocationMetric | undefined>;
+
+  createLocationWeeklyFinancial(financial: InsertLocationWeeklyFinancial): Promise<LocationWeeklyFinancial>;
+  getLocationWeeklyFinancials(locationId: string): Promise<LocationWeeklyFinancial[]>;
+  getLocationWeeklyFinancialsByClient(clientId: string): Promise<LocationWeeklyFinancial[]>;
 }
 
 export class MemStorage implements IStorage {
@@ -86,6 +90,7 @@ export class MemStorage implements IStorage {
   private promotions: Map<string, Promotion>;
   private paidAdCampaigns: Map<string, PaidAdCampaign>;
   private campaignLocationMetrics: Map<string, CampaignLocationMetric>;
+  private locationWeeklyFinancials: Map<string, LocationWeeklyFinancial>;
 
   constructor() {
     this.clients = new Map();
@@ -96,6 +101,7 @@ export class MemStorage implements IStorage {
     this.promotions = new Map();
     this.paidAdCampaigns = new Map();
     this.campaignLocationMetrics = new Map();
+    this.locationWeeklyFinancials = new Map();
     
     // Add demo clients
     const demoClients: Client[] = [
@@ -535,6 +541,33 @@ export class MemStorage implements IStorage {
            m.locationId === locationId && 
            m.dateStart === dateStart
     );
+  }
+
+  async createLocationWeeklyFinancial(insertFinancial: InsertLocationWeeklyFinancial): Promise<LocationWeeklyFinancial> {
+    const id = crypto.randomUUID();
+    const financial: LocationWeeklyFinancial = {
+      ...insertFinancial,
+      id,
+      createdAt: new Date(),
+    };
+    this.locationWeeklyFinancials.set(id, financial);
+    return financial;
+  }
+
+  async getLocationWeeklyFinancials(locationId: string): Promise<LocationWeeklyFinancial[]> {
+    return Array.from(this.locationWeeklyFinancials.values())
+      .filter(f => f.locationId === locationId)
+      .sort((a, b) => a.weekStartDate.localeCompare(b.weekStartDate));
+  }
+
+  async getLocationWeeklyFinancialsByClient(clientId: string): Promise<LocationWeeklyFinancial[]> {
+    return Array.from(this.locationWeeklyFinancials.values())
+      .filter(f => f.clientId === clientId)
+      .sort((a, b) => {
+        const locCompare = (a.locationId || '').localeCompare(b.locationId || '');
+        if (locCompare !== 0) return locCompare;
+        return a.weekStartDate.localeCompare(b.weekStartDate);
+      });
   }
 }
 
