@@ -23,6 +23,7 @@ async function main() {
 
   // Clear existing transactions
   console.log("Clearing old transactions...");
+  await db.delete(uberEatsTransactions).where(eq(uberEatsTransactions.clientId, client.id));
   await db.delete(doordashTransactions).where(eq(doordashTransactions.clientId, client.id));
   await db.delete(grubhubTransactions).where(eq(grubhubTransactions.clientId, client.id));
   console.log("Old transactions cleared.");
@@ -32,9 +33,9 @@ async function main() {
   console.log(`Found ${allLocations.length} locations for matching`);
 
   // Helper: Find or create location
-  async function findOrCreateLocation(storeName: string, platform: "doordash" | "grubhub") {
+  async function findOrCreateLocation(storeName: string, platform: "ubereats" | "doordash" | "grubhub") {
     // First try exact match on platform-specific name
-    const platformField = platform === "doordash" ? "doordashName" : "grubhubName";
+    const platformField = platform === "ubereats" ? "uberEatsName" : platform === "doordash" ? "doordashName" : "grubhubName";
     let location = allLocations.find(
       (l) =>
         l[platformField] === storeName ||
@@ -62,6 +63,7 @@ async function main() {
     if (bestMatch) {
       // Update location with platform name
       const updates: any = {};
+      if (platform === "ubereats") updates.uberEatsName = storeName;
       if (platform === "doordash") updates.doordashName = storeName;
       if (platform === "grubhub") updates.grubhubName = storeName;
 
@@ -76,6 +78,7 @@ async function main() {
       .values({
         clientId: client.id,
         canonicalName: storeName,
+        uberEatsName: platform === "ubereats" ? storeName : null,
         doordashName: platform === "doordash" ? storeName : null,
         grubhubName: platform === "grubhub" ? storeName : null,
         isVerified: false,
@@ -119,6 +122,67 @@ async function main() {
       }
     }
     return matrix[str2.length][str1.length];
+  }
+
+  // Import UberEats data
+  console.log("\nImporting UberEats transactions...");
+  const ubereatsCsv = readFileSync(
+    "attached_assets/abd32c28-5d15-462f-ac47-1e80348c0bd8-united_states_1760811061261.csv",
+    "utf-8"
+  );
+  const ubereatsRows = parse(ubereatsCsv, {
+    columns: true,
+    skip_empty_lines: true,
+    trim: true,
+    from_line: 2, // Skip the first header row with long descriptions
+  });
+
+  console.log(`Parsed ${ubereatsRows.length} UberEats rows`);
+
+  const ubereatsTransactionsToInsert = [];
+  for (const row of ubereatsRows) {
+    const storeName = row["Store Name"] || "";
+    if (!storeName || storeName.trim() === "") continue;
+
+    const locationId = await findOrCreateLocation(storeName, "ubereats");
+
+    const parseFloatSafe = (val: any) => {
+      if (!val || val === "") return 0;
+      const num = Number(val);
+      return isNaN(num) ? 0 : num;
+    };
+
+    // Parse marketing fields
+    const offersOnItems = Math.abs(parseFloatSafe(row["Offers on items (incl. tax)"]));
+    const deliveryOfferRedemptions = Math.abs(parseFloatSafe(row["Delivery Offer Redemptions (incl. tax)"]));
+    const marketingAdjustment = parseFloatSafe(row["Marketing Adjustment"]);
+    const otherPayments = Math.abs(parseFloatSafe(row["Other payments"])); // Ad spend (negative in CSV)!
+
+    ubereatsTransactionsToInsert.push({
+      clientId: client.id,
+      locationId,
+      orderId: row["Order ID"] || "",
+      date: row["Order Date"] || "",
+      time: row["Order Accept Time"] || "",
+      location: storeName,
+      subtotal: parseFloatSafe(row["Sales (excl. tax)"]),
+      tax: parseFloatSafe(row["Tax on Sales"]),
+      deliveryFee: parseFloatSafe(row["Delivery Fee"]),
+      serviceFee: 0, // Not in this CSV format
+      marketingPromo: (offersOnItems > 0 || deliveryOfferRedemptions > 0 || marketingAdjustment !== 0 || otherPayments !== 0) ? "Yes" : null,
+      marketingAmount: offersOnItems + deliveryOfferRedemptions + Math.abs(marketingAdjustment) + otherPayments,
+      platformFee: parseFloatSafe(row["Marketplace Fee"]),
+      netPayout: parseFloatSafe(row["Total Payout"]),
+      customerRating: null,
+    });
+  }
+
+  console.log(`Inserting ${ubereatsTransactionsToInsert.length} UberEats transactions in batches...`);
+  const chunkSize = 500;
+  for (let i = 0; i < ubereatsTransactionsToInsert.length; i += chunkSize) {
+    const chunk = ubereatsTransactionsToInsert.slice(i, i + chunkSize);
+    await db.insert(uberEatsTransactions).values(chunk);
+    console.log(`Inserted ${Math.min(i + chunkSize, ubereatsTransactionsToInsert.length)}/${ubereatsTransactionsToInsert.length}`);
   }
 
   // Import DoorDash data
@@ -187,7 +251,6 @@ async function main() {
   }
 
   console.log(`Inserting ${doordashTransactionsToInsert.length} DoorDash transactions in batches...`);
-  const chunkSize = 500;
   for (let i = 0; i < doordashTransactionsToInsert.length; i += chunkSize) {
     const chunk = doordashTransactionsToInsert.slice(i, i + chunkSize);
     await db.insert(doordashTransactions).values(chunk);
