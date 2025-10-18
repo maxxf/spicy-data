@@ -154,7 +154,7 @@ async function main() {
   // 1. Process Uber Eats transactions
   console.log("1. Processing Uber Eats transactions...");
   try {
-    const uberFile = "./attached_assets/2ec4128c-c9bd-48f8-9f54-82ee0a670d39-united_states_1760742358828.csv";
+    const uberFile = "./attached_assets/abd32c28-5d15-462f-ac47-1e80348c0bd8-united_states_1760811061261.csv";
     const buffer = readFileSync(uberFile);
     // Uber CSV has 2 header rows - skip the first one (descriptions)
     const rows = parse(buffer, {

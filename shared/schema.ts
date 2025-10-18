@@ -18,6 +18,7 @@ export const locations = pgTable("locations", {
   doordashName: text("doordash_name"),
   grubhubName: text("grubhub_name"),
   isVerified: boolean("is_verified").default(false).notNull(),
+  locationTag: text("location_tag"), // e.g., "Corporate", "Franchise"
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
