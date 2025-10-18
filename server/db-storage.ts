@@ -1,6 +1,6 @@
 import { Pool, neonConfig } from "@neondatabase/serverless";
 import { drizzle } from "drizzle-orm/neon-serverless";
-import { eq, and, sql, desc } from "drizzle-orm";
+import { eq, and, sql, desc, inArray } from "drizzle-orm";
 import ws from "ws";
 
 neonConfig.webSocketConstructor = ws;
@@ -37,6 +37,7 @@ import {
   type DashboardOverview,
   type LocationMetrics,
   type LocationMatchSuggestion,
+  type AnalyticsFilters,
 } from "@shared/schema";
 import type { IStorage } from "./storage";
 
@@ -202,16 +203,53 @@ export class DbStorage implements IStorage {
       .where(eq(grubhubTransactions.clientId, clientId));
   }
 
-  async getDashboardOverview(clientId?: string): Promise<DashboardOverview> {
+  async getDashboardOverview(filters?: AnalyticsFilters): Promise<DashboardOverview> {
+    // Build query conditions for each platform
+    const uberConditions = [];
+    const doorConditions = [];
+    const grubConditions = [];
+
+    if (filters?.clientId) {
+      uberConditions.push(eq(uberEatsTransactions.clientId, filters.clientId));
+      doorConditions.push(eq(doordashTransactions.clientId, filters.clientId));
+      grubConditions.push(eq(grubhubTransactions.clientId, filters.clientId));
+    }
+
+    if (filters?.locationTag) {
+      const taggedLocations = await this.db
+        .select({ id: locations.id })
+        .from(locations)
+        .where(eq(locations.locationTag, filters.locationTag));
+      const locationIds = taggedLocations.map(l => l.id);
+      
+      if (locationIds.length > 0) {
+        uberConditions.push(inArray(uberEatsTransactions.locationId, locationIds));
+        doorConditions.push(inArray(doordashTransactions.locationId, locationIds));
+        grubConditions.push(inArray(grubhubTransactions.locationId, locationIds));
+      } else {
+        // No locations match the tag - return empty data
+        return {
+          totalSales: 0,
+          totalOrders: 0,
+          averageAov: 0,
+          totalMarketingInvestment: 0,
+          blendedRoas: 0,
+          netPayoutPercent: 0,
+          platformBreakdown: [],
+        };
+      }
+    }
+
+    // Fetch filtered transactions
     const [uberTxns, doorTxns, grubTxns] = await Promise.all([
-      clientId
-        ? this.getUberEatsTransactionsByClient(clientId)
+      uberConditions.length > 0
+        ? this.db.select().from(uberEatsTransactions).where(and(...uberConditions))
         : this.db.select().from(uberEatsTransactions),
-      clientId
-        ? this.getDoordashTransactionsByClient(clientId)
+      doorConditions.length > 0
+        ? this.db.select().from(doordashTransactions).where(and(...doorConditions))
         : this.db.select().from(doordashTransactions),
-      clientId
-        ? this.getGrubhubTransactionsByClient(clientId)
+      grubConditions.length > 0
+        ? this.db.select().from(grubhubTransactions).where(and(...grubConditions))
         : this.db.select().from(grubhubTransactions),
     ]);
 
@@ -274,11 +312,16 @@ export class DbStorage implements IStorage {
       };
     };
 
-    const platformBreakdown = [
+    let platformBreakdown = [
       calculatePlatformMetrics(uberTxns, "ubereats"),
       calculatePlatformMetrics(doorTxns, "doordash"),
       calculatePlatformMetrics(grubTxns, "grubhub"),
     ];
+
+    // Filter by platform if specified
+    if (filters?.platform) {
+      platformBreakdown = platformBreakdown.filter(p => p.platform === filters.platform);
+    }
 
     const totalSales = platformBreakdown.reduce((sum, p) => sum + p.totalSales, 0);
     const totalOrders = platformBreakdown.reduce((sum, p) => sum + p.totalOrders, 0);
@@ -304,31 +347,58 @@ export class DbStorage implements IStorage {
     };
   }
 
-  async getLocationMetrics(clientId?: string): Promise<LocationMetrics[]> {
-    const allLocations = clientId
-      ? await this.getLocationsByClient(clientId)
+  async getLocationMetrics(filters?: AnalyticsFilters): Promise<LocationMetrics[]> {
+    // Build base location query
+    let locationQuery = this.db.select().from(locations);
+    const locationConditions = [];
+    
+    if (filters?.clientId) {
+      locationConditions.push(eq(locations.clientId, filters.clientId));
+    }
+    if (filters?.locationTag) {
+      locationConditions.push(eq(locations.locationTag, filters.locationTag));
+    }
+    
+    const allLocations = locationConditions.length > 0
+      ? await this.db.select().from(locations).where(and(...locationConditions))
       : await this.getAllLocations();
 
+    // Build transaction query conditions
+    const uberConditions = [];
+    const doorConditions = [];
+    const grubConditions = [];
+
+    if (filters?.clientId) {
+      uberConditions.push(eq(uberEatsTransactions.clientId, filters.clientId));
+      doorConditions.push(eq(doordashTransactions.clientId, filters.clientId));
+      grubConditions.push(eq(grubhubTransactions.clientId, filters.clientId));
+    }
+
     const [uberTxns, doorTxns, grubTxns] = await Promise.all([
-      clientId
-        ? this.getUberEatsTransactionsByClient(clientId)
+      uberConditions.length > 0
+        ? this.db.select().from(uberEatsTransactions).where(and(...uberConditions))
         : this.db.select().from(uberEatsTransactions),
-      clientId
-        ? this.getDoordashTransactionsByClient(clientId)
+      doorConditions.length > 0
+        ? this.db.select().from(doordashTransactions).where(and(...doorConditions))
         : this.db.select().from(doordashTransactions),
-      clientId
-        ? this.getGrubhubTransactionsByClient(clientId)
+      grubConditions.length > 0
+        ? this.db.select().from(grubhubTransactions).where(and(...grubConditions))
         : this.db.select().from(grubhubTransactions),
     ]);
 
     const metrics: LocationMetrics[] = [];
 
     for (const location of allLocations) {
-      const platforms: Array<{ name: "ubereats" | "doordash" | "grubhub"; txns: any[] }> = [
+      let platforms: Array<{ name: "ubereats" | "doordash" | "grubhub"; txns: any[] }> = [
         { name: "ubereats", txns: uberTxns.filter((t) => t.locationId === location.id) },
         { name: "doordash", txns: doorTxns.filter((t) => t.locationId === location.id) },
         { name: "grubhub", txns: grubTxns.filter((t) => t.locationId === location.id) },
       ];
+
+      // Filter by platform if specified
+      if (filters?.platform) {
+        platforms = platforms.filter(p => p.name === filters.platform);
+      }
 
       for (const { name: platform, txns } of platforms) {
         if (txns.length === 0) continue;

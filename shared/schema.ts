@@ -302,3 +302,14 @@ export type PromotionMetrics = Promotion & {
 };
 
 export type PaidAdCampaignMetrics = PaidAdCampaign;
+
+// Analytics filters schema
+export const analyticsFiltersSchema = z.object({
+  clientId: z.string().optional(),
+  platform: z.enum(["ubereats", "doordash", "grubhub"]).optional(),
+  weekStart: z.string().optional(), // ISO date format: YYYY-MM-DD (Monday)
+  weekEnd: z.string().optional(), // ISO date format: YYYY-MM-DD (Sunday)
+  locationTag: z.string().optional(), // e.g., "Corporate"
+});
+
+export type AnalyticsFilters = z.infer<typeof analyticsFiltersSchema>;

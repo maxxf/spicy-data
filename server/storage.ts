@@ -23,6 +23,7 @@ import {
   type LocationMetrics,
   type PlatformMetrics,
   type LocationMatchSuggestion,
+  type AnalyticsFilters,
 } from "@shared/schema";
 import { randomUUID } from "crypto";
 
@@ -47,8 +48,8 @@ export interface IStorage {
   createGrubhubTransaction(transaction: InsertGrubhubTransaction): Promise<GrubhubTransaction>;
   getGrubhubTransactionsByClient(clientId: string): Promise<GrubhubTransaction[]>;
 
-  getDashboardOverview(clientId?: string): Promise<DashboardOverview>;
-  getLocationMetrics(clientId?: string): Promise<LocationMetrics[]>;
+  getDashboardOverview(filters?: AnalyticsFilters): Promise<DashboardOverview>;
+  getLocationMetrics(filters?: AnalyticsFilters): Promise<LocationMetrics[]>;
   getLocationMatchSuggestions(clientId?: string): Promise<LocationMatchSuggestion[]>;
   getClientPerformance(): Promise<Array<{
     clientId: string;
@@ -64,7 +65,7 @@ export interface IStorage {
   getAllPromotions(clientId?: string): Promise<Promotion[]>;
   updatePromotion(id: string, updates: Partial<InsertPromotion>): Promise<Promotion | undefined>;
   deletePromotion(id: string): Promise<boolean>;
-  getPromotionMetrics(clientId?: string): Promise<PromotionMetrics[]>;
+  getPromotionMetrics(filters?: AnalyticsFilters): Promise<PromotionMetrics[]>;
 
   createPaidAdCampaign(campaign: InsertPaidAdCampaign): Promise<PaidAdCampaign>;
   getPaidAdCampaign(id: string): Promise<PaidAdCampaign | undefined>;
@@ -72,7 +73,7 @@ export interface IStorage {
   getAllPaidAdCampaigns(clientId?: string): Promise<PaidAdCampaign[]>;
   updatePaidAdCampaign(id: string, updates: Partial<InsertPaidAdCampaign>): Promise<PaidAdCampaign | undefined>;
   deletePaidAdCampaign(id: string): Promise<boolean>;
-  getPaidAdCampaignMetrics(clientId?: string): Promise<PaidAdCampaignMetrics[]>;
+  getPaidAdCampaignMetrics(filters?: AnalyticsFilters): Promise<PaidAdCampaignMetrics[]>;
 
   createCampaignLocationMetric(metric: InsertCampaignLocationMetric): Promise<CampaignLocationMetric>;
   getCampaignLocationMetrics(clientId?: string): Promise<CampaignLocationMetric[]>;
@@ -228,27 +229,52 @@ export class MemStorage implements IStorage {
     );
   }
 
-  async getDashboardOverview(clientId?: string): Promise<DashboardOverview> {
-    const uberTransactions = clientId
+  async getDashboardOverview(filters?: AnalyticsFilters): Promise<DashboardOverview> {
+    const clientId = filters?.clientId;
+    let uberTransactions = clientId
       ? await this.getUberEatsTransactionsByClient(clientId)
       : Array.from(this.uberEatsTransactions.values());
-    const doordashTransactions = clientId
+    let doordashTransactions = clientId
       ? await this.getDoordashTransactionsByClient(clientId)
       : Array.from(this.doordashTransactions.values());
-    const grubhubTransactions = clientId
+    let grubhubTransactions = clientId
       ? await this.getGrubhubTransactionsByClient(clientId)
       : Array.from(this.grubhubTransactions.values());
 
-    const platformBreakdown: PlatformMetrics[] = [];
+    // Filter by locationTag if specified
+    if (filters?.locationTag) {
+      const taggedLocationIds = Array.from(this.locations.values())
+        .filter(l => l.locationTag === filters.locationTag)
+        .map(l => l.id);
+      
+      if (taggedLocationIds.length > 0) {
+        uberTransactions = uberTransactions.filter(t => t.locationId && taggedLocationIds.includes(t.locationId));
+        doordashTransactions = doordashTransactions.filter(t => t.locationId && taggedLocationIds.includes(t.locationId));
+        grubhubTransactions = grubhubTransactions.filter(t => t.locationId && taggedLocationIds.includes(t.locationId));
+      } else {
+        uberTransactions = [];
+        doordashTransactions = [];
+        grubhubTransactions = [];
+      }
+    }
 
-    if (uberTransactions.length > 0) {
-      platformBreakdown.push(this.calculatePlatformMetrics("ubereats", uberTransactions));
+    let platformBreakdown: PlatformMetrics[] = [];
+
+    // Only calculate metrics for requested platform or all platforms
+    if (!filters?.platform || filters.platform === "ubereats") {
+      if (uberTransactions.length > 0) {
+        platformBreakdown.push(this.calculatePlatformMetrics("ubereats", uberTransactions));
+      }
     }
-    if (doordashTransactions.length > 0) {
-      platformBreakdown.push(this.calculatePlatformMetrics("doordash", doordashTransactions));
+    if (!filters?.platform || filters.platform === "doordash") {
+      if (doordashTransactions.length > 0) {
+        platformBreakdown.push(this.calculatePlatformMetrics("doordash", doordashTransactions));
+      }
     }
-    if (grubhubTransactions.length > 0) {
-      platformBreakdown.push(this.calculatePlatformMetrics("grubhub", grubhubTransactions));
+    if (!filters?.platform || filters.platform === "grubhub") {
+      if (grubhubTransactions.length > 0) {
+        platformBreakdown.push(this.calculatePlatformMetrics("grubhub", grubhubTransactions));
+      }
     }
 
     const totalSales = platformBreakdown.reduce((sum, p) => sum + p.totalSales, 0);
@@ -335,10 +361,16 @@ export class MemStorage implements IStorage {
     };
   }
 
-  async getLocationMetrics(clientId?: string): Promise<LocationMetrics[]> {
-    const locations = clientId
+  async getLocationMetrics(filters?: AnalyticsFilters): Promise<LocationMetrics[]> {
+    const clientId = filters?.clientId;
+    let locations = clientId
       ? await this.getLocationsByClient(clientId)
       : await this.getAllLocations();
+
+    // Filter by locationTag if specified
+    if (filters?.locationTag) {
+      locations = locations.filter(l => l.locationTag === filters.locationTag);
+    }
 
     const metrics: LocationMetrics[] = [];
 
@@ -353,7 +385,8 @@ export class MemStorage implements IStorage {
         (t) => t.locationId === location.id
       );
 
-      if (uberTransactions.length > 0) {
+      // Only process platforms that match the filter (if specified)
+      if ((!filters?.platform || filters.platform === "ubereats") && uberTransactions.length > 0) {
         const platformMetrics = this.calculatePlatformMetrics("ubereats", uberTransactions);
         metrics.push({
           locationId: location.id,
@@ -362,7 +395,7 @@ export class MemStorage implements IStorage {
         });
       }
 
-      if (doordashTransactions.length > 0) {
+      if ((!filters?.platform || filters.platform === "doordash") && doordashTransactions.length > 0) {
         const platformMetrics = this.calculatePlatformMetrics("doordash", doordashTransactions);
         metrics.push({
           locationId: location.id,
@@ -371,7 +404,7 @@ export class MemStorage implements IStorage {
         });
       }
 
-      if (grubhubTransactions.length > 0) {
+      if ((!filters?.platform || filters.platform === "grubhub") && grubhubTransactions.length > 0) {
         const platformMetrics = this.calculatePlatformMetrics("grubhub", grubhubTransactions);
         metrics.push({
           locationId: location.id,
@@ -448,7 +481,8 @@ export class MemStorage implements IStorage {
     return this.promotions.delete(id);
   }
 
-  async getPromotionMetrics(clientId?: string): Promise<PromotionMetrics[]> {
+  async getPromotionMetrics(filters?: AnalyticsFilters): Promise<PromotionMetrics[]> {
+    const clientId = filters?.clientId;
     const promotions = await this.getAllPromotions(clientId);
     const metrics: PromotionMetrics[] = [];
 
@@ -503,7 +537,8 @@ export class MemStorage implements IStorage {
     return this.paidAdCampaigns.delete(id);
   }
 
-  async getPaidAdCampaignMetrics(clientId?: string): Promise<PaidAdCampaignMetrics[]> {
+  async getPaidAdCampaignMetrics(filters?: AnalyticsFilters): Promise<PaidAdCampaignMetrics[]> {
+    const clientId = filters?.clientId;
     return await this.getAllPaidAdCampaigns(clientId);
   }
 

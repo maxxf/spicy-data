@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { MetricCard } from "@/components/metric-card";
 import { ClientSelector } from "@/components/client-selector";
+import { PlatformSelector } from "@/components/platform-selector";
 import { DataTable } from "@/components/data-table";
 import { PlatformBadge } from "@/components/platform-badge";
 import {
@@ -35,22 +36,29 @@ interface ClientPerformance {
 
 export default function Dashboard() {
   const [selectedClientId, setSelectedClientId] = useState<string | null>("capriottis");
+  const [selectedPlatform, setSelectedPlatform] = useState<string | null>(null);
+
+  // Build query params for filters
+  const buildQueryParams = () => {
+    const params = new URLSearchParams();
+    if (selectedClientId) params.append("clientId", selectedClientId);
+    if (selectedPlatform) params.append("platform", selectedPlatform);
+    return params.toString() ? `?${params.toString()}` : "";
+  };
 
   const { data: overview, isLoading: overviewLoading } = useQuery<DashboardOverview>({
-    queryKey: ["/api/analytics/overview", selectedClientId],
+    queryKey: ["/api/analytics/overview", selectedClientId, selectedPlatform],
     queryFn: async () => {
-      const params = selectedClientId ? `?clientId=${selectedClientId}` : "";
-      const response = await fetch(`/api/analytics/overview${params}`);
+      const response = await fetch(`/api/analytics/overview${buildQueryParams()}`);
       if (!response.ok) throw new Error("Failed to fetch overview");
       return response.json();
     },
   });
 
   const { data: locationMetrics, isLoading: locationsLoading } = useQuery<LocationMetrics[]>({
-    queryKey: ["/api/analytics/locations", selectedClientId],
+    queryKey: ["/api/analytics/locations", selectedClientId, selectedPlatform],
     queryFn: async () => {
-      const params = selectedClientId ? `?clientId=${selectedClientId}` : "";
-      const response = await fetch(`/api/analytics/locations${params}`);
+      const response = await fetch(`/api/analytics/locations${buildQueryParams()}`);
       if (!response.ok) throw new Error("Failed to fetch locations");
       return response.json();
     },
@@ -230,9 +238,13 @@ export default function Dashboard() {
 
   const isPortfolioView = !selectedClientId;
 
+  // Calculate marketing sales and orders from platform breakdown
+  const totalMarketingSales = overview?.platformBreakdown?.reduce((sum, p) => sum + p.marketingDrivenSales, 0) || 0;
+  const totalMarketingOrders = overview?.platformBreakdown?.reduce((sum, p) => sum + p.ordersFromMarketing, 0) || 0;
+
   return (
     <div className="p-8 space-y-8" data-testid="page-dashboard">
-      <div className="flex justify-between items-start">
+      <div className="flex justify-between items-start gap-4 flex-wrap">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight mb-2">
             {isPortfolioView ? "Portfolio Overview" : "Client Dashboard"}
@@ -241,11 +253,17 @@ export default function Dashboard() {
             {isPortfolioView ? "Multi-platform delivery performance overview" : "Client-specific performance metrics"}
           </p>
         </div>
-        <ClientSelector
-          selectedClientId={selectedClientId}
-          onClientChange={setSelectedClientId}
-          showAllOption={true}
-        />
+        <div className="flex items-center gap-4 flex-wrap">
+          <ClientSelector
+            selectedClientId={selectedClientId}
+            onClientChange={setSelectedClientId}
+            showAllOption={true}
+          />
+          <PlatformSelector
+            selectedPlatform={selectedPlatform}
+            onPlatformChange={setSelectedPlatform}
+          />
+        </div>
       </div>
 
       {/* Portfolio-Level Metrics - Only shown in "All Clients" view */}
@@ -305,10 +323,10 @@ export default function Dashboard() {
             />
             <MetricCard
               label="Sales from Marketing"
-              value={overview?.totalMarketingSales || 0}
+              value={totalMarketingSales}
               format="currency"
               icon={<TrendingUp className="w-5 h-5" />}
-              subtitle={`${((overview?.totalMarketingSales || 0) / (overview?.totalSales || 1) * 100).toFixed(0)}% of total sales`}
+              subtitle={`${(totalMarketingSales / (overview?.totalSales || 1) * 100).toFixed(0)}% of total sales`}
             />
             <MetricCard
               label="Total Orders"
@@ -320,10 +338,10 @@ export default function Dashboard() {
             />
             <MetricCard
               label="Orders from Marketing"
-              value={overview?.totalMarketingOrders || 0}
+              value={totalMarketingOrders}
               format="number"
               icon={<Target className="w-5 h-5" />}
-              subtitle={`${((overview?.totalMarketingOrders || 0) / (overview?.totalOrders || 1) * 100).toFixed(0)}% of total orders`}
+              subtitle={`${(totalMarketingOrders / (overview?.totalOrders || 1) * 100).toFixed(0)}% of total orders`}
             />
             <MetricCard
               label="Average Order Value"

@@ -1,0 +1,32 @@
+**UPDATED ATTRIBUTION METHODOLOGY (DOORDASH):**
+
+1. **Order Filtering**
+   - ONLY count orders where Channel = "Marketplace" AND Order Status = "Completed"
+   - Exclude ALL orders from other channels (Caviar, white-label, etc.)
+   - Exclude: Cancelled, Unfulfilled, Refund, Refund Disputed
+
+2. **Sales Calculation (Updated)**
+   - **Total Sales (Net):** Use "Sales (excl. tax)" to match DoorDash merchant reporting
+   - **Marketing Driven Sales:** Sum "Sales (excl. tax)" for orders with promotional offers
+   - **Organic Sales:** Sum "Sales (excl. tax)" for orders without promotional offers
+
+3. **Marketing Investment Components (Updated)**
+   - **Ad Spend (All Misc Payments):** Sum absolute value of ALL "Other payments" where "Other payments description" is not null (includes Ad Spend, Ad Credits, Accelerated Remittance Fees, Reverse charges, etc.)
+   - **Offer/Discount Value:** Sum absolute value of all promotional discounts given to customers **PLUS any credits applied from "Marketing Credits" and "Third-party Contribution" fields**
+   - **Total Marketing Investment:** Ad Spend (All Misc Payments) + Offer/Discount Value
+
+4. **Net Payout Calculation (Updated)**
+   - **Net Payout $ (All Statuses):** Sum ALL "Total payout" values for ALL order statuses (Completed, Refund, Cancelled, Unfulfilled, Refund Disputed)
+   - Includes negative payouts for refunds and positive payouts for completed orders
+
+5. **Marketing Attribution**
+   - **Marketing Driven Sales:** Orders with "Offers on items (incl. tax)" < 0 OR "Delivery Offer Redemptions (incl. tax)" < 0 OR have credits from "Marketing Credits" OR "Third-party Contribution"
+   - **Organic Sales:** All other completed orders without promotional discounts, credits, or contributions
+
+6. **Key Calculations**
+   - **AOV** = Total Sales (Net) ÷ Total Orders
+   - **Marketing ROAS** = Marketing Driven Sales ÷ Total Marketing Investment
+   - **Net Payout %** = (Net Payout $ ÷ Total Sales (Net)) × 100
+   - **Offers ROAS** = Sales from offers ÷ Discount value
+   - **Combined ROAS** = Sales from offers ÷ (All Misc Payments + Discount value)
+   - **Ad Efficiency** = Sales from offers ÷ All Misc Payments

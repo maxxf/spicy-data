@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertPromotionSchema, insertPaidAdCampaignSchema, insertLocationSchema, insertLocationWeeklyFinancialSchema } from "@shared/schema";
+import { insertPromotionSchema, insertPaidAdCampaignSchema, insertLocationSchema, insertLocationWeeklyFinancialSchema, type AnalyticsFilters } from "@shared/schema";
 import multer from "multer";
 import { parse } from "csv-parse/sync";
 import { z } from "zod";
@@ -643,8 +643,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/analytics/overview", async (req, res) => {
     try {
-      const { clientId } = req.query;
-      const overview = await storage.getDashboardOverview(clientId as string);
+      const { clientId, platform, weekStart, weekEnd, locationTag } = req.query;
+      const filters: AnalyticsFilters = {
+        clientId: clientId as string | undefined,
+        platform: platform as "ubereats" | "doordash" | "grubhub" | undefined,
+        weekStart: weekStart as string | undefined,
+        weekEnd: weekEnd as string | undefined,
+        locationTag: locationTag as string | undefined,
+      };
+      const overview = await storage.getDashboardOverview(filters);
       res.json(overview);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
@@ -662,8 +669,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/analytics/locations", async (req, res) => {
     try {
-      const { clientId } = req.query;
-      const metrics = await storage.getLocationMetrics(clientId as string);
+      const { clientId, platform, weekStart, weekEnd, locationTag } = req.query;
+      const filters: AnalyticsFilters = {
+        clientId: clientId as string | undefined,
+        platform: platform as "ubereats" | "doordash" | "grubhub" | undefined,
+        weekStart: weekStart as string | undefined,
+        weekEnd: weekEnd as string | undefined,
+        locationTag: locationTag as string | undefined,
+      };
+      const metrics = await storage.getLocationMetrics(filters);
       res.json(metrics);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
