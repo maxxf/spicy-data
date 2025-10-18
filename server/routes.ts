@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertPromotionSchema } from "@shared/schema";
+import { insertPromotionSchema, insertPaidAdCampaignSchema } from "@shared/schema";
 import multer from "multer";
 import { parse } from "csv-parse/sync";
 import { z } from "zod";
@@ -358,6 +358,79 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { clientId } = req.query;
       const metrics = await storage.getPromotionMetrics(clientId as string);
+      res.json(metrics);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/paid-ads", async (req, res) => {
+    try {
+      const { clientId } = req.query;
+      const campaigns = await storage.getAllPaidAdCampaigns(clientId as string);
+      res.json(campaigns);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/paid-ads", async (req, res) => {
+    try {
+      const validatedData = insertPaidAdCampaignSchema.parse(req.body);
+      const campaign = await storage.createPaidAdCampaign(validatedData);
+      res.json(campaign);
+    } catch (error: any) {
+      if (error.name === "ZodError") {
+        return res.status(400).json({ error: "Validation failed", details: error.errors });
+      }
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/paid-ads/:id", async (req, res) => {
+    try {
+      const campaign = await storage.getPaidAdCampaign(req.params.id);
+      if (!campaign) {
+        return res.status(404).json({ error: "Campaign not found" });
+      }
+      res.json(campaign);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/paid-ads/:id", async (req, res) => {
+    try {
+      const validatedData = insertPaidAdCampaignSchema.partial().parse(req.body);
+      const updated = await storage.updatePaidAdCampaign(req.params.id, validatedData);
+      if (!updated) {
+        return res.status(404).json({ error: "Campaign not found" });
+      }
+      res.json(updated);
+    } catch (error: any) {
+      if (error.name === "ZodError") {
+        return res.status(400).json({ error: "Validation failed", details: error.errors });
+      }
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/paid-ads/:id", async (req, res) => {
+    try {
+      const deleted = await storage.deletePaidAdCampaign(req.params.id);
+      if (!deleted) {
+        return res.status(404).json({ error: "Campaign not found" });
+      }
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/analytics/paid-ads", async (req, res) => {
+    try {
+      const { clientId } = req.query;
+      const metrics = await storage.getPaidAdCampaignMetrics(clientId as string);
       res.json(metrics);
     } catch (error: any) {
       res.status(500).json({ error: error.message });

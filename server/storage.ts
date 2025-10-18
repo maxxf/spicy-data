@@ -12,6 +12,9 @@ import {
   type Promotion,
   type InsertPromotion,
   type PromotionMetrics,
+  type PaidAdCampaign,
+  type InsertPaidAdCampaign,
+  type PaidAdCampaignMetrics,
   type DashboardOverview,
   type LocationMetrics,
   type PlatformMetrics,
@@ -57,6 +60,13 @@ export interface IStorage {
   updatePromotion(id: string, updates: Partial<InsertPromotion>): Promise<Promotion | undefined>;
   deletePromotion(id: string): Promise<boolean>;
   getPromotionMetrics(clientId?: string): Promise<PromotionMetrics[]>;
+
+  createPaidAdCampaign(campaign: InsertPaidAdCampaign): Promise<PaidAdCampaign>;
+  getPaidAdCampaign(id: string): Promise<PaidAdCampaign | undefined>;
+  getAllPaidAdCampaigns(clientId?: string): Promise<PaidAdCampaign[]>;
+  updatePaidAdCampaign(id: string, updates: Partial<InsertPaidAdCampaign>): Promise<PaidAdCampaign | undefined>;
+  deletePaidAdCampaign(id: string): Promise<boolean>;
+  getPaidAdCampaignMetrics(clientId?: string): Promise<PaidAdCampaignMetrics[]>;
 }
 
 export class MemStorage implements IStorage {
@@ -66,6 +76,7 @@ export class MemStorage implements IStorage {
   private doordashTransactions: Map<string, DoordashTransaction>;
   private grubhubTransactions: Map<string, GrubhubTransaction>;
   private promotions: Map<string, Promotion>;
+  private paidAdCampaigns: Map<string, PaidAdCampaign>;
 
   constructor() {
     this.clients = new Map();
@@ -74,6 +85,7 @@ export class MemStorage implements IStorage {
     this.doordashTransactions = new Map();
     this.grubhubTransactions = new Map();
     this.promotions = new Map();
+    this.paidAdCampaigns = new Map();
     
     // Add demo clients
     const demoClients: Client[] = [
@@ -440,6 +452,42 @@ export class MemStorage implements IStorage {
     }
 
     return metrics;
+  }
+
+  async createPaidAdCampaign(insertCampaign: InsertPaidAdCampaign): Promise<PaidAdCampaign> {
+    const id = randomUUID();
+    const campaign: PaidAdCampaign = { ...insertCampaign, id, createdAt: new Date() };
+    this.paidAdCampaigns.set(id, campaign);
+    return campaign;
+  }
+
+  async getPaidAdCampaign(id: string): Promise<PaidAdCampaign | undefined> {
+    return this.paidAdCampaigns.get(id);
+  }
+
+  async getAllPaidAdCampaigns(clientId?: string): Promise<PaidAdCampaign[]> {
+    const allCampaigns = Array.from(this.paidAdCampaigns.values());
+    if (clientId) {
+      return allCampaigns.filter(c => c.clientId === clientId);
+    }
+    return allCampaigns;
+  }
+
+  async updatePaidAdCampaign(id: string, updates: Partial<InsertPaidAdCampaign>): Promise<PaidAdCampaign | undefined> {
+    const campaign = this.paidAdCampaigns.get(id);
+    if (!campaign) return undefined;
+    
+    const updated = { ...campaign, ...updates };
+    this.paidAdCampaigns.set(id, updated);
+    return updated;
+  }
+
+  async deletePaidAdCampaign(id: string): Promise<boolean> {
+    return this.paidAdCampaigns.delete(id);
+  }
+
+  async getPaidAdCampaignMetrics(clientId?: string): Promise<PaidAdCampaignMetrics[]> {
+    return await this.getAllPaidAdCampaigns(clientId);
   }
 }
 

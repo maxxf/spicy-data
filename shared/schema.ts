@@ -91,6 +91,29 @@ export const promotions = pgTable("promotions", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+export const paidAdCampaigns = pgTable("paid_ad_campaigns", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  clientId: varchar("client_id").notNull().references(() => clients.id),
+  name: text("name").notNull(),
+  platform: text("platform").notNull(),
+  type: text("type").notNull(),
+  status: text("status").notNull(),
+  startDate: text("start_date").notNull(),
+  endDate: text("end_date"),
+  budget: real("budget"),
+  impressions: integer("impressions").default(0).notNull(),
+  clicks: integer("clicks").default(0).notNull(),
+  ctr: real("ctr").default(0).notNull(),
+  cpc: real("cpc").default(0).notNull(),
+  orders: integer("orders").default(0).notNull(),
+  conversionRate: real("conversion_rate").default(0).notNull(),
+  spend: real("spend").default(0).notNull(),
+  revenue: real("revenue").default(0).notNull(),
+  roas: real("roas").default(0).notNull(),
+  cpa: real("cpa").default(0).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 // Insert schemas
 export const insertClientSchema = createInsertSchema(clients).omit({
   id: true,
@@ -122,6 +145,11 @@ export const insertPromotionSchema = createInsertSchema(promotions).omit({
   createdAt: true,
 });
 
+export const insertPaidAdCampaignSchema = createInsertSchema(paidAdCampaigns).omit({
+  id: true,
+  createdAt: true,
+});
+
 // TypeScript types
 export type Client = typeof clients.$inferSelect;
 export type InsertClient = z.infer<typeof insertClientSchema>;
@@ -140,6 +168,9 @@ export type InsertGrubhubTransaction = z.infer<typeof insertGrubhubTransactionSc
 
 export type Promotion = typeof promotions.$inferSelect;
 export type InsertPromotion = z.infer<typeof insertPromotionSchema>;
+
+export type PaidAdCampaign = typeof paidAdCampaigns.$inferSelect;
+export type InsertPaidAdCampaign = z.infer<typeof insertPaidAdCampaignSchema>;
 
 // Analytics types
 export type PlatformMetrics = {
@@ -206,3 +237,5 @@ export type PromotionMetrics = Promotion & {
   newCustomers: number;
   roi: number;
 };
+
+export type PaidAdCampaignMetrics = PaidAdCampaign;
