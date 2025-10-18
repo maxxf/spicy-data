@@ -1,6 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
+import { insertPromotionSchema } from "@shared/schema";
 import multer from "multer";
 import { parse } from "csv-parse/sync";
 import { z } from "zod";
@@ -284,6 +285,79 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { clientId } = req.query;
       const metrics = await storage.getLocationMetrics(clientId as string);
+      res.json(metrics);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/promotions", async (req, res) => {
+    try {
+      const { clientId } = req.query;
+      const promotions = await storage.getAllPromotions(clientId as string);
+      res.json(promotions);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/promotions", async (req, res) => {
+    try {
+      const validatedData = insertPromotionSchema.parse(req.body);
+      const promotion = await storage.createPromotion(validatedData);
+      res.json(promotion);
+    } catch (error: any) {
+      if (error.name === "ZodError") {
+        return res.status(400).json({ error: "Validation failed", details: error.errors });
+      }
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/promotions/:id", async (req, res) => {
+    try {
+      const promotion = await storage.getPromotion(req.params.id);
+      if (!promotion) {
+        return res.status(404).json({ error: "Promotion not found" });
+      }
+      res.json(promotion);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/promotions/:id", async (req, res) => {
+    try {
+      const validatedData = insertPromotionSchema.partial().parse(req.body);
+      const updated = await storage.updatePromotion(req.params.id, validatedData);
+      if (!updated) {
+        return res.status(404).json({ error: "Promotion not found" });
+      }
+      res.json(updated);
+    } catch (error: any) {
+      if (error.name === "ZodError") {
+        return res.status(400).json({ error: "Validation failed", details: error.errors });
+      }
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/promotions/:id", async (req, res) => {
+    try {
+      const deleted = await storage.deletePromotion(req.params.id);
+      if (!deleted) {
+        return res.status(404).json({ error: "Promotion not found" });
+      }
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/analytics/promotions", async (req, res) => {
+    try {
+      const { clientId } = req.query;
+      const metrics = await storage.getPromotionMetrics(clientId as string);
       res.json(metrics);
     } catch (error: any) {
       res.status(500).json({ error: error.message });

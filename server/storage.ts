@@ -9,6 +9,9 @@ import {
   type InsertDoordashTransaction,
   type GrubhubTransaction,
   type InsertGrubhubTransaction,
+  type Promotion,
+  type InsertPromotion,
+  type PromotionMetrics,
   type DashboardOverview,
   type LocationMetrics,
   type PlatformMetrics,
@@ -47,6 +50,13 @@ export interface IStorage {
     totalOrders: number;
     roas: number;
   }>>;
+
+  createPromotion(promotion: InsertPromotion): Promise<Promotion>;
+  getPromotion(id: string): Promise<Promotion | undefined>;
+  getAllPromotions(clientId?: string): Promise<Promotion[]>;
+  updatePromotion(id: string, updates: Partial<InsertPromotion>): Promise<Promotion | undefined>;
+  deletePromotion(id: string): Promise<boolean>;
+  getPromotionMetrics(clientId?: string): Promise<PromotionMetrics[]>;
 }
 
 export class MemStorage implements IStorage {
@@ -55,6 +65,7 @@ export class MemStorage implements IStorage {
   private uberEatsTransactions: Map<string, UberEatsTransaction>;
   private doordashTransactions: Map<string, DoordashTransaction>;
   private grubhubTransactions: Map<string, GrubhubTransaction>;
+  private promotions: Map<string, Promotion>;
 
   constructor() {
     this.clients = new Map();
@@ -62,6 +73,7 @@ export class MemStorage implements IStorage {
     this.uberEatsTransactions = new Map();
     this.doordashTransactions = new Map();
     this.grubhubTransactions = new Map();
+    this.promotions = new Map();
     
     // Add demo clients
     const demoClients: Client[] = [
@@ -377,6 +389,57 @@ export class MemStorage implements IStorage {
     }
 
     return performance;
+  }
+
+  async createPromotion(insertPromotion: InsertPromotion): Promise<Promotion> {
+    const id = randomUUID();
+    const promotion: Promotion = { ...insertPromotion, id, createdAt: new Date() };
+    this.promotions.set(id, promotion);
+    return promotion;
+  }
+
+  async getPromotion(id: string): Promise<Promotion | undefined> {
+    return this.promotions.get(id);
+  }
+
+  async getAllPromotions(clientId?: string): Promise<Promotion[]> {
+    const allPromotions = Array.from(this.promotions.values());
+    if (clientId) {
+      return allPromotions.filter(p => p.clientId === clientId);
+    }
+    return allPromotions;
+  }
+
+  async updatePromotion(id: string, updates: Partial<InsertPromotion>): Promise<Promotion | undefined> {
+    const promotion = this.promotions.get(id);
+    if (!promotion) return undefined;
+    
+    const updated = { ...promotion, ...updates };
+    this.promotions.set(id, updated);
+    return updated;
+  }
+
+  async deletePromotion(id: string): Promise<boolean> {
+    return this.promotions.delete(id);
+  }
+
+  async getPromotionMetrics(clientId?: string): Promise<PromotionMetrics[]> {
+    const promotions = await this.getAllPromotions(clientId);
+    const metrics: PromotionMetrics[] = [];
+
+    for (const promotion of promotions) {
+      // For now, return empty metrics - will be calculated from transaction data later
+      metrics.push({
+        ...promotion,
+        orders: 0,
+        revenueImpact: 0,
+        discountCost: 0,
+        newCustomers: 0,
+        roi: 0,
+      });
+    }
+
+    return metrics;
   }
 }
 

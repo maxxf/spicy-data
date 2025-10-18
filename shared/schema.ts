@@ -77,6 +77,20 @@ export const grubhubTransactions = pgTable("grubhub_transactions", {
   uploadedAt: timestamp("uploaded_at").defaultNow().notNull(),
 });
 
+export const promotions = pgTable("promotions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  clientId: varchar("client_id").notNull().references(() => clients.id),
+  name: text("name").notNull(),
+  platforms: text("platforms").array().notNull(),
+  type: text("type").notNull(),
+  status: text("status").notNull(),
+  startDate: text("start_date").notNull(),
+  endDate: text("end_date"),
+  discountPercent: real("discount_percent"),
+  discountAmount: real("discount_amount"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 // Insert schemas
 export const insertClientSchema = createInsertSchema(clients).omit({
   id: true,
@@ -103,6 +117,11 @@ export const insertGrubhubTransactionSchema = createInsertSchema(grubhubTransact
   uploadedAt: true,
 });
 
+export const insertPromotionSchema = createInsertSchema(promotions).omit({
+  id: true,
+  createdAt: true,
+});
+
 // TypeScript types
 export type Client = typeof clients.$inferSelect;
 export type InsertClient = z.infer<typeof insertClientSchema>;
@@ -118,6 +137,9 @@ export type InsertDoordashTransaction = z.infer<typeof insertDoordashTransaction
 
 export type GrubhubTransaction = typeof grubhubTransactions.$inferSelect;
 export type InsertGrubhubTransaction = z.infer<typeof insertGrubhubTransactionSchema>;
+
+export type Promotion = typeof promotions.$inferSelect;
+export type InsertPromotion = z.infer<typeof insertPromotionSchema>;
 
 // Analytics types
 export type PlatformMetrics = {
@@ -175,4 +197,12 @@ export type LocationMatchSuggestion = {
   matchedLocationName?: string;
   confidence: number;
   orderCount: number;
+};
+
+export type PromotionMetrics = Promotion & {
+  orders: number;
+  revenueImpact: number;
+  discountCost: number;
+  newCustomers: number;
+  roi: number;
 };

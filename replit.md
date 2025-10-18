@@ -6,6 +6,18 @@ This is a data analytics dashboard for restaurant chains to track performance ac
 
 The system serves multi-tenant use cases where a single instance manages data for multiple restaurant clients, each with multiple locations across different delivery platforms.
 
+## Recent Changes (October 17, 2025)
+
+**Task 1 Completed - Portfolio Overview Enhancements:**
+- Added portfolio-level metrics: Portfolio Sales, Active Clients, Portfolio ROAS, Net Payout Rate
+- Implemented Client Performance Matrix with multi-client comparison bar chart
+- Added Weekly Sales Trend line chart
+- Added Platform Distribution pie chart
+- Enhanced MetricCard component with subtitle and trend indicator support
+- Backend: Added 3 demo clients (Temaki To-Go, Bella's Pizza, Green Leaf Salads)
+- Backend: Created `/api/analytics/client-performance` endpoint
+- Backend: Implemented `getClientPerformance()` storage method for multi-client aggregation
+
 ## User Preferences
 
 Preferred communication style: Simple, everyday language.
