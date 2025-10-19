@@ -295,26 +295,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
         res.json({ success: true, rowsProcessed: processedCount });
         return;
       } else if (platform === "grubhub") {
+        let processedCount = 0;
         for (const row of rows) {
-          const storeId = row.store_number || row.Store_Number || row["Store Number"] || null;
+          const storeId = row.store_number || row.Store_Number || row["store_number"] || row.grubhub_store_id || null;
           const locationName = row.store_name || row.Restaurant || "";
+          
+          // Skip rows without order number
+          const orderNumber = String(row.order_number || row.Order_Id || "").trim();
+          if (!orderNumber) {
+            continue;
+          }
+
           const locationId = await findOrCreateLocation(clientId, locationName, "grubhub", storeId);
 
           await storage.createGrubhubTransaction({
             clientId,
             locationId,
-            orderId: row.Order_Id,
-            orderDate: row.Order_Date,
-            restaurant: row.Restaurant,
-            saleAmount: parseFloat(row.Sale_Amount) || 0,
-            taxAmount: parseFloat(row.Tax_Amount) || 0,
-            deliveryCharge: parseFloat(row.Delivery_Charge) || 0,
-            processingFee: parseFloat(row.Processing_Fee) || 0,
-            promotionCost: parseFloat(row.Promotion_Cost) || 0,
-            netSales: parseFloat(row.Net_Sales) || 0,
-            customerType: row.Customer_Type || "Unknown",
+            orderId: orderNumber,
+            orderDate: row.transaction_date || row.Order_Date || "",
+            restaurant: row.store_name || row.Restaurant || "",
+            saleAmount: parseFloat(row.subtotal || row.Sale_Amount) || 0,
+            taxAmount: parseFloat(row.subtotal_sales_tax || row.Tax_Amount) || 0,
+            deliveryCharge: parseFloat(row.self_delivery_charge || row.Delivery_Charge) || 0,
+            processingFee: parseFloat(row.merchant_service_fee || row.Processing_Fee) || 0,
+            promotionCost: parseFloat(row.total_discount || row.Promotion_Cost) || 0,
+            netSales: parseFloat(row.merchant_net_total || row.Net_Sales) || 0,
+            customerType: row.gh_plus_customer || row.Customer_Type || "Unknown",
           });
+          processedCount++;
         }
+        res.json({ success: true, rowsProcessed: processedCount });
+        return;
       }
 
       res.json({ success: true, rowsProcessed: rows.length });
