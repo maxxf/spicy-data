@@ -9,13 +9,26 @@ import { z } from "zod";
 const upload = multer({ storage: multer.memoryStorage() });
 
 function parseCSV(buffer: Buffer, platform?: string): any[] {
-  // Uber Eats CSVs have 2 header rows - skip the first (description) row
+  // Auto-detect Uber Eats header row (some exports have 2 header rows, newer ones have 1)
   if (platform === "ubereats") {
+    const firstLineParse = parse(buffer, {
+      columns: false,
+      skip_empty_lines: true,
+      trim: true,
+      to_line: 2, // Read first 2 lines to check
+    });
+    
+    // If first row has alphabetic column names (not numeric/description), use line 1
+    // Otherwise use line 2 (old format with description row)
+    const firstRow = firstLineParse[0];
+    const hasAlphabeticHeaders = firstRow && firstRow.length > 0 && 
+      /^[A-Za-z\s\-\_]+$/.test(String(firstRow[0]));
+    
     return parse(buffer, {
       columns: true,
       skip_empty_lines: true,
       trim: true,
-      from_line: 2, // Skip first row (descriptions), use second row (actual column names)
+      from_line: hasAlphabeticHeaders ? 1 : 2,
     });
   }
   
@@ -24,6 +37,35 @@ function parseCSV(buffer: Buffer, platform?: string): any[] {
     skip_empty_lines: true,
     trim: true,
   });
+}
+
+// Helper to normalize column names for flexible CSV parsing
+function normalizeColumnName(name: string): string {
+  return name.toLowerCase().replace(/[\s\-\_\|]/g, '').replace(/[()]/g, '');
+}
+
+function getColumnValue(row: any, ...possibleNames: string[]): string {
+  // First try exact matches
+  for (const name of possibleNames) {
+    if (row[name] !== undefined && row[name] !== null) {
+      return row[name];
+    }
+  }
+  
+  // Then try normalized matches
+  const normalizedRow: Record<string, any> = {};
+  for (const key in row) {
+    normalizedRow[normalizeColumnName(key)] = row[key];
+  }
+  
+  for (const name of possibleNames) {
+    const normalized = normalizeColumnName(name);
+    if (normalizedRow[normalized] !== undefined && normalizedRow[normalized] !== null) {
+      return normalizedRow[normalized];
+    }
+  }
+  
+  return '';
 }
 
 function calculateStringSimilarity(str1: string, str2: string): number {
@@ -194,13 +236,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (platform === "ubereats") {
         for (const row of rows) {
-          // Use row 2 column names (Store ID, Store Name, Order ID, etc.)
-          const storeId = row["Store ID"] || row.Store_ID || row.store_id || null;
-          const locationName = row["Store Name"] || row.Location || "";
+          const storeId = getColumnValue(row, "Store ID", "Store_ID", "store_id") || null;
+          const locationName = getColumnValue(row, "Store Name", "Location", "Store_Name", "store_name");
           const locationId = await findOrCreateLocation(clientId, locationName, "ubereats", storeId);
 
           // Skip rows without order ID
-          const orderId = row["Order ID"] || row.Order_ID;
+          const orderId = getColumnValue(row, "Order ID", "Order_ID", "order_id");
           if (!orderId || orderId.trim() === "") {
             continue;
           }
@@ -209,35 +250,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
             clientId,
             locationId,
             orderId,
-            date: row["Order Date"] || row.Date || "",
-            time: row["Order Accept Time"] || row.Time || "",
+            date: getColumnValue(row, "Order Date", "Date", "Order_Date", "order_date"),
+            time: getColumnValue(row, "Order Accept Time", "Time", "Order_Accept_Time", "order_accept_time"),
             location: locationName,
-            subtotal: parseFloat(row["Sales (excl. tax)"] || row.Subtotal) || 0,
-            tax: parseFloat(row["Tax on Sales"] || row.Tax) || 0,
-            deliveryFee: parseFloat(row["Delivery Fee"] || row.Delivery_Fee) || 0,
-            serviceFee: parseFloat(row["Service Fee"] || row.Service_Fee) || 0,
-            marketingPromo: row["Marketing Promotion"] || row.Marketing_Promo || null,
-            marketingAmount: parseFloat(row["Marketing Adjustment"] || row.Marketing_Amount) || 0,
-            platformFee: parseFloat(row["Marketplace Fee"] || row.Platform_Fee) || 0,
-            netPayout: parseFloat(row["Total payout "] || row["Total payout"] || row.Net_Payout) || 0,
+            subtotal: parseFloat(getColumnValue(row, "Sales (excl. tax)", "Subtotal", "Sales_excl_tax", "sales_excl_tax")) || 0,
+            tax: parseFloat(getColumnValue(row, "Tax on Sales", "Tax", "Tax_on_Sales", "tax_on_sales")) || 0,
+            deliveryFee: parseFloat(getColumnValue(row, "Delivery Fee", "Delivery_Fee", "delivery_fee")) || 0,
+            serviceFee: parseFloat(getColumnValue(row, "Service Fee", "Service_Fee", "service_fee")) || 0,
+            marketingPromo: getColumnValue(row, "Marketing Promotion", "Marketing_Promo", "marketing_promotion") || null,
+            marketingAmount: parseFloat(getColumnValue(row, "Marketing Adjustment", "Marketing_Amount", "marketing_adjustment")) || 0,
+            platformFee: parseFloat(getColumnValue(row, "Marketplace Fee", "Platform_Fee", "Platform Fee", "marketplace_fee")) || 0,
+            netPayout: parseFloat(getColumnValue(row, "Total payout ", "Total payout", "Net_Payout", "net_payout")) || 0,
             customerRating: null,
           });
         }
       } else if (platform === "doordash") {
-        // Per new attribution methodology: Only process Marketplace + Completed orders for metrics
-        // But we import ALL orders to calculate net payout correctly
+        // Import ALL transactions - analytics will filter by channel/status as needed
         let processedCount = 0;
         
         for (const row of rows) {
-          // Skip rows without order number (e.g., "Other payments" for ad spend)
-          const orderNumber = String(row["DoorDash order ID"] || row.Order_Number || row["Order Number"] || row.order_number || "").trim();
-          if (!orderNumber) {
-            console.log("Skipping row without order number. Available keys:", Object.keys(row).slice(0, 20));
+          // Skip rows without order number
+          const orderNumber = getColumnValue(row, "DoorDash order ID", "Order Number", "Order_Number", "order_number");
+          if (!orderNumber || orderNumber.trim() === "") {
             continue;
           }
 
-          const storeId = row["Store ID"] || row.Store_ID || row.store_id || null;
-          const locationName = row["Store name"] || row["Store Name"] || "";
+          const storeId = getColumnValue(row, "Store ID", "Store_ID", "store_id") || null;
+          const locationName = getColumnValue(row, "Store name", "Store Name", "Store_Name", "store_name");
           const locationId = await findOrCreateLocation(
             clientId, 
             locationName, 
@@ -258,62 +297,67 @@ export async function registerRoutes(app: Express): Promise<Server> {
             
             // Order identification
             orderNumber: orderNumber,
-            transactionDate: row["Timestamp local date"] || row.Transaction_Date || row["Transaction Date"] || row.transaction_date || "",
-            storeLocation: row["Store name"] || row["Store Name"] || row.Store_Location || row["Store Location"] || row.store_location || "",
+            transactionDate: getColumnValue(row, "Timestamp local date", "Transaction Date", "Transaction_Date", "transaction_date"),
+            storeLocation: locationName,
             
             // Status and channel filtering fields
-            channel: row.Channel || row.channel || null,
-            orderStatus: row["Final order status"] || row.Order_Status || row["Order Status"] || row.order_status || null,
+            channel: getColumnValue(row, "Channel", "channel") || null,
+            orderStatus: getColumnValue(row, "Final order status", "Order Status", "Order_Status", "order_status") || null,
             
-            // Sales metrics (new methodology uses "Sales (excl. tax)" or "Subtotal")
-            salesExclTax: parseNegativeFloat(row["Sales (excl. tax)"] || row.Subtotal || row.sales_excl_tax || row.salesExclTax),
-            orderSubtotal: parseNegativeFloat(row.Subtotal || row.Order_Subtotal || row["Order Subtotal"] || row.order_subtotal),
-            taxes: parseNegativeFloat(row["Subtotal tax passed to merchant"] || row.Taxes || row.taxes),
+            // Sales metrics
+            salesExclTax: parseNegativeFloat(getColumnValue(row, "Subtotal", "Sales (excl. tax)", "sales_excl_tax", "salesExclTax")),
+            orderSubtotal: parseNegativeFloat(getColumnValue(row, "Subtotal", "Order Subtotal", "Order_Subtotal", "order_subtotal")),
+            taxes: parseNegativeFloat(getColumnValue(row, "Subtotal tax passed to merchant", "Taxes", "taxes")),
             
             // Fees and charges
-            deliveryFees: parseNegativeFloat(row.Delivery_Fees || row["Delivery Fees"] || row.delivery_fees),
-            commission: parseNegativeFloat(row.Commission || row.commission),
-            errorCharges: parseNegativeFloat(row["Error charges"] || row.Error_Charges || row["Error Charges"] || row.error_charges),
+            deliveryFees: parseNegativeFloat(getColumnValue(row, "Delivery Fees", "Delivery_Fees", "delivery_fees")),
+            commission: parseNegativeFloat(getColumnValue(row, "Commission", "commission")),
+            errorCharges: parseNegativeFloat(getColumnValue(row, "Error charges", "Error Charges", "Error_Charges", "error_charges")),
             
             // Marketing/promotional fields (typically negative for discounts)
-            offersOnItems: parseNegativeFloat(
-              row["Offers on items (incl. tax)"] || 
-              row["Customer discounts from marketing | (funded by you)"] || 
-              row.offers_on_items
-            ),
-            deliveryOfferRedemptions: parseNegativeFloat(
-              row["Delivery Offer Redemptions (incl. tax)"] || 
-              row["Customer discounts from marketing | (funded by DoorDash)"] || 
-              row.delivery_offer_redemptions
-            ),
-            marketingCredits: parseNegativeFloat(
-              row["Marketing Credits"] || 
-              row["DoorDash marketing credit"] || 
-              row.marketing_credits
-            ),
-            thirdPartyContribution: parseNegativeFloat(
-              row["Third-party Contribution"] || 
-              row["Customer discounts from marketing | (funded by a third-party)"] ||
-              row.third_party_contribution
-            ),
-            
-            // Other payments (ad spend, credits, etc.) - Note: Marketing fees column includes taxes
-            otherPayments: Math.abs(parseNegativeFloat(
-              row["Other payments"] || 
-              row["Marketing fees | (including any applicable taxes)"] || 
-              row.other_payments
+            offersOnItems: parseNegativeFloat(getColumnValue(
+              row,
+              "Customer discounts from marketing | (funded by you)",
+              "Offers on items (incl. tax)",
+              "offers_on_items"
             )),
-            otherPaymentsDescription: row["Other payments description"] || row.Description || row.other_payments_description || null,
+            deliveryOfferRedemptions: parseNegativeFloat(getColumnValue(
+              row,
+              "Customer discounts from marketing | (funded by DoorDash)",
+              "Delivery Offer Redemptions (incl. tax)",
+              "delivery_offer_redemptions"
+            )),
+            marketingCredits: parseNegativeFloat(getColumnValue(
+              row,
+              "DoorDash marketing credit",
+              "Marketing Credits",
+              "marketing_credits"
+            )),
+            thirdPartyContribution: parseNegativeFloat(getColumnValue(
+              row,
+              "Customer discounts from marketing | (funded by a third-party)",
+              "Third-party Contribution",
+              "third_party_contribution"
+            )),
+            
+            // Other payments (ad spend, credits, etc.)
+            otherPayments: Math.abs(parseNegativeFloat(getColumnValue(
+              row,
+              "Marketing fees | (including any applicable taxes)",
+              "Other payments",
+              "other_payments"
+            ))),
+            otherPaymentsDescription: getColumnValue(row, "Description", "Other payments description", "other_payments_description") || null,
             
             // Legacy marketing field
-            marketingSpend: parseNegativeFloat(row.Marketing_Spend || row["Marketing Spend"] || row.marketing_spend),
+            marketingSpend: parseNegativeFloat(getColumnValue(row, "Marketing Spend", "Marketing_Spend", "marketing_spend")),
             
             // Payout (includes all statuses)
-            totalPayout: parseNegativeFloat(row["Net total"] || row["Total payout"] || row.total_payout || row.Total_Payout),
-            netPayment: parseNegativeFloat(row["Net total"] || row.Net_Payment || row["Net Payment"] || row.net_payment),
+            totalPayout: parseNegativeFloat(getColumnValue(row, "Net total", "Total payout", "total_payout", "Total_Payout")),
+            netPayment: parseNegativeFloat(getColumnValue(row, "Net total", "Net Payment", "Net_Payment", "net_payment")),
             
             // Source
-            orderSource: row.Order_Source || row["Order Source"] || row.order_source || null,
+            orderSource: getColumnValue(row, "Order Source", "Order_Source", "order_source") || null,
           });
           
           processedCount++;
@@ -324,12 +368,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } else if (platform === "grubhub") {
         let processedCount = 0;
         for (const row of rows) {
-          const storeId = row.store_number || row.Store_Number || row["store_number"] || row.grubhub_store_id || null;
-          const locationName = row.store_name || row.Restaurant || "";
+          const storeId = getColumnValue(row, "store_number", "Store_Number", "grubhub_store_id", "store number") || null;
+          const locationName = getColumnValue(row, "store_name", "Restaurant", "Store_Name", "store name");
           
           // Skip rows without order number
-          const orderNumber = String(row.order_number || row.Order_Id || "").trim();
-          if (!orderNumber) {
+          const orderNumber = getColumnValue(row, "order_number", "Order_Id", "order number", "order_id");
+          if (!orderNumber || orderNumber.trim() === "") {
             continue;
           }
 
@@ -339,15 +383,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
             clientId,
             locationId,
             orderId: orderNumber,
-            orderDate: row.transaction_date || row.Order_Date || "",
-            restaurant: row.store_name || row.Restaurant || "",
-            saleAmount: parseFloat(row.subtotal || row.Sale_Amount) || 0,
-            taxAmount: parseFloat(row.subtotal_sales_tax || row.Tax_Amount) || 0,
-            deliveryCharge: parseFloat(row.self_delivery_charge || row.Delivery_Charge) || 0,
-            processingFee: parseFloat(row.merchant_service_fee || row.Processing_Fee) || 0,
-            promotionCost: parseFloat(row.total_discount || row.Promotion_Cost) || 0,
-            netSales: parseFloat(row.merchant_net_total || row.Net_Sales) || 0,
-            customerType: row.gh_plus_customer || row.Customer_Type || "Unknown",
+            orderDate: getColumnValue(row, "transaction_date", "Order_Date", "transaction date", "order_date"),
+            restaurant: locationName,
+            saleAmount: parseFloat(getColumnValue(row, "subtotal", "Sale_Amount", "sale amount", "Sale Amount")) || 0,
+            taxAmount: parseFloat(getColumnValue(row, "subtotal_sales_tax", "Tax_Amount", "tax amount", "Tax Amount")) || 0,
+            deliveryCharge: parseFloat(getColumnValue(row, "self_delivery_charge", "Delivery_Charge", "delivery charge", "Delivery Charge")) || 0,
+            processingFee: parseFloat(getColumnValue(row, "merchant_service_fee", "Processing_Fee", "processing fee", "Processing Fee")) || 0,
+            promotionCost: parseFloat(getColumnValue(row, "total_discount", "Promotion_Cost", "promotion cost", "Promotion Cost")) || 0,
+            netSales: parseFloat(getColumnValue(row, "merchant_net_total", "Net_Sales", "net sales", "Net Sales")) || 0,
+            customerType: getColumnValue(row, "gh_plus_customer", "Customer_Type", "customer type", "Customer Type") || "Unknown",
           });
           processedCount++;
         }
