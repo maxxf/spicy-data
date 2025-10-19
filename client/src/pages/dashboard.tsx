@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { MetricCard } from "@/components/metric-card";
 import { ClientSelector } from "@/components/client-selector";
+import { LocationSelector } from "@/components/location-selector";
 import { PlatformSelector } from "@/components/platform-selector";
 import { WeekSelector } from "@/components/week-selector";
 import { DataTable } from "@/components/data-table";
@@ -37,6 +38,7 @@ interface ClientPerformance {
 
 export default function Dashboard() {
   const [selectedClientId, setSelectedClientId] = useState<string | null>("capriottis");
+  const [selectedLocationId, setSelectedLocationId] = useState<string | null>(null);
   const [selectedPlatform, setSelectedPlatform] = useState<string | null>(null);
   const [selectedWeek, setSelectedWeek] = useState<{ weekStart: string; weekEnd: string } | null>(null);
 
@@ -56,6 +58,7 @@ export default function Dashboard() {
   const buildQueryParams = () => {
     const params = new URLSearchParams();
     if (selectedClientId) params.append("clientId", selectedClientId);
+    if (selectedLocationId) params.append("locationId", selectedLocationId);
     if (selectedPlatform) params.append("platform", selectedPlatform);
     if (selectedWeek) {
       params.append("weekStart", selectedWeek.weekStart);
@@ -65,7 +68,7 @@ export default function Dashboard() {
   };
 
   const { data: overview, isLoading: overviewLoading } = useQuery<DashboardOverview>({
-    queryKey: ["/api/analytics/overview", selectedClientId, selectedPlatform, selectedWeek],
+    queryKey: ["/api/analytics/overview", selectedClientId, selectedLocationId, selectedPlatform, selectedWeek],
     queryFn: async () => {
       const response = await fetch(`/api/analytics/overview${buildQueryParams()}`);
       if (!response.ok) throw new Error("Failed to fetch overview");
@@ -74,7 +77,7 @@ export default function Dashboard() {
   });
 
   const { data: locationMetrics, isLoading: locationsLoading } = useQuery<LocationMetrics[]>({
-    queryKey: ["/api/analytics/locations", selectedClientId, selectedPlatform, selectedWeek],
+    queryKey: ["/api/analytics/locations", selectedClientId, selectedLocationId, selectedPlatform, selectedWeek],
     queryFn: async () => {
       const response = await fetch(`/api/analytics/locations${buildQueryParams()}`);
       if (!response.ok) throw new Error("Failed to fetch locations");
@@ -280,7 +283,16 @@ export default function Dashboard() {
           />
           <ClientSelector
             selectedClientId={selectedClientId}
-            onClientChange={setSelectedClientId}
+            onClientChange={(clientId) => {
+              setSelectedClientId(clientId);
+              setSelectedLocationId(null); // Reset location when client changes
+            }}
+            showAllOption={true}
+          />
+          <LocationSelector
+            clientId={selectedClientId}
+            selectedLocationId={selectedLocationId}
+            onLocationChange={setSelectedLocationId}
             showAllOption={true}
           />
           <PlatformSelector

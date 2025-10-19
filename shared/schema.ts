@@ -355,6 +355,7 @@ export type PaidAdCampaignMetrics = PaidAdCampaign;
 // Analytics filters schema
 export const analyticsFiltersSchema = z.object({
   clientId: z.string().optional(),
+  locationId: z.string().optional(), // Filter by specific location
   platform: z.enum(["ubereats", "doordash", "grubhub"]).optional(),
   weekStart: z.string().optional(), // ISO date format: YYYY-MM-DD (Monday)
   weekEnd: z.string().optional(), // ISO date format: YYYY-MM-DD (Sunday)

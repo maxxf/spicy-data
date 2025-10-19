@@ -774,9 +774,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/analytics/overview", async (req, res) => {
     try {
-      const { clientId, platform, weekStart, weekEnd, locationTag } = req.query;
+      const { clientId, locationId, platform, weekStart, weekEnd, locationTag } = req.query;
       const filters: AnalyticsFilters = {
         clientId: clientId as string | undefined,
+        locationId: locationId as string | undefined,
         platform: platform as "ubereats" | "doordash" | "grubhub" | undefined,
         weekStart: weekStart as string | undefined,
         weekEnd: weekEnd as string | undefined,
@@ -800,9 +801,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/analytics/locations", async (req, res) => {
     try {
-      const { clientId, platform, weekStart, weekEnd, locationTag } = req.query;
+      const { clientId, locationId, platform, weekStart, weekEnd, locationTag } = req.query;
       const filters: AnalyticsFilters = {
         clientId: clientId as string | undefined,
+        locationId: locationId as string | undefined,
         platform: platform as "ubereats" | "doordash" | "grubhub" | undefined,
         weekStart: weekStart as string | undefined,
         weekEnd: weekEnd as string | undefined,
@@ -817,9 +819,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/analytics/locations/consolidated", async (req, res) => {
     try {
-      const { clientId, platform, weekStart, weekEnd, locationTag } = req.query;
+      const { clientId, locationId, platform, weekStart, weekEnd, locationTag } = req.query;
       const filters: AnalyticsFilters = {
         clientId: clientId as string | undefined,
+        locationId: locationId as string | undefined,
         platform: platform as "ubereats" | "doordash" | "grubhub" | undefined,
         weekStart: weekStart as string | undefined,
         weekEnd: weekEnd as string | undefined,

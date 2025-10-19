@@ -263,6 +263,13 @@ export class MemStorage implements IStorage {
       }
     }
 
+    // Filter by specific locationId if specified
+    if (filters?.locationId) {
+      uberTransactions = uberTransactions.filter(t => t.locationId === filters.locationId);
+      doordashTransactions = doordashTransactions.filter(t => t.locationId === filters.locationId);
+      grubhubTransactions = grubhubTransactions.filter(t => t.locationId === filters.locationId);
+    }
+
     let platformBreakdown: PlatformMetrics[] = [];
 
     // Only calculate metrics for requested platform or all platforms
@@ -419,6 +426,11 @@ export class MemStorage implements IStorage {
       locations = locations.filter(l => l.locationTag === filters.locationTag);
     }
 
+    // Filter by specific locationId if specified
+    if (filters?.locationId) {
+      locations = locations.filter(l => l.id === filters.locationId);
+    }
+
     const metrics: LocationMetrics[] = [];
 
     for (const location of locations) {
@@ -473,6 +485,11 @@ export class MemStorage implements IStorage {
     // Filter by locationTag if specified
     if (filters?.locationTag) {
       locations = locations.filter(l => l.locationTag === filters.locationTag);
+    }
+
+    // Filter by specific locationId if specified
+    if (filters?.locationId) {
+      locations = locations.filter(l => l.id === filters.locationId);
     }
 
     // Get per-platform metrics

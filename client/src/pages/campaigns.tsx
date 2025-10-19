@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ClientSelector } from "@/components/client-selector";
+import { LocationSelector } from "@/components/location-selector";
 import { PlatformSelector } from "@/components/platform-selector";
 import { WeekSelector } from "@/components/week-selector";
 import { MetricCard } from "@/components/metric-card";
@@ -21,6 +22,7 @@ const statusColors = {
 
 export default function CampaignsPage() {
   const [selectedClientId, setSelectedClientId] = useState<string | null>("capriottis");
+  const [selectedLocationId, setSelectedLocationId] = useState<string | null>(null);
   const [selectedPlatform, setSelectedPlatform] = useState<string | null>(null);
   const [selectedStatus, setSelectedStatus] = useState<string>("all");
   const [selectedWeek, setSelectedWeek] = useState<{ weekStart: string; weekEnd: string } | null>(null);
@@ -40,6 +42,7 @@ export default function CampaignsPage() {
   const buildQueryParams = () => {
     const params = new URLSearchParams();
     if (selectedClientId) params.append("clientId", selectedClientId);
+    if (selectedLocationId) params.append("locationId", selectedLocationId);
     if (selectedPlatform) params.append("platform", selectedPlatform);
     if (selectedWeek) {
       params.append("weekStart", selectedWeek.weekStart);
@@ -49,7 +52,7 @@ export default function CampaignsPage() {
   };
 
   const { data: promotions, isLoading: promotionsLoading } = useQuery<PromotionMetrics[]>({
-    queryKey: ["/api/analytics/promotions", selectedClientId, selectedPlatform, selectedWeek],
+    queryKey: ["/api/analytics/promotions", selectedClientId, selectedLocationId, selectedPlatform, selectedWeek],
     queryFn: async () => {
       const response = await fetch(`/api/analytics/promotions${buildQueryParams()}`);
       if (!response.ok) throw new Error("Failed to fetch promotions");
@@ -58,7 +61,7 @@ export default function CampaignsPage() {
   });
 
   const { data: paidAds, isLoading: paidAdsLoading } = useQuery<PaidAdCampaignMetrics[]>({
-    queryKey: ["/api/analytics/paid-ads", selectedClientId, selectedPlatform, selectedWeek],
+    queryKey: ["/api/analytics/paid-ads", selectedClientId, selectedLocationId, selectedPlatform, selectedWeek],
     queryFn: async () => {
       const response = await fetch(`/api/analytics/paid-ads${buildQueryParams()}`);
       if (!response.ok) throw new Error("Failed to fetch campaigns");
@@ -184,14 +187,23 @@ export default function CampaignsPage() {
             onWeekChange={setSelectedWeek}
             showAllOption={false}
           />
+          <ClientSelector
+            selectedClientId={selectedClientId}
+            onClientChange={(clientId) => {
+              setSelectedClientId(clientId);
+              setSelectedLocationId(null); // Reset location when client changes
+            }}
+            showAllOption={true}
+          />
+          <LocationSelector
+            clientId={selectedClientId}
+            selectedLocationId={selectedLocationId}
+            onLocationChange={setSelectedLocationId}
+            showAllOption={true}
+          />
           <PlatformSelector
             selectedPlatform={selectedPlatform}
             onPlatformChange={setSelectedPlatform}
-          />
-          <ClientSelector
-            selectedClientId={selectedClientId}
-            onClientChange={setSelectedClientId}
-            showAllOption={true}
           />
         </div>
       </div>

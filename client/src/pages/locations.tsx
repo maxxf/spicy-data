@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { PlatformBadge } from "@/components/platform-badge";
 import { ClientSelector } from "@/components/client-selector";
+import { LocationSelector } from "@/components/location-selector";
 import { PlatformSelector } from "@/components/platform-selector";
 import { WeekSelector } from "@/components/week-selector";
 import { CheckCircle2, AlertCircle, Link as LinkIcon, MapPin } from "lucide-react";
@@ -19,6 +20,7 @@ export default function LocationsPage() {
   const queryClient = useQueryClient();
 
   const [selectedClientId, setSelectedClientId] = useState<string | null>("capriottis");
+  const [selectedLocationId, setSelectedLocationId] = useState<string | null>(null);
   const [selectedPlatform, setSelectedPlatform] = useState<string | null>(null);
   const [selectedWeek, setSelectedWeek] = useState<{ weekStart: string; weekEnd: string } | null>(null);
 
@@ -38,6 +40,7 @@ export default function LocationsPage() {
   const buildQueryParams = () => {
     const params = new URLSearchParams();
     if (selectedClientId) params.append("clientId", selectedClientId);
+    if (selectedLocationId) params.append("locationId", selectedLocationId);
     if (selectedPlatform) params.append("platform", selectedPlatform);
     if (selectedWeek) {
       params.append("weekStart", selectedWeek.weekStart);
@@ -58,6 +61,7 @@ export default function LocationsPage() {
     queryKey: [
       "/api/analytics/consolidated-locations",
       selectedClientId || "all",
+      selectedLocationId || "all",
       selectedPlatform || "all",
       selectedWeek ? `${selectedWeek.weekStart}:${selectedWeek.weekEnd}` : "all"
     ],
@@ -323,8 +327,17 @@ export default function LocationsPage() {
         <div className="flex flex-wrap gap-4">
           <ClientSelector
             selectedClientId={selectedClientId}
-            onClientChange={setSelectedClientId}
+            onClientChange={(clientId) => {
+              setSelectedClientId(clientId);
+              setSelectedLocationId(null); // Reset location when client changes
+            }}
             showAllOption={false}
+          />
+          <LocationSelector
+            clientId={selectedClientId}
+            selectedLocationId={selectedLocationId}
+            onLocationChange={setSelectedLocationId}
+            showAllOption={true}
           />
           <PlatformSelector
             selectedPlatform={selectedPlatform}

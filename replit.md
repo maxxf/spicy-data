@@ -34,6 +34,7 @@ Preferred communication style: Simple, everyday language.
 - Comprehensive filtering system:
   - **Week filtering** via WeekSelector component - defaults to most recent week from transaction data
   - Client filtering via ClientSelector component
+  - **Location filtering** via LocationSelector component - only appears when a specific client is selected (not "All Clients")
   - Platform filtering via PlatformSelector component (All, Uber Eats, DoorDash, Grubhub)
   - Location tag filtering (e.g., "Corporate" tag for 16 corporate locations)
   - Each page independently manages its own week selection (no cross-page persistence)
@@ -79,8 +80,9 @@ Preferred communication style: Simple, everyday language.
 - `/api/upload/marketing`: Marketing CSV upload
 - `/api/analytics/weeks`: Returns available weeks from transaction data (sorted by most recent first)
 - `/api/analytics/*`: Aggregated platform-level, location-level, and client performance metrics with filtering support
-  - Query parameters: `clientId`, `platform` (ubereats|doordash|grubhub), `locationTag`, `weekStart`, `weekEnd`
+  - Query parameters: `clientId`, `locationId`, `platform` (ubereats|doordash|grubhub), `locationTag`, `weekStart`, `weekEnd`
   - Filters apply consistently across dashboard overview and location metrics
+  - LocationSelector automatically resets when client selection changes
 - `/api/promotions`: Promotion management
 - `/api/paid-ads`: Paid ad campaign management
 
