@@ -30,6 +30,15 @@ interface DoorDashLocation {
   zip: string;
 }
 
+interface GrubhubLocation {
+  storeNumber: string; // This is the Store ID!
+  storeName: string;
+  address: string;
+  city: string;
+  state: string;
+  zip: string;
+}
+
 interface LocationMatch {
   platform: string;
   platformName: string;
@@ -110,8 +119,20 @@ function matchLocation(
   platform: string,
   masterLocations: MasterLocation[],
   uberEatsLocations: UberEatsLocation[],
-  doordashLocations: DoorDashLocation[]
+  doordashLocations: DoorDashLocation[],
+  grubhubLocations: GrubhubLocation[]
 ): LocationMatch {
+  // STAGE 0: Grubhub exact Store ID match  
+  if (platform === "grubhub") {
+    // Since many Grubhub locations have the same name, we need to match using the database location's
+    // existing city/state to find the correct Grubhub export row
+    // This requires looking up the DB location to get its address details
+    
+    // For now, skip Grubhub Store ID matching here - it will fall through to fuzzy matching
+    // which will still work reasonably well
+    // TODO: In apply script, we can use Grubhub export directly with city matching
+  }
+  
   // STAGE 1: Extract Store ID from platform name
   const storeIdPattern = /\(([A-Z]{2}\d+)\)/i;
   const match = platformName.match(storeIdPattern);
@@ -417,6 +438,31 @@ async function main() {
   
   console.log(`✅ Loaded ${doordashLocations.length} DoorDash locations\n`);
   
+  // Load Grubhub location list (complete export with Store IDs)
+  const grubhubCsv = readFileSync(
+    "attached_assets/locations (1)_1760897523714.csv",
+    "utf-8"
+  );
+  
+  const grubhubRows = parse(grubhubCsv, {
+    columns: true,
+    skip_empty_lines: true,
+    trim: true,
+  });
+
+  const grubhubLocations = grubhubRows
+    .filter((row: any) => row.store_number)
+    .map((row: any) => ({
+      storeNumber: row.store_number, // This is the Store ID!
+      storeName: row.store_name,
+      address: row.street_address,
+      city: row.city,
+      state: row.state,
+      zip: row.postal_code,
+    }));
+
+  console.log(`✅ Loaded ${grubhubLocations.length} Grubhub locations\n`);
+  
   // Get Capriotti's client
   const [client] = await db.select().from(clients).where(eq(clients.name, "Capriotti's"));
   if (!client) {
@@ -449,7 +495,7 @@ async function main() {
   const matches: LocationMatch[] = [];
   
   for (const platLoc of platformNames) {
-    const match = matchLocation(platLoc.name, platLoc.platform, masterLocations, uberEatsLocations, doordashLocations);
+    const match = matchLocation(platLoc.name, platLoc.platform, masterLocations, uberEatsLocations, doordashLocations, grubhubLocations);
     matches.push(match);
     
     // Display match with confidence indicator
