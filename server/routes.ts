@@ -819,6 +819,115 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Comprehensive diagnostic report endpoint
+  app.get("/api/analytics/diagnostic", async (req, res) => {
+    try {
+      const { weekStart, weekEnd, clientId } = req.query;
+      
+      // Get all data for the specified week (or all data if no week specified)
+      const filters: AnalyticsFilters = {
+        clientId: clientId as string | undefined,
+        weekStart: weekStart as string | undefined,
+        weekEnd: weekEnd as string | undefined,
+      };
+
+      const overview = await storage.getDashboardOverview(filters);
+      const locations = await storage.getLocationMetrics(filters);
+      const allLocations = await storage.getAllLocations();
+      
+      // Get promotions and paid ads
+      const promotions = await storage.getPromotionMetrics(filters);
+      const paidAds = await storage.getPaidAdCampaignMetrics(filters);
+      
+      // Calculate transaction counts (only if clientId provided, otherwise skip platform breakdown)
+      let platformBreakdown: Array<{ platform: string; transactionCount: number }> = [];
+      
+      if (clientId) {
+        const allUberTransactions = await storage.getUberEatsTransactionsByClient(clientId as string);
+        const allDoorTransactions = await storage.getDoordashTransactionsByClient(clientId as string);
+        const allGrubTransactions = await storage.getGrubhubTransactionsByClient(clientId as string);
+        
+        platformBreakdown = [
+          {
+            platform: "Uber Eats",
+            transactionCount: allUberTransactions.length,
+          },
+          {
+            platform: "DoorDash",
+            transactionCount: allDoorTransactions.length,
+          },
+          {
+            platform: "Grubhub",
+            transactionCount: allGrubTransactions.length,
+          },
+        ];
+      }
+      const duplicateLocations = await storage.getDuplicateLocations(clientId as string | undefined);
+      
+      // Calculate marketing metrics from promotions and ads
+      const totalMarketingInvestment = 
+        promotions.reduce((sum, p) => sum + (p.totalCost || 0), 0) +
+        paidAds.reduce((sum, a) => sum + (a.totalSpend || 0), 0);
+      
+      const marketingDrivenSales = 
+        promotions.reduce((sum, p) => sum + (p.totalRevenue || 0), 0) +
+        paidAds.reduce((sum, a) => sum + (a.totalRevenue || 0), 0);
+      
+      const marketingOrders = 
+        promotions.reduce((sum, p) => sum + (p.totalOrders || 0), 0) +
+        paidAds.reduce((sum, a) => sum + (a.totalOrders || 0), 0);
+      
+      const report = {
+        dateRange: weekStart && weekEnd 
+          ? { weekStart, weekEnd }
+          : { all: true },
+        timestamp: new Date().toISOString(),
+        clientId: clientId || "all",
+        
+        overallMetrics: {
+          totalSales: overview.totalSales,
+          totalOrders: overview.totalOrders,
+          avgOrderValue: overview.avgOrderValue,
+          totalNetPayout: overview.totalNetPayout,
+          netPayoutPercentage: overview.netPayoutPercentage,
+        },
+        
+        platformBreakdown,
+        
+        marketingPerformance: {
+          totalMarketingInvestment,
+          marketingDrivenSales,
+          marketingOrders,
+          overallROAS: totalMarketingInvestment > 0 ? marketingDrivenSales / totalMarketingInvestment : 0,
+          trueCPO: marketingOrders > 0 ? totalMarketingInvestment / marketingOrders : 0,
+          promotionsCount: promotions.length,
+          paidAdsCount: paidAds.length,
+        },
+        
+        dataQuality: {
+          totalLocations: allLocations.length,
+          locationsWithTransactions: locations.length,
+          duplicateLocationGroups: duplicateLocations.length,
+          totalDuplicateLocations: duplicateLocations.reduce((sum, d) => sum + d.count, 0),
+        },
+        
+        topPerformingLocations: locations
+          .sort((a, b) => b.totalSales - a.totalSales)
+          .slice(0, 10)
+          .map(loc => ({
+            locationName: loc.locationName,
+            sales: loc.totalSales,
+            orders: loc.totalOrders,
+          })),
+      };
+      
+      res.json(report);
+    } catch (error: any) {
+      console.error("Diagnostic report error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   app.get("/api/analytics/overview", async (req, res) => {
     try {
       const { clientId, locationId, platform, weekStart, weekEnd, locationTag } = req.query;

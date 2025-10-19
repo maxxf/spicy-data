@@ -20,7 +20,7 @@ const navigation = [
     icon: LayoutDashboard,
   },
   {
-    title: "Campaigns",
+    title: "Promos",
     url: "/campaigns",
     icon: Megaphone,
   },

@@ -20,7 +20,7 @@ const statusColors = {
   paused: "bg-yellow-500/10 text-yellow-700 dark:text-yellow-400 border-yellow-500/20",
 };
 
-export default function CampaignsPage() {
+export default function PromosPage() {
   const [selectedClientId, setSelectedClientId] = useState<string | null>("capriottis");
   const [selectedLocationId, setSelectedLocationId] = useState<string | null>(null);
   const [selectedPlatform, setSelectedPlatform] = useState<string | null>(null);
@@ -174,10 +174,10 @@ export default function CampaignsPage() {
       <div className="flex justify-between items-start gap-4 flex-wrap">
         <div>
           <h1 className="text-3xl font-semibold tracking-tight" data-testid="text-page-title">
-            Campaigns
+            Promos
           </h1>
           <p className="text-muted-foreground mt-1">
-            Track promotional campaigns and paid advertising performance
+            Track promotional offers and paid advertising performance
           </p>
         </div>
         <div className="flex items-center gap-3 flex-wrap">
