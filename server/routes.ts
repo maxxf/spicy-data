@@ -8,7 +8,17 @@ import { z } from "zod";
 
 const upload = multer({ storage: multer.memoryStorage() });
 
-function parseCSV(buffer: Buffer): any[] {
+function parseCSV(buffer: Buffer, platform?: string): any[] {
+  // Uber Eats CSVs have 2 header rows - skip the first (description) row
+  if (platform === "ubereats") {
+    return parse(buffer, {
+      columns: true,
+      skip_empty_lines: true,
+      trim: true,
+      from_line: 2, // Skip first row (descriptions), use second row (actual column names)
+    });
+  }
+  
   return parse(buffer, {
     columns: true,
     skip_empty_lines: true,
@@ -180,30 +190,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Platform and clientId are required" });
       }
 
-      const rows = parseCSV(req.file.buffer);
+      const rows = parseCSV(req.file.buffer, platform);
 
       if (platform === "ubereats") {
+        console.log(`Parsed ${rows.length} rows from Uber Eats CSV`);
+        if (rows.length > 0) {
+          console.log('Sample row keys:', Object.keys(rows[0]).slice(0, 10));
+          console.log('Sample row data:', { 
+            storeId: rows[0]["Store ID"],
+            storeName: rows[0]["Store Name"],
+            orderId: rows[0]["Order ID"]
+          });
+        }
+        
         for (const row of rows) {
+          // Use row 2 column names (Store ID, Store Name, Order ID, etc.)
           const storeId = row["Store ID"] || row.Store_ID || row.store_id || null;
           const locationName = row["Store Name"] || row.Location || "";
           const locationId = await findOrCreateLocation(clientId, locationName, "ubereats", storeId);
 
+          // Skip rows without order ID
+          const orderId = row["Order ID"] || row.Order_ID;
+          if (!orderId || orderId.trim() === "") {
+            console.log('Skipping row without Order ID:', { storeId, locationName, orderId });
+            continue;
+          }
+
           await storage.createUberEatsTransaction({
             clientId,
             locationId,
-            orderId: row.Order_ID,
-            date: row.Date,
-            time: row.Time,
-            location: row.Location,
-            subtotal: parseFloat(row.Subtotal) || 0,
-            tax: parseFloat(row.Tax) || 0,
-            deliveryFee: parseFloat(row.Delivery_Fee) || 0,
-            serviceFee: parseFloat(row.Service_Fee) || 0,
-            marketingPromo: row.Marketing_Promo || null,
-            marketingAmount: parseFloat(row.Marketing_Amount) || 0,
-            platformFee: parseFloat(row.Platform_Fee) || 0,
-            netPayout: parseFloat(row.Net_Payout) || 0,
-            customerRating: row.Customer_Rating ? parseInt(row.Customer_Rating) : null,
+            orderId,
+            date: row["Order Date"] || row.Date || "",
+            time: row["Order Accept Time"] || row.Time || "",
+            location: locationName,
+            subtotal: parseFloat(row["Sales (excl. tax)"] || row.Subtotal) || 0,
+            tax: parseFloat(row["Tax on Sales"] || row.Tax) || 0,
+            deliveryFee: parseFloat(row["Delivery Fee"] || row.Delivery_Fee) || 0,
+            serviceFee: parseFloat(row["Service Fee"] || row.Service_Fee) || 0,
+            marketingPromo: row["Marketing Promotion"] || row.Marketing_Promo || null,
+            marketingAmount: parseFloat(row["Marketing Adjustment"] || row.Marketing_Amount) || 0,
+            platformFee: parseFloat(row["Marketplace Fee"] || row.Platform_Fee) || 0,
+            netPayout: parseFloat(row["Total payout "] || row["Total payout"] || row.Net_Payout) || 0,
+            customerRating: null,
           });
         }
       } else if (platform === "doordash") {
