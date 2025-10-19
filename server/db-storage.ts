@@ -907,8 +907,8 @@ export class DbStorage implements IStorage {
     return result.rowCount ? result.rowCount > 0 : false;
   }
 
-  async getPromotionMetrics(clientId?: string): Promise<PromotionMetrics[]> {
-    const promos = await this.getAllPromotions(clientId);
+  async getPromotionMetrics(filters?: AnalyticsFilters): Promise<PromotionMetrics[]> {
+    const promos = await this.getAllPromotions(filters?.clientId);
     const metrics: PromotionMetrics[] = [];
 
     for (const promo of promos) {
@@ -986,8 +986,8 @@ export class DbStorage implements IStorage {
     return result.rowCount ? result.rowCount > 0 : false;
   }
 
-  async getPaidAdCampaignMetrics(clientId?: string): Promise<PaidAdCampaignMetrics[]> {
-    return await this.getAllPaidAdCampaigns(clientId);
+  async getPaidAdCampaignMetrics(filters?: AnalyticsFilters): Promise<PaidAdCampaignMetrics[]> {
+    return await this.getAllPaidAdCampaigns(filters?.clientId);
   }
 
   async createCampaignLocationMetric(

@@ -1,12 +1,14 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ClientSelector } from "@/components/client-selector";
+import { PlatformSelector } from "@/components/platform-selector";
+import { MetricCard } from "@/components/metric-card";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Percent, Target, TrendingUp } from "lucide-react";
+import { Percent, Target, TrendingUp, DollarSign, ShoppingCart, TrendingDown } from "lucide-react";
 import type { PromotionMetrics, PaidAdCampaignMetrics } from "@shared/schema";
 
 const statusColors = {
@@ -18,26 +20,79 @@ const statusColors = {
 
 export default function CampaignsPage() {
   const [selectedClientId, setSelectedClientId] = useState<string | null>("capriottis");
+  const [selectedPlatform, setSelectedPlatform] = useState<string | null>(null);
+  const [selectedStatus, setSelectedStatus] = useState<string>("all");
+
+  const buildQueryParams = () => {
+    const params = new URLSearchParams();
+    if (selectedClientId) params.append("clientId", selectedClientId);
+    if (selectedPlatform) params.append("platform", selectedPlatform);
+    return params.toString() ? `?${params.toString()}` : "";
+  };
 
   const { data: promotions, isLoading: promotionsLoading } = useQuery<PromotionMetrics[]>({
-    queryKey: ["/api/analytics/promotions", selectedClientId],
+    queryKey: ["/api/analytics/promotions", selectedClientId, selectedPlatform],
     queryFn: async () => {
-      const params = selectedClientId ? `?clientId=${selectedClientId}` : "";
-      const response = await fetch(`/api/analytics/promotions${params}`);
+      const response = await fetch(`/api/analytics/promotions${buildQueryParams()}`);
       if (!response.ok) throw new Error("Failed to fetch promotions");
       return response.json();
     },
   });
 
   const { data: paidAds, isLoading: paidAdsLoading } = useQuery<PaidAdCampaignMetrics[]>({
-    queryKey: ["/api/analytics/paid-ads", selectedClientId],
+    queryKey: ["/api/analytics/paid-ads", selectedClientId, selectedPlatform],
     queryFn: async () => {
-      const params = selectedClientId ? `?clientId=${selectedClientId}` : "";
-      const response = await fetch(`/api/analytics/paid-ads${params}`);
+      const response = await fetch(`/api/analytics/paid-ads${buildQueryParams()}`);
       if (!response.ok) throw new Error("Failed to fetch campaigns");
       return response.json();
     },
   });
+
+  // Filter by status
+  const filteredPromotions = useMemo(() => {
+    if (!promotions) return [];
+    if (selectedStatus === "all") return promotions;
+    return promotions.filter(p => p.status === selectedStatus);
+  }, [promotions, selectedStatus]);
+
+  const filteredPaidAds = useMemo(() => {
+    if (!paidAds) return [];
+    if (selectedStatus === "all") return paidAds;
+    return paidAds.filter(p => p.status === selectedStatus);
+  }, [paidAds, selectedStatus]);
+
+  // Calculate aggregate metrics for promotions
+  const promotionMetrics = useMemo(() => {
+    if (!filteredPromotions) return { totalOrders: 0, totalRevenue: 0, totalCost: 0, aggregateROI: 0 };
+    
+    const totalOrders = filteredPromotions.reduce((sum, p) => sum + p.orders, 0);
+    const totalRevenue = filteredPromotions.reduce((sum, p) => sum + p.revenueImpact, 0);
+    const totalCost = filteredPromotions.reduce((sum, p) => sum + p.discountCost, 0);
+    // Calculate ROI from aggregate totals as a percentage: (revenue - cost) / cost * 100
+    // MetricCard with format="percent" will add % suffix
+    const aggregateROI = totalCost > 0 
+      ? ((totalRevenue - totalCost) / totalCost) * 100
+      : 0;
+
+    return { totalOrders, totalRevenue, totalCost, aggregateROI };
+  }, [filteredPromotions]);
+
+  // Calculate aggregate metrics for paid ads
+  const paidAdMetrics = useMemo(() => {
+    if (!filteredPaidAds) return { totalSpend: 0, totalRevenue: 0, totalOrders: 0, aggregateROAS: 0, totalClicks: 0, totalImpressions: 0 };
+    
+    const totalSpend = filteredPaidAds.reduce((sum, p) => sum + p.spend, 0);
+    const totalRevenue = filteredPaidAds.reduce((sum, p) => sum + p.revenue, 0);
+    const totalOrders = filteredPaidAds.reduce((sum, p) => sum + p.orders, 0);
+    const totalClicks = filteredPaidAds.reduce((sum, p) => sum + p.clicks, 0);
+    const totalImpressions = filteredPaidAds.reduce((sum, p) => sum + p.impressions, 0);
+    // Calculate ROAS from aggregate totals: revenue / spend
+    const aggregateROAS = totalSpend > 0
+      ? totalRevenue / totalSpend
+      : 0;
+
+    return { totalSpend, totalRevenue, totalOrders, aggregateROAS, totalClicks, totalImpressions };
+  }, [filteredPaidAds]);
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat("en-US", {
@@ -56,31 +111,11 @@ export default function CampaignsPage() {
     return value.toLocaleString();
   };
 
-  if (promotionsLoading || paidAdsLoading) {
-    return (
-      <div className="p-8 space-y-8">
-        <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-3xl font-semibold tracking-tight" data-testid="text-page-title">
-              Campaigns
-            </h1>
-            <p className="text-muted-foreground mt-1">
-              Track promotional campaigns and paid advertising performance
-            </p>
-          </div>
-        </div>
-        <Card>
-          <CardContent className="p-8">
-            <div className="text-center text-muted-foreground">Loading...</div>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
+  const isLoading = promotionsLoading || paidAdsLoading;
 
   return (
     <div className="p-8 space-y-8" data-testid="page-campaigns">
-      <div className="flex justify-between items-start">
+      <div className="flex justify-between items-start gap-4 flex-wrap">
         <div>
           <h1 className="text-3xl font-semibold tracking-tight" data-testid="text-page-title">
             Campaigns
@@ -89,18 +124,24 @@ export default function CampaignsPage() {
             Track promotional campaigns and paid advertising performance
           </p>
         </div>
-        <ClientSelector
-          selectedClientId={selectedClientId}
-          onClientChange={setSelectedClientId}
-          showAllOption={true}
-        />
+        <div className="flex items-center gap-3 flex-wrap">
+          <PlatformSelector
+            selectedPlatform={selectedPlatform}
+            onPlatformChange={setSelectedPlatform}
+          />
+          <ClientSelector
+            selectedClientId={selectedClientId}
+            onClientChange={setSelectedClientId}
+            showAllOption={true}
+          />
+        </div>
       </div>
 
       <Tabs defaultValue="promotions" className="space-y-6">
         <TabsList data-testid="tabs-campaign-type">
           <TabsTrigger value="promotions" data-testid="tab-promotions">
             <Percent className="w-4 h-4 mr-2" />
-            Promotions & Offers
+            Promotions
           </TabsTrigger>
           <TabsTrigger value="paid-ads" data-testid="tab-paid-ads">
             <Target className="w-4 h-4 mr-2" />
@@ -108,8 +149,41 @@ export default function CampaignsPage() {
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="promotions">
-          {promotions && promotions.length === 0 ? (
+        <TabsContent value="promotions" className="space-y-6">
+          {/* Promotion Performance Metrics */}
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+            <MetricCard
+              label="Total Orders"
+              value={promotionMetrics.totalOrders}
+              format="number"
+              icon={<ShoppingCart className="w-5 h-5" />}
+              data-testid="metric-promo-orders"
+            />
+            <MetricCard
+              label="Revenue Impact"
+              value={promotionMetrics.totalRevenue}
+              format="currency"
+              icon={<DollarSign className="w-5 h-5" />}
+              data-testid="metric-promo-revenue"
+            />
+            <MetricCard
+              label="Discount Cost"
+              value={promotionMetrics.totalCost}
+              format="currency"
+              icon={<Percent className="w-5 h-5" />}
+              data-testid="metric-promo-cost"
+            />
+            <MetricCard
+              label="Aggregate ROI"
+              value={promotionMetrics.aggregateROI}
+              format="percent"
+              icon={<TrendingUp className="w-5 h-5" />}
+              data-testid="metric-promo-roi"
+            />
+          </div>
+
+          {/* Promotions Table */}
+          {filteredPromotions && filteredPromotions.length === 0 ? (
             <Card>
               <CardContent className="flex flex-col items-center justify-center py-16">
                 <Percent className="w-12 h-12 text-muted-foreground mb-4" />
@@ -124,10 +198,40 @@ export default function CampaignsPage() {
           ) : (
             <Card>
               <CardHeader>
-                <CardTitle>Promotional Campaigns</CardTitle>
-                <CardDescription>
-                  {promotions?.length || 0} promotional campaigns
-                </CardDescription>
+                <div className="flex justify-between items-center">
+                  <div>
+                    <CardTitle>Promotional Campaigns</CardTitle>
+                    <CardDescription>
+                      {filteredPromotions?.length || 0} promotional campaigns
+                    </CardDescription>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant={selectedStatus === "all" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setSelectedStatus("all")}
+                      data-testid="button-filter-all"
+                    >
+                      All
+                    </Button>
+                    <Button
+                      variant={selectedStatus === "active" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setSelectedStatus("active")}
+                      data-testid="button-filter-active"
+                    >
+                      Active
+                    </Button>
+                    <Button
+                      variant={selectedStatus === "completed" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setSelectedStatus("completed")}
+                      data-testid="button-filter-completed"
+                    >
+                      Completed
+                    </Button>
+                  </div>
+                </div>
               </CardHeader>
               <CardContent>
                 <Table>
@@ -141,13 +245,12 @@ export default function CampaignsPage() {
                       <TableHead className="text-right">Revenue Impact</TableHead>
                       <TableHead className="text-right">Discount Cost</TableHead>
                       <TableHead className="text-right">ROI</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {promotions?.map((promotion) => {
+                    {filteredPromotions?.map((promotion) => {
                       return (
-                        <TableRow key={promotion.id}>
+                        <TableRow key={promotion.id} className="hover-elevate">
                           <TableCell className="font-medium" data-testid={`text-promotion-name-${promotion.id}`}>
                             {promotion.name}
                           </TableCell>
@@ -167,7 +270,7 @@ export default function CampaignsPage() {
                           <TableCell className="text-sm">
                             <div>{promotion.startDate}</div>
                             {promotion.endDate && (
-                              <div className="text-muted-foreground">to {promotion.endDate}</div>
+                              <div className="text-muted-foreground text-xs">to {promotion.endDate}</div>
                             )}
                           </TableCell>
                           <TableCell className="text-right font-mono" data-testid={`text-orders-${promotion.id}`}>
@@ -185,18 +288,14 @@ export default function CampaignsPage() {
                                 <TrendingUp className="w-3 h-3" />
                                 {formatPercent(promotion.roi)}
                               </span>
+                            ) : promotion.roi < 0 ? (
+                              <span className="text-red-600 dark:text-red-400 flex items-center justify-end gap-1">
+                                <TrendingDown className="w-3 h-3" />
+                                {formatPercent(Math.abs(promotion.roi))}
+                              </span>
                             ) : (
                               <span className="text-muted-foreground">-</span>
                             )}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              data-testid={`button-view-${promotion.id}`}
-                            >
-                              View Details
-                            </Button>
                           </TableCell>
                         </TableRow>
                       );
@@ -208,8 +307,41 @@ export default function CampaignsPage() {
           )}
         </TabsContent>
 
-        <TabsContent value="paid-ads">
-          {paidAds && paidAds.length === 0 ? (
+        <TabsContent value="paid-ads" className="space-y-6">
+          {/* Paid Ads Performance Metrics */}
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+            <MetricCard
+              label="Total Spend"
+              value={paidAdMetrics.totalSpend}
+              format="currency"
+              icon={<DollarSign className="w-5 h-5" />}
+              data-testid="metric-ads-spend"
+            />
+            <MetricCard
+              label="Revenue Generated"
+              value={paidAdMetrics.totalRevenue}
+              format="currency"
+              icon={<TrendingUp className="w-5 h-5" />}
+              data-testid="metric-ads-revenue"
+            />
+            <MetricCard
+              label="Total Orders"
+              value={paidAdMetrics.totalOrders}
+              format="number"
+              icon={<ShoppingCart className="w-5 h-5" />}
+              data-testid="metric-ads-orders"
+            />
+            <MetricCard
+              label="Aggregate ROAS"
+              value={paidAdMetrics.aggregateROAS}
+              format="multiplier"
+              icon={<Target className="w-5 h-5" />}
+              data-testid="metric-ads-roas"
+            />
+          </div>
+
+          {/* Paid Ads Table */}
+          {filteredPaidAds && filteredPaidAds.length === 0 ? (
             <Card>
               <CardContent className="flex flex-col items-center justify-center py-16">
                 <Target className="w-12 h-12 text-muted-foreground mb-4" />
@@ -224,10 +356,40 @@ export default function CampaignsPage() {
           ) : (
             <Card>
               <CardHeader>
-                <CardTitle>Paid Advertising Campaigns</CardTitle>
-                <CardDescription>
-                  {paidAds?.length || 0} advertising campaigns
-                </CardDescription>
+                <div className="flex justify-between items-center">
+                  <div>
+                    <CardTitle>Paid Advertising Campaigns</CardTitle>
+                    <CardDescription>
+                      {filteredPaidAds?.length || 0} advertising campaigns
+                    </CardDescription>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant={selectedStatus === "all" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setSelectedStatus("all")}
+                      data-testid="button-filter-all"
+                    >
+                      All
+                    </Button>
+                    <Button
+                      variant={selectedStatus === "active" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setSelectedStatus("active")}
+                      data-testid="button-filter-active"
+                    >
+                      Active
+                    </Button>
+                    <Button
+                      variant={selectedStatus === "completed" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setSelectedStatus("completed")}
+                      data-testid="button-filter-completed"
+                    >
+                      Completed
+                    </Button>
+                  </div>
+                </div>
               </CardHeader>
               <CardContent>
                 <Table>
@@ -242,14 +404,14 @@ export default function CampaignsPage() {
                       <TableHead className="text-right">CTR</TableHead>
                       <TableHead className="text-right">Orders</TableHead>
                       <TableHead className="text-right">Spend</TableHead>
+                      <TableHead className="text-right">Revenue</TableHead>
                       <TableHead className="text-right">ROAS</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {paidAds?.map((campaign) => {
+                    {filteredPaidAds?.map((campaign) => {
                       return (
-                        <TableRow key={campaign.id}>
+                        <TableRow key={campaign.id} className="hover-elevate">
                           <TableCell className="font-medium" data-testid={`text-campaign-name-${campaign.id}`}>
                             {campaign.name}
                           </TableCell>
@@ -271,13 +433,13 @@ export default function CampaignsPage() {
                               {campaign.status}
                             </Badge>
                           </TableCell>
-                          <TableCell className="text-right font-mono">
+                          <TableCell className="text-right font-mono text-sm">
                             {formatNumber(campaign.impressions)}
                           </TableCell>
-                          <TableCell className="text-right font-mono">
+                          <TableCell className="text-right font-mono text-sm">
                             {formatNumber(campaign.clicks)}
                           </TableCell>
-                          <TableCell className="text-right font-mono">
+                          <TableCell className="text-right font-mono text-sm">
                             {formatPercent(campaign.ctr)}
                           </TableCell>
                           <TableCell className="text-right font-mono" data-testid={`text-orders-${campaign.id}`}>
@@ -287,23 +449,17 @@ export default function CampaignsPage() {
                             {formatCurrency(campaign.spend)}
                           </TableCell>
                           <TableCell className="text-right font-mono">
+                            {formatCurrency(campaign.revenue)}
+                          </TableCell>
+                          <TableCell className="text-right font-mono">
                             {campaign.roas > 0 ? (
-                              <span className="text-green-600 dark:text-green-400 flex items-center justify-end gap-1">
-                                <TrendingUp className="w-3 h-3" />
+                              <span className={campaign.roas >= 1 ? "text-green-600 dark:text-green-400 flex items-center justify-end gap-1" : "text-yellow-600 dark:text-yellow-400 flex items-center justify-end gap-1"}>
+                                {campaign.roas >= 1 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
                                 {campaign.roas.toFixed(2)}x
                               </span>
                             ) : (
                               <span className="text-muted-foreground">-</span>
                             )}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              data-testid={`button-view-${campaign.id}`}
-                            >
-                              View Details
-                            </Button>
                           </TableCell>
                         </TableRow>
                       );
