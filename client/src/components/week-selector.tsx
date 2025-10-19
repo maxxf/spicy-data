@@ -6,7 +6,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Calendar } from "lucide-react";
-import { format } from "date-fns";
 
 interface WeekOption {
   weekStart: string;
@@ -31,11 +30,23 @@ export function WeekSelector({
 
   const formatWeekRange = (weekStart: string, weekEnd: string) => {
     try {
-      const start = new Date(weekStart);
-      const end = new Date(weekEnd);
-      const startStr = format(start, "MMM d");
-      const endStr = format(end, "MMM d, yyyy");
-      return `${startStr} - ${endStr}`;
+      // Parse dates as UTC to avoid timezone shifts
+      const start = new Date(weekStart + 'T00:00:00Z');
+      const end = new Date(weekEnd + 'T00:00:00Z');
+      
+      // Format using UTC to maintain Monday-Sunday consistency
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const startMonth = months[start.getUTCMonth()];
+      const startDay = start.getUTCDate();
+      const endMonth = months[end.getUTCMonth()];
+      const endDay = end.getUTCDate();
+      const year = end.getUTCFullYear();
+      
+      if (start.getUTCMonth() === end.getUTCMonth()) {
+        return `${startMonth} ${startDay} - ${endDay}, ${year}`;
+      } else {
+        return `${startMonth} ${startDay} - ${endMonth} ${endDay}, ${year}`;
+      }
     } catch {
       return `${weekStart} - ${weekEnd}`;
     }
