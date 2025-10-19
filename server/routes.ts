@@ -229,8 +229,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         let processedCount = 0;
         
         for (const row of rows) {
+          // Skip rows without order number (e.g., "Other payments" for ad spend)
+          const orderNumber = String(row["DoorDash order ID"] || row.Order_Number || row["Order Number"] || row.order_number || "").trim();
+          if (!orderNumber) {
+            console.log("Skipping row without order number. Available keys:", Object.keys(row).slice(0, 20));
+            continue;
+          }
+
           const storeId = row["Store ID"] || row.Store_ID || row.store_id || null;
-          const locationName = row["Store name"] || row["Store Name"] || row.Store_Location || row["Store Location"] || row.store_location || "";
+          const locationName = row["Store name"] || row["Store Name"] || "";
           const locationId = await findOrCreateLocation(
             clientId, 
             locationName, 
@@ -250,13 +257,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
             locationId,
             
             // Order identification
-            orderNumber: row.Order_Number || row["Order Number"] || row.order_number || "",
-            transactionDate: row.Transaction_Date || row["Transaction Date"] || row.transaction_date || "",
-            storeLocation: row.Store_Location || row["Store Location"] || row.store_location || "",
+            orderNumber: orderNumber,
+            transactionDate: row["Timestamp local date"] || row.Transaction_Date || row["Transaction Date"] || row.transaction_date || "",
+            storeLocation: row["Store name"] || row["Store Name"] || row.Store_Location || row["Store Location"] || row.store_location || "",
             
             // Status and channel filtering fields
             channel: row.Channel || row.channel || null,
-            orderStatus: row.Order_Status || row["Order Status"] || row.order_status || null,
+            orderStatus: row["Final order status"] || row.Order_Status || row["Order Status"] || row.order_status || null,
             
             // Sales metrics (new methodology uses "Sales (excl. tax)")
             salesExclTax: parseNegativeFloat(row["Sales (excl. tax)"] || row.sales_excl_tax || row.salesExclTax),
