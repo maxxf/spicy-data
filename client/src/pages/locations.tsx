@@ -1,19 +1,50 @@
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DataTable } from "@/components/data-table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { PlatformBadge } from "@/components/platform-badge";
-import { CheckCircle2, AlertCircle, Link as LinkIcon, Download } from "lucide-react";
+import { ClientSelector } from "@/components/client-selector";
+import { PlatformSelector } from "@/components/platform-selector";
+import { WeekSelector } from "@/components/week-selector";
+import { CheckCircle2, AlertCircle, Link as LinkIcon, MapPin } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import type { Location, LocationMatchSuggestion, LocationWeeklyFinancial } from "@shared/schema";
+import type { Location, LocationMatchSuggestion, ConsolidatedLocationMetrics } from "@shared/schema";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useMemo } from "react";
 
 export default function LocationsPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  const [selectedClientId, setSelectedClientId] = useState<string | null>("capriottis");
+  const [selectedPlatform, setSelectedPlatform] = useState<string | null>(null);
+  const [selectedWeek, setSelectedWeek] = useState<{ weekStart: string; weekEnd: string } | null>(null);
+
+  // Fetch available weeks to default to most recent
+  const { data: weeks } = useQuery<Array<{ weekStart: string; weekEnd: string }>>({
+    queryKey: ["/api/analytics/weeks"],
+  });
+
+  // Default to most recent week when weeks data loads
+  useEffect(() => {
+    if (weeks && weeks.length > 0 && !selectedWeek) {
+      setSelectedWeek(weeks[0]); // First week is most recent (sorted desc)
+    }
+  }, [weeks, selectedWeek]);
+
+  // Build query params for filters
+  const buildQueryParams = () => {
+    const params = new URLSearchParams();
+    if (selectedClientId) params.append("clientId", selectedClientId);
+    if (selectedPlatform) params.append("platform", selectedPlatform);
+    if (selectedWeek) {
+      params.append("weekStart", selectedWeek.weekStart);
+      params.append("weekEnd", selectedWeek.weekEnd);
+    }
+    return params.toString() ? `?${params.toString()}` : "";
+  };
 
   const { data: locations, isLoading: locationsLoading } = useQuery<Location[]>({
     queryKey: ["/api/locations"],
@@ -23,12 +54,16 @@ export default function LocationsPage() {
     queryKey: ["/api/locations/suggestions"],
   });
 
-  const { data: weeklyFinancials, isLoading: financialsLoading } = useQuery<LocationWeeklyFinancial[]>({
-    queryKey: ["/api/analytics/location-weekly-financials"],
+  const { data: consolidatedMetrics, isLoading: metricsLoading } = useQuery<ConsolidatedLocationMetrics[]>({
+    queryKey: [
+      "/api/analytics/consolidated-locations",
+      selectedClientId || "all",
+      selectedPlatform || "all",
+      selectedWeek ? `${selectedWeek.weekStart}:${selectedWeek.weekEnd}` : "all"
+    ],
     queryFn: async () => {
-      const params = new URLSearchParams({ clientId: "capriottis" });
-      const response = await fetch(`/api/analytics/location-weekly-financials?${params}`);
-      if (!response.ok) throw new Error("Failed to fetch weekly financials");
+      const response = await fetch(`/api/analytics/consolidated-locations${buildQueryParams()}`);
+      if (!response.ok) throw new Error("Failed to fetch location metrics");
       return response.json();
     },
   });
@@ -58,7 +93,7 @@ export default function LocationsPage() {
     },
   });
 
-  const locationColumns = [
+  const locationManagementColumns = [
     {
       key: "canonicalName",
       label: "Canonical Name",
@@ -97,36 +132,100 @@ export default function LocationsPage() {
     },
   ];
 
-  // Group weekly financials by location
-  const locationFinancials = useMemo(() => {
-    if (!weeklyFinancials || !locations) return new Map();
-    
-    const grouped = new Map<string, { location: Location; weeks: LocationWeeklyFinancial[] }>();
-    
-    weeklyFinancials.forEach(wf => {
-      const location = locations.find(l => l.id === wf.locationId);
-      if (!location) return;
-      
-      if (!grouped.has(wf.locationId)) {
-        grouped.set(wf.locationId, { location, weeks: [] });
-      }
-      grouped.get(wf.locationId)!.weeks.push(wf);
-    });
-    
-    // Sort weeks by date for each location
-    grouped.forEach(data => {
-      data.weeks.sort((a, b) => a.weekStartDate.localeCompare(b.weekStartDate));
-    });
-    
-    return grouped;
-  }, [weeklyFinancials, locations]);
-
-  // Get all unique weeks across all locations
-  const allWeeks = useMemo(() => {
-    if (!weeklyFinancials) return [];
-    const weeks = Array.from(new Set(weeklyFinancials.map(wf => wf.weekStartDate)));
-    return weeks.sort();
-  }, [weeklyFinancials]);
+  const metricsColumns = [
+    {
+      key: "locationName",
+      label: "Location",
+      sortable: true,
+      render: (value: string) => (
+        <div className="flex items-center gap-2">
+          <MapPin className="w-4 h-4 text-muted-foreground" />
+          <span className="font-medium">{value}</span>
+        </div>
+      ),
+    },
+    {
+      key: "totalSales",
+      label: "Total Sales",
+      sortable: true,
+      align: "right" as const,
+      render: (value: number | undefined) =>
+        value !== undefined
+          ? new Intl.NumberFormat("en-US", {
+              style: "currency",
+              currency: "USD",
+              minimumFractionDigits: 0,
+              maximumFractionDigits: 0,
+            }).format(value)
+          : <span className="text-muted-foreground">—</span>,
+    },
+    {
+      key: "totalOrders",
+      label: "Orders",
+      sortable: true,
+      align: "right" as const,
+      render: (value: number | undefined) =>
+        value !== undefined ? value.toLocaleString() : <span className="text-muted-foreground">—</span>,
+    },
+    {
+      key: "aov",
+      label: "AOV",
+      sortable: true,
+      align: "right" as const,
+      render: (value: number | undefined) =>
+        value !== undefined
+          ? new Intl.NumberFormat("en-US", {
+              style: "currency",
+              currency: "USD",
+            }).format(value)
+          : <span className="text-muted-foreground">—</span>,
+    },
+    {
+      key: "marketingSpend",
+      label: "Marketing Spend",
+      sortable: true,
+      align: "right" as const,
+      render: (value: number | undefined) =>
+        value !== undefined
+          ? new Intl.NumberFormat("en-US", {
+              style: "currency",
+              currency: "USD",
+              minimumFractionDigits: 0,
+              maximumFractionDigits: 0,
+            }).format(value)
+          : <span className="text-muted-foreground">—</span>,
+    },
+    {
+      key: "marketingRoas",
+      label: "ROAS",
+      sortable: true,
+      align: "right" as const,
+      render: (value: number | undefined) =>
+        value !== undefined ? `${value.toFixed(2)}x` : <span className="text-muted-foreground">—</span>,
+    },
+    {
+      key: "netPayoutPercent",
+      label: "Net Payout %",
+      sortable: true,
+      align: "right" as const,
+      render: (value: number | undefined) => {
+        if (value === undefined) return <span className="text-muted-foreground">—</span>;
+        
+        let colorClass = "";
+        if (value < 75) {
+          colorClass = "text-red-600 dark:text-red-400";
+        } else if (value < 82) {
+          colorClass = "text-orange-600 dark:text-orange-400";
+        } else if (value < 86) {
+          colorClass = "text-yellow-600 dark:text-yellow-400";
+        } else {
+          colorClass = "text-green-600 dark:text-green-400";
+        }
+        
+        return <span className={colorClass}>{value.toFixed(1)}%</span>;
+      },
+    },
+  ];
 
   const suggestionColumns = [
     {
@@ -209,77 +308,42 @@ export default function LocationsPage() {
     );
   }
 
-  const handleExport = async (aggregation: "by-location" | "overview") => {
-    try {
-      const params = new URLSearchParams({ clientId: "capriottis", aggregation });
-      const response = await fetch(`/api/export/weekly-financials?${params}`);
-      
-      if (!response.ok) {
-        throw new Error("Export failed");
-      }
-      
-      // Get the filename from Content-Disposition header or use a default
-      const contentDisposition = response.headers.get('Content-Disposition');
-      const filename = contentDisposition 
-        ? contentDisposition.split('filename=')[1].replace(/"/g, '')
-        : `weekly-financials-${aggregation}-${new Date().toISOString().split('T')[0]}.csv`;
-      
-      // Download the file
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-      
-      toast({
-        title: "Export successful",
-        description: `Downloaded ${filename}`,
-      });
-    } catch (error: any) {
-      toast({
-        title: "Export failed",
-        description: error.message || "Failed to export data",
-        variant: "destructive",
-      });
-    }
-  };
-
   return (
     <div className="p-8 space-y-8" data-testid="page-locations">
-      <div className="flex justify-between items-start">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight mb-2">
-            Location Management
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            Match and verify locations across delivery platforms
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => handleExport("overview")}
-            data-testid="button-export-overview"
-          >
-            <Download className="w-4 h-4 mr-2" />
-            Export Overview
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => handleExport("by-location")}
-            data-testid="button-export-by-location"
-          >
-            <Download className="w-4 h-4 mr-2" />
-            Export by Location
-          </Button>
-        </div>
+      <div>
+        <h1 className="text-2xl font-semibold tracking-tight mb-2">
+          Location Performance
+        </h1>
+        <p className="text-sm text-muted-foreground">
+          Weekly key metrics breakdown by location
+        </p>
       </div>
+
+      {weeks && weeks.length > 0 ? (
+        <div className="flex flex-wrap gap-4">
+          <ClientSelector
+            selectedClientId={selectedClientId}
+            onClientChange={setSelectedClientId}
+            showAllOption={false}
+          />
+          <PlatformSelector
+            selectedPlatform={selectedPlatform}
+            onPlatformChange={setSelectedPlatform}
+          />
+          <WeekSelector
+            weeks={weeks}
+            selectedWeek={selectedWeek}
+            onWeekChange={setSelectedWeek}
+            showAllOption={false}
+          />
+        </div>
+      ) : (
+        <div className="flex gap-4">
+          <Skeleton className="h-10 w-40" />
+          <Skeleton className="h-10 w-40" />
+          <Skeleton className="h-10 w-48" />
+        </div>
+      )}
 
       {suggestions && suggestions.length > 0 && (
         <Card>
@@ -301,105 +365,42 @@ export default function LocationsPage() {
         </Card>
       )}
 
-      {locationFinancials.size > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Weekly Financial Summary</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="overflow-x-auto">
-              <table className="w-full border-collapse text-sm" data-testid="table-weekly-financials">
-                <thead>
-                  <tr className="border-b">
-                    <th className="text-left p-3 font-semibold bg-muted/50">Location</th>
-                    <th className="text-left p-3 font-semibold bg-muted/50">Metric</th>
-                    {allWeeks.map(week => (
-                      <th key={week} className="text-right p-3 font-semibold bg-muted/50 whitespace-nowrap">
-                        {new Date(week).toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: 'numeric' })}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {Array.from(locationFinancials.values()).map(({ location, weeks }) => {
-                    // Create a map of week data for easy lookup
-                    const weekMap = new Map<string, LocationWeeklyFinancial>(weeks.map((w: LocationWeeklyFinancial) => [w.weekStartDate, w]));
-                    
-                    const metrics = [
-                      { label: "Sales (excl. tax)", key: "sales", format: (v: number) => `$${v.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}` },
-                      { label: "Marketing Sales", key: "marketingSales", format: (v: number) => `$${v.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}` },
-                      { label: "Marketing Spend", key: "marketingSpend", format: (v: number) => `$${v.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}` },
-                      { label: "Marketing %", key: "marketingPercent", format: (v: number) => `${Math.round(v)}%` },
-                      { label: "ROAS", key: "roas", format: (v: number) => v.toFixed(1) },
-                      { label: "Payout $", key: "payout", format: (v: number) => `$${v.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}` },
-                      { label: "Payout %", key: "payoutPercent", format: (v: number) => `${Math.round(v)}%` },
-                      { label: "Payout with COGS (46%)", key: "payoutWithCogs", format: (v: number) => `$${v.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}` },
-                    ];
-
-                    return metrics.map((metric, idx) => (
-                      <tr key={`${location.id}-${metric.key}`} className={idx === 0 ? "border-t-2" : ""}>
-                        {idx === 0 && (
-                          <td 
-                            rowSpan={metrics.length} 
-                            className="p-3 font-medium bg-muted/30 border-r align-top"
-                            data-testid={`location-name-${location.canonicalName}`}
-                          >
-                            {location.canonicalName}
-                          </td>
-                        )}
-                        <td className="p-3 text-muted-foreground">{metric.label}</td>
-                        {allWeeks.map(week => {
-                          const data: LocationWeeklyFinancial | undefined = weekMap.get(week);
-                          if (!data) {
-                            return <td key={week} className="p-3 text-center text-muted-foreground">—</td>;
-                          }
-                          const value = data[metric.key as keyof LocationWeeklyFinancial] as number;
-                          
-                          // Apply color coding based on metric type and value
-                          let cellClassName = "p-3 text-right font-mono";
-                          if (metric.key === "marketingPercent") {
-                            cellClassName += " bg-yellow-100 dark:bg-yellow-950/30";
-                          } else if (metric.key === "payoutPercent") {
-                            if (value < 75) {
-                              cellClassName += " bg-red-100 dark:bg-red-950/30";
-                            } else if (value < 82) {
-                              cellClassName += " bg-orange-100 dark:bg-orange-950/30";
-                            } else if (value < 86) {
-                              cellClassName += " bg-yellow-100 dark:bg-yellow-950/30";
-                            } else {
-                              cellClassName += " bg-green-100 dark:bg-green-950/30";
-                            }
-                          }
-                          
-                          return (
-                            <td 
-                              key={week} 
-                              className={cellClassName}
-                              data-testid={`cell-${location.canonicalName}-${metric.key}-${week}`}
-                            >
-                              {metric.format(value)}
-                            </td>
-                          );
-                        })}
-                      </tr>
-                    ));
-                  })}
-                </tbody>
-              </table>
+      <Card>
+        <CardHeader>
+          <CardTitle>Weekly Performance by Location</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {metricsLoading ? (
+            <div className="space-y-2">
+              {[...Array(5)].map((_, i) => (
+                <Skeleton key={i} className="h-12" />
+              ))}
             </div>
-          </CardContent>
-        </Card>
-      )}
+          ) : consolidatedMetrics && consolidatedMetrics.length > 0 ? (
+            <DataTable
+              data={consolidatedMetrics}
+              columns={metricsColumns}
+            />
+          ) : (
+            <div className="text-center py-12 text-muted-foreground">
+              No location data available for the selected filters. Try adjusting your filters or upload transaction data.
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>
-          <CardTitle>All Locations</CardTitle>
+          <CardTitle>Location Management</CardTitle>
         </CardHeader>
         <CardContent>
+          <p className="text-sm text-muted-foreground mb-4">
+            Manage canonical location names and platform mappings
+          </p>
           {locations && locations.length > 0 ? (
             <DataTable
               data={locations}
-              columns={locationColumns}
+              columns={locationManagementColumns}
             />
           ) : (
             <div className="text-center py-12 text-muted-foreground">
