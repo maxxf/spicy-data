@@ -373,11 +373,11 @@ export default function Dashboard() {
               changeLabel="vs. previous period"
             />
             <MetricCard
-              label="Orders from Marketing"
-              value={totalMarketingOrders}
-              format="number"
+              label="True CPO"
+              value={totalMarketingOrders > 0 ? (overview?.totalMarketingInvestment || 0) / totalMarketingOrders : 0}
+              format="currency"
               icon={<Target className="w-5 h-5" />}
-              subtitle={`${(totalMarketingOrders / (overview?.totalOrders || 1) * 100).toFixed(0)}% of total orders`}
+              subtitle={`${totalMarketingOrders.toLocaleString()} marketing orders`}
             />
             <MetricCard
               label="Average Order Value"
