@@ -28,14 +28,15 @@ Preferred communication style: Simple, everyday language.
 
 **Component Architecture:**
 - Modular structure with shared UI components
-- Custom components like MetricCard, DataTable, PlatformBadge, FileUploadZone, ClientSelector, PlatformSelector
+- Custom components like MetricCard, DataTable, PlatformBadge, FileUploadZone, ClientSelector, PlatformSelector, WeekSelector
 - Page-based routing: Dashboard, Campaigns, Upload, Locations
 - Sidebar navigation with a responsive context
 - Comprehensive filtering system:
+  - **Week filtering** via WeekSelector component - defaults to most recent week from transaction data
   - Client filtering via ClientSelector component
   - Platform filtering via PlatformSelector component (All, Uber Eats, DoorDash, Grubhub)
   - Location tag filtering (e.g., "Corporate" tag for 16 corporate locations)
-  - Date range filtering (planned for weekStart/weekEnd)
+  - Each page independently manages its own week selection (no cross-page persistence)
 
 ### Backend Architecture
 
@@ -62,6 +63,7 @@ Preferred communication style: Simple, everyday language.
 - `/api/locations/suggestions`: Fuzzy matching for unlinked locations
 - `/api/upload`: CSV file upload for transaction data
 - `/api/upload/marketing`: Marketing CSV upload
+- `/api/analytics/weeks`: Returns available weeks from transaction data (sorted by most recent first)
 - `/api/analytics/*`: Aggregated platform-level, location-level, and client performance metrics with filtering support
   - Query parameters: `clientId`, `platform` (ubereats|doordash|grubhub), `locationTag`, `weekStart`, `weekEnd`
   - Filters apply consistently across dashboard overview and location metrics
@@ -90,10 +92,11 @@ Preferred communication style: Simple, everyday language.
 - Average Order Value (AOV)
 - Platform-level and location-level aggregations
 - All metrics support multi-dimensional filtering:
+  - By week (defaults to most recent week with available transaction data)
   - By client/brand
   - By platform (Uber Eats, DoorDash, Grubhub)
   - By location tag (e.g., Corporate locations only)
-  - By date range (planned)
+- Defensive null handling: All numeric formatters return em dash (—) for missing/undefined values to prevent crashes
 
 ### Database Design (Drizzle ORM)
 
