@@ -13,6 +13,7 @@ export const clients = pgTable("clients", {
 export const locations = pgTable("locations", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   clientId: varchar("client_id").notNull().references(() => clients.id),
+  storeId: text("store_id"), // Universal Store ID from master list (e.g., CA100377, DE025)
   canonicalName: text("canonical_name").notNull(),
   uberEatsName: text("uber_eats_name"),
   doordashName: text("doordash_name"),

@@ -55,14 +55,45 @@ function calculateStringSimilarity(str1: string, str2: string): number {
 async function findOrCreateLocation(
   clientId: string,
   locationName: string,
-  platform: "ubereats" | "doordash" | "grubhub"
+  platform: "ubereats" | "doordash" | "grubhub",
+  storeId?: string
 ): Promise<string> {
+  // Priority 1: Match by Store ID if provided (cross-platform unique identifier)
+  if (storeId) {
+    const allLocations = await storage.getLocationsByClient(clientId);
+    const locationByStoreId = allLocations.find(l => l.storeId === storeId);
+    if (locationByStoreId) {
+      // Update platform-specific name if not already set
+      const updates: any = {};
+      if (platform === "ubereats" && !locationByStoreId.uberEatsName) {
+        updates.uberEatsName = locationName;
+      } else if (platform === "doordash" && !locationByStoreId.doordashName) {
+        updates.doordashName = locationName;
+      } else if (platform === "grubhub" && !locationByStoreId.grubhubName) {
+        updates.grubhubName = locationName;
+      }
+      if (Object.keys(updates).length > 0) {
+        await storage.updateLocation(locationByStoreId.id, updates);
+      }
+      return locationByStoreId.id;
+    }
+  }
+
+  // Priority 2: Check existing location by platform-specific name
   const existingLocation = await storage.findLocationByName(clientId, locationName, platform);
   
   if (existingLocation) {
+    // Update with Store ID if not already set
+    if (storeId && !existingLocation.storeId) {
+      await storage.updateLocation(existingLocation.id, { 
+        storeId,
+        canonicalName: storeId // Use Store ID as canonical name
+      });
+    }
     return existingLocation.id;
   }
 
+  // Priority 3: Fuzzy matching
   const allLocations = await storage.getLocationsByClient(clientId);
   
   let bestMatch: { location: any; score: number } | null = null;
@@ -90,18 +121,24 @@ async function findOrCreateLocation(
     if (platform === "ubereats") updates.uberEatsName = locationName;
     if (platform === "doordash") updates.doordashName = locationName;
     if (platform === "grubhub") updates.grubhubName = locationName;
+    if (storeId && !bestMatch.location.storeId) {
+      updates.storeId = storeId;
+      updates.canonicalName = storeId;
+    }
     
     await storage.updateLocation(bestMatch.location.id, updates);
     return bestMatch.location.id;
   }
 
+  // Create new location with Store ID
   const newLocation = await storage.createLocation({
     clientId,
-    canonicalName: locationName,
+    storeId: storeId || null,
+    canonicalName: storeId || locationName, // Use Store ID as canonical if available
     uberEatsName: platform === "ubereats" ? locationName : null,
     doordashName: platform === "doordash" ? locationName : null,
     grubhubName: platform === "grubhub" ? locationName : null,
-    isVerified: false,
+    isVerified: storeId ? true : false, // Auto-verify if we have Store ID
   });
 
   return newLocation.id;
@@ -147,7 +184,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (platform === "ubereats") {
         for (const row of rows) {
-          const locationId = await findOrCreateLocation(clientId, row.Location, "ubereats");
+          const storeId = row["Store ID"] || row.Store_ID || row.store_id || null;
+          const locationName = row["Store Name"] || row.Location || "";
+          const locationId = await findOrCreateLocation(clientId, locationName, "ubereats", storeId);
 
           await storage.createUberEatsTransaction({
             clientId,
@@ -173,10 +212,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         let processedCount = 0;
         
         for (const row of rows) {
+          const storeId = row["Store ID"] || row.Store_ID || row.store_id || null;
+          const locationName = row["Store name"] || row["Store Name"] || row.Store_Location || row["Store Location"] || row.store_location || "";
           const locationId = await findOrCreateLocation(
             clientId, 
-            row.Store_Location || row["Store Location"] || row.store_location, 
-            "doordash"
+            locationName, 
+            "doordash",
+            storeId
           );
 
           // Helper to safely parse negative values (discounts/offers are negative in CSV)
@@ -237,7 +279,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return;
       } else if (platform === "grubhub") {
         for (const row of rows) {
-          const locationId = await findOrCreateLocation(clientId, row.Restaurant, "grubhub");
+          const storeId = row.store_number || row.Store_Number || row["Store Number"] || null;
+          const locationName = row.store_name || row.Restaurant || "";
+          const locationId = await findOrCreateLocation(clientId, locationName, "grubhub", storeId);
 
           await storage.createGrubhubTransaction({
             clientId,
@@ -304,7 +348,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const startDate = row["Campaign Start Date"];
           const endDate = row["Campaign End Date"] === "None" ? null : row["Campaign End Date"];
           
-          const locationId = await findOrCreateLocation(clientId, row["Store Name"], "doordash");
+          const storeId = row["Store ID"] || row.Store_ID || row.store_id || null;
+          const locationName = row["Store Name"] || row["Store name"] || "";
+          const locationId = await findOrCreateLocation(clientId, locationName, "doordash", storeId);
           
           const revenue = parseFloat(row["Sales"]) || 0;
           const spend = parseFloat(row["Marketing Fees | (Including any applicable taxes)"]) || 0;
