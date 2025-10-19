@@ -344,6 +344,8 @@ export type PromotionMetrics = Promotion & {
   orders: number;
   revenueImpact: number;
   discountCost: number;
+  marketingFees: number; // Platform marketing fees
+  totalCost: number; // discountCost + marketingFees
   newCustomers: number;
   roi: number;
 };

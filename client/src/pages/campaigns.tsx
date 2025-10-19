@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Percent, Target, TrendingUp, DollarSign, ShoppingCart, TrendingDown } from "lucide-react";
+import { Percent, Target, TrendingUp, DollarSign, ShoppingCart, TrendingDown, Calculator } from "lucide-react";
 import type { PromotionMetrics, PaidAdCampaignMetrics } from "@shared/schema";
 
 const statusColors = {
@@ -82,19 +82,20 @@ export default function CampaignsPage() {
   // Calculate aggregate metrics for promotions
   const promotionMetrics = useMemo(() => {
     if (!filteredPromotions || filteredPromotions.length === 0) {
-      return { totalOrders: 0, totalRevenue: 0, totalCost: 0, aggregateROI: 0 };
+      return { totalOrders: 0, totalRevenue: 0, totalCost: 0, totalDiscountCost: 0, totalMarketingFees: 0, aggregateROAS: 0 };
     }
     
     const totalOrders = filteredPromotions.reduce((sum, p) => sum + (p.orders || 0), 0);
     const totalRevenue = filteredPromotions.reduce((sum, p) => sum + (p.revenueImpact || 0), 0);
-    const totalCost = filteredPromotions.reduce((sum, p) => sum + (p.discountCost || 0), 0);
-    // Calculate ROI from aggregate totals as a percentage: (revenue - cost) / cost * 100
-    // MetricCard with format="percent" will add % suffix
-    const aggregateROI = totalCost > 0 
-      ? ((totalRevenue - totalCost) / totalCost) * 100
+    const totalCost = filteredPromotions.reduce((sum, p) => sum + (p.totalCost || 0), 0);
+    const totalDiscountCost = filteredPromotions.reduce((sum, p) => sum + (p.discountCost || 0), 0);
+    const totalMarketingFees = filteredPromotions.reduce((sum, p) => sum + (p.marketingFees || 0), 0);
+    // Calculate ROAS from aggregate totals: revenue / total cost (discount + marketing fees)
+    const aggregateROAS = totalCost > 0 
+      ? totalRevenue / totalCost
       : 0;
 
-    return { totalOrders, totalRevenue, totalCost, aggregateROI };
+    return { totalOrders, totalRevenue, totalCost, totalDiscountCost, totalMarketingFees, aggregateROAS };
   }, [filteredPromotions]);
 
   // Calculate aggregate metrics for paid ads
@@ -115,6 +116,35 @@ export default function CampaignsPage() {
 
     return { totalSpend, totalRevenue, totalOrders, aggregateROAS, totalClicks, totalImpressions };
   }, [filteredPaidAds]);
+
+  // Calculate combined metrics (ads + offers)
+  const combinedMetrics = useMemo(() => {
+    const totalRevenue = promotionMetrics.totalRevenue + paidAdMetrics.totalRevenue;
+    const totalCost = promotionMetrics.totalCost + paidAdMetrics.totalSpend;
+    const totalOrders = promotionMetrics.totalOrders + paidAdMetrics.totalOrders;
+    
+    // Combined ROAS: total revenue / total investment
+    const combinedROAS = totalCost > 0 ? totalRevenue / totalCost : 0;
+    
+    // True Cost Per Order (CPO): total investment / total orders
+    const trueCPO = totalOrders > 0 ? totalCost / totalOrders : 0;
+    
+    // Average order value from marketing
+    const avgOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
+
+    return {
+      totalRevenue,
+      totalCost,
+      totalOrders,
+      combinedROAS,
+      trueCPO,
+      avgOrderValue,
+      adSpend: paidAdMetrics.totalSpend,
+      discountCost: promotionMetrics.totalDiscountCost,
+      marketingFees: promotionMetrics.totalMarketingFees,
+      promotionTotalCost: promotionMetrics.totalCost,
+    };
+  }, [promotionMetrics, paidAdMetrics]);
 
   const formatCurrency = (value: number | undefined | null) => {
     if (value == null) return '—';
@@ -166,8 +196,12 @@ export default function CampaignsPage() {
         </div>
       </div>
 
-      <Tabs defaultValue="promotions" className="space-y-6">
+      <Tabs defaultValue="combined" className="space-y-6">
         <TabsList data-testid="tabs-campaign-type">
+          <TabsTrigger value="combined" data-testid="tab-combined">
+            <Calculator className="w-4 h-4 mr-2" />
+            Combined Overview
+          </TabsTrigger>
           <TabsTrigger value="promotions" data-testid="tab-promotions">
             <Percent className="w-4 h-4 mr-2" />
             Promotions
@@ -177,6 +211,159 @@ export default function CampaignsPage() {
             Paid Advertising
           </TabsTrigger>
         </TabsList>
+
+        <TabsContent value="combined" className="space-y-6">
+          {/* Combined Performance Metrics */}
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+            <MetricCard
+              label="Total Marketing Revenue"
+              value={combinedMetrics.totalRevenue}
+              format="currency"
+              icon={<DollarSign className="w-5 h-5" />}
+              subtitle="From ads + offers"
+              data-testid="metric-combined-revenue"
+            />
+            <MetricCard
+              label="Total Marketing Investment"
+              value={combinedMetrics.totalCost}
+              format="currency"
+              icon={<TrendingDown className="w-5 h-5" />}
+              subtitle={`$${formatNumber(combinedMetrics.adSpend)} ads + $${formatNumber(combinedMetrics.promotionTotalCost)} offers`}
+              data-testid="metric-combined-cost"
+            />
+            <MetricCard
+              label="Total Marketing Orders"
+              value={combinedMetrics.totalOrders}
+              format="number"
+              icon={<ShoppingCart className="w-5 h-5" />}
+              data-testid="metric-combined-orders"
+            />
+            <MetricCard
+              label="Combined ROAS"
+              value={combinedMetrics.combinedROAS}
+              format="multiplier"
+              icon={<Target className="w-5 h-5" />}
+              data-testid="metric-combined-roas"
+            />
+          </div>
+
+          {/* Additional Combined Metrics */}
+          <div className="grid gap-6 md:grid-cols-3">
+            <MetricCard
+              label="True Cost Per Order (CPO)"
+              value={combinedMetrics.trueCPO}
+              format="currency"
+              icon={<Calculator className="w-5 h-5" />}
+              subtitle="Total investment ÷ orders"
+              data-testid="metric-true-cpo"
+            />
+            <MetricCard
+              label="Marketing AOV"
+              value={combinedMetrics.avgOrderValue}
+              format="currency"
+              icon={<DollarSign className="w-5 h-5" />}
+              subtitle="Average order from marketing"
+              data-testid="metric-marketing-aov"
+            />
+            <MetricCard
+              label="Net Profit Per Order"
+              value={combinedMetrics.avgOrderValue - combinedMetrics.trueCPO}
+              format="currency"
+              icon={<TrendingUp className="w-5 h-5" />}
+              subtitle="AOV - CPO"
+              data-testid="metric-net-profit-per-order"
+            />
+          </div>
+
+          {/* Combined Performance Breakdown */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Marketing Mix Breakdown</CardTitle>
+              <CardDescription>
+                How paid advertising and promotional offers contribute to overall performance
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-6 md:grid-cols-2">
+                {/* Paid Advertising Contribution */}
+                <div className="space-y-4">
+                  <h3 className="text-sm font-semibold flex items-center gap-2">
+                    <Target className="w-4 h-4" />
+                    Paid Advertising
+                  </h3>
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-muted-foreground">Ad Spend</span>
+                      <span className="font-mono font-medium">{formatCurrency(paidAdMetrics.totalSpend)}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-muted-foreground">Revenue</span>
+                      <span className="font-mono font-medium">{formatCurrency(paidAdMetrics.totalRevenue)}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-muted-foreground">Orders</span>
+                      <span className="font-mono font-medium">{formatNumber(paidAdMetrics.totalOrders)}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-muted-foreground">ROAS</span>
+                      <span className="font-mono font-medium text-primary">{paidAdMetrics.aggregateROAS.toFixed(2)}x</span>
+                    </div>
+                    <div className="flex justify-between items-center pt-3 border-t">
+                      <span className="text-sm font-medium">Revenue %</span>
+                      <span className="font-mono font-semibold">
+                        {combinedMetrics.totalRevenue > 0 
+                          ? ((paidAdMetrics.totalRevenue / combinedMetrics.totalRevenue) * 100).toFixed(1)
+                          : 0}%
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Promotional Offers Contribution */}
+                <div className="space-y-4">
+                  <h3 className="text-sm font-semibold flex items-center gap-2">
+                    <Percent className="w-4 h-4" />
+                    Promotional Offers
+                  </h3>
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-muted-foreground">Total Cost</span>
+                      <span className="font-mono font-medium">{formatCurrency(promotionMetrics.totalCost)}</span>
+                    </div>
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="text-muted-foreground pl-4">• Discounts</span>
+                      <span className="font-mono">{formatCurrency(promotionMetrics.totalDiscountCost)}</span>
+                    </div>
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="text-muted-foreground pl-4">• Marketing Fees</span>
+                      <span className="font-mono">{formatCurrency(promotionMetrics.totalMarketingFees)}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-muted-foreground">Revenue</span>
+                      <span className="font-mono font-medium">{formatCurrency(promotionMetrics.totalRevenue)}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-muted-foreground">Orders</span>
+                      <span className="font-mono font-medium">{formatNumber(promotionMetrics.totalOrders)}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-muted-foreground">ROAS</span>
+                      <span className="font-mono font-medium text-primary">{promotionMetrics.aggregateROAS.toFixed(2)}x</span>
+                    </div>
+                    <div className="flex justify-between items-center pt-3 border-t">
+                      <span className="text-sm font-medium">Revenue %</span>
+                      <span className="font-mono font-semibold">
+                        {combinedMetrics.totalRevenue > 0 
+                          ? ((promotionMetrics.totalRevenue / combinedMetrics.totalRevenue) * 100).toFixed(1)
+                          : 0}%
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
         <TabsContent value="promotions" className="space-y-6">
           {/* Promotion Performance Metrics */}
@@ -196,18 +383,19 @@ export default function CampaignsPage() {
               data-testid="metric-promo-revenue"
             />
             <MetricCard
-              label="Discount Cost"
+              label="Total Cost"
               value={promotionMetrics.totalCost}
               format="currency"
               icon={<Percent className="w-5 h-5" />}
+              subtitle={`$${formatNumber(promotionMetrics.totalDiscountCost)} discounts + $${formatNumber(promotionMetrics.totalMarketingFees)} fees`}
               data-testid="metric-promo-cost"
             />
             <MetricCard
-              label="Aggregate ROI"
-              value={promotionMetrics.aggregateROI}
-              format="percent"
+              label="Aggregate ROAS"
+              value={promotionMetrics.aggregateROAS}
+              format="multiplier"
               icon={<TrendingUp className="w-5 h-5" />}
-              data-testid="metric-promo-roi"
+              data-testid="metric-promo-roas"
             />
           </div>
 
@@ -272,12 +460,17 @@ export default function CampaignsPage() {
                       <TableHead>Dates</TableHead>
                       <TableHead className="text-right">Orders</TableHead>
                       <TableHead className="text-right">Revenue Impact</TableHead>
-                      <TableHead className="text-right">Discount Cost</TableHead>
-                      <TableHead className="text-right">ROI</TableHead>
+                      <TableHead className="text-right">Total Cost</TableHead>
+                      <TableHead className="text-right">ROAS</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {filteredPromotions?.map((promotion) => {
+                      // Calculate ROAS for individual promotion using total cost
+                      const promoROAS = promotion.totalCost && promotion.totalCost > 0
+                        ? (promotion.revenueImpact || 0) / promotion.totalCost
+                        : 0;
+                      
                       return (
                         <TableRow key={promotion.id} className="hover-elevate">
                           <TableCell className="font-medium" data-testid={`text-promotion-name-${promotion.id}`}>
@@ -309,21 +502,16 @@ export default function CampaignsPage() {
                             {formatCurrency(promotion.revenueImpact)}
                           </TableCell>
                           <TableCell className="text-right font-mono">
-                            {formatCurrency(promotion.discountCost)}
+                            {formatCurrency(promotion.totalCost)}
                           </TableCell>
                           <TableCell className="text-right font-mono">
-                            {promotion.roi > 0 ? (
-                              <span className="text-green-600 dark:text-green-400 flex items-center justify-end gap-1">
-                                <TrendingUp className="w-3 h-3" />
-                                {formatPercent(promotion.roi)}
-                              </span>
-                            ) : promotion.roi < 0 ? (
-                              <span className="text-red-600 dark:text-red-400 flex items-center justify-end gap-1">
-                                <TrendingDown className="w-3 h-3" />
-                                {formatPercent(Math.abs(promotion.roi))}
+                            {promoROAS > 0 ? (
+                              <span className={promoROAS >= 1 ? "text-green-600 dark:text-green-400 flex items-center justify-end gap-1" : "text-yellow-600 dark:text-yellow-400 flex items-center justify-end gap-1"}>
+                                {promoROAS >= 1 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
+                                {promoROAS.toFixed(2)}x
                               </span>
                             ) : (
-                              <span className="text-muted-foreground">-</span>
+                              <span className="text-muted-foreground">—</span>
                             )}
                           </TableCell>
                         </TableRow>

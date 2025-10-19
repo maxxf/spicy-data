@@ -927,14 +927,17 @@ export class DbStorage implements IStorage {
       const spend = campaignMetrics.reduce((sum, m) => sum + m.spend, 0);
       const discount = campaignMetrics.reduce((sum, m) => sum + (m.discount || 0), 0);
       const newCustomers = campaignMetrics.reduce((sum, m) => sum + (m.newCustomers || 0), 0);
+      const totalCost = discount + spend;
 
       metrics.push({
         ...promo,
         orders,
         revenueImpact: revenue,
         discountCost: discount,
+        marketingFees: spend,
+        totalCost,
         newCustomers,
-        roi: spend > 0 ? ((revenue - spend) / spend) * 100 : 0,
+        roi: totalCost > 0 ? ((revenue - totalCost) / totalCost) * 100 : 0,
       });
     }
 

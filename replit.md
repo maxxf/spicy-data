@@ -38,6 +38,20 @@ Preferred communication style: Simple, everyday language.
   - Location tag filtering (e.g., "Corporate" tag for 16 corporate locations)
   - Each page independently manages its own week selection (no cross-page persistence)
 
+**Campaigns Page Features:**
+- **Combined Overview** tab (default): Shows unified metrics for paid ads and promotional offers
+  - Combined ROAS: Overall return on total marketing investment (ads + offers)
+  - True Cost Per Order (CPO): Total marketing investment ÷ total orders
+  - Marketing AOV: Average order value from marketing-driven sales
+  - Net Profit Per Order: Marketing AOV - True CPO
+  - Marketing Mix Breakdown: Side-by-side comparison of ads vs offers with revenue contribution %
+- **Promotions** tab: Individual promotional campaigns with ROAS metrics (not ROI percentage)
+  - Total Cost calculation includes both customer discounts AND platform marketing fees
+  - ROAS calculated as: revenue / (discountCost + marketingFees)
+- **Paid Advertising** tab: Individual ad campaigns with ROAS, CTR, impressions, clicks
+- All aggregate metrics display ROAS as multipliers (e.g., "2.5x") rather than percentages
+- Promotion cost breakdown transparently shows discounts vs. marketing fees
+
 ### Backend Architecture
 
 **Server Framework:**
