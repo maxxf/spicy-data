@@ -193,16 +193,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const rows = parseCSV(req.file.buffer, platform);
 
       if (platform === "ubereats") {
-        console.log(`Parsed ${rows.length} rows from Uber Eats CSV`);
-        if (rows.length > 0) {
-          console.log('Sample row keys:', Object.keys(rows[0]).slice(0, 10));
-          console.log('Sample row data:', { 
-            storeId: rows[0]["Store ID"],
-            storeName: rows[0]["Store Name"],
-            orderId: rows[0]["Order ID"]
-          });
-        }
-        
         for (const row of rows) {
           // Use row 2 column names (Store ID, Store Name, Order ID, etc.)
           const storeId = row["Store ID"] || row.Store_ID || row.store_id || null;
@@ -212,7 +202,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Skip rows without order ID
           const orderId = row["Order ID"] || row.Order_ID;
           if (!orderId || orderId.trim() === "") {
-            console.log('Skipping row without Order ID:', { storeId, locationName, orderId });
             continue;
           }
 
