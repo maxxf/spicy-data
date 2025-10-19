@@ -236,7 +236,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (platform === "ubereats") {
         for (const row of rows) {
-          const storeId = getColumnValue(row, "Store ID", "Store_ID", "store_id") || null;
+          const storeId = getColumnValue(row, "Store ID", "Store_ID", "store_id") || undefined;
           const locationName = getColumnValue(row, "Store Name", "Location", "Store_Name", "store_name");
           const locationId = await findOrCreateLocation(clientId, locationName, "ubereats", storeId);
 
@@ -275,7 +275,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             continue;
           }
 
-          const storeId = getColumnValue(row, "Store ID", "Store_ID", "store_id") || null;
+          const storeId = getColumnValue(row, "Store ID", "Store_ID", "store_id") || undefined;
           const locationName = getColumnValue(row, "Store name", "Store Name", "Store_Name", "store_name");
           const locationId = await findOrCreateLocation(
             clientId, 
@@ -368,12 +368,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } else if (platform === "grubhub") {
         let processedCount = 0;
         for (const row of rows) {
-          const storeId = getColumnValue(row, "store_number", "Store_Number", "grubhub_store_id", "store number") || null;
+          const storeId = getColumnValue(row, "store_number", "Store_Number", "grubhub_store_id", "store number") || undefined;
           const locationName = getColumnValue(row, "store_name", "Restaurant", "Store_Name", "store name");
           
-          // Skip rows without order number
+          // Skip rows without order number OR transaction ID
           const orderNumber = getColumnValue(row, "order_number", "Order_Id", "order number", "order_id");
-          if (!orderNumber || orderNumber.trim() === "") {
+          const transactionId = getColumnValue(row, "transaction_id", "Transaction_Id", "transaction id");
+          if (!orderNumber || orderNumber.trim() === "" || !transactionId || transactionId.trim() === "") {
             continue;
           }
 
@@ -384,13 +385,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
             locationId,
             orderId: orderNumber,
             orderDate: getColumnValue(row, "transaction_date", "Order_Date", "transaction date", "order_date"),
+            transactionType: getColumnValue(row, "transaction_type", "Transaction_Type", "transaction type"),
+            transactionId: transactionId,
             restaurant: locationName,
-            saleAmount: parseFloat(getColumnValue(row, "subtotal", "Sale_Amount", "sale amount", "Sale Amount")) || 0,
-            taxAmount: parseFloat(getColumnValue(row, "subtotal_sales_tax", "Tax_Amount", "tax amount", "Tax Amount")) || 0,
-            deliveryCharge: parseFloat(getColumnValue(row, "self_delivery_charge", "Delivery_Charge", "delivery charge", "Delivery Charge")) || 0,
-            processingFee: parseFloat(getColumnValue(row, "merchant_service_fee", "Processing_Fee", "processing fee", "Processing Fee")) || 0,
-            promotionCost: parseFloat(getColumnValue(row, "total_discount", "Promotion_Cost", "promotion cost", "Promotion Cost")) || 0,
-            netSales: parseFloat(getColumnValue(row, "merchant_net_total", "Net_Sales", "net sales", "Net Sales")) || 0,
+            orderChannel: getColumnValue(row, "order_channel", "Order_Channel", "order channel") || null,
+            fulfillmentType: getColumnValue(row, "fulfillment_type", "Fulfillment_Type", "fulfillment type") || null,
+            subtotal: parseFloat(getColumnValue(row, "subtotal", "Subtotal", "Sale_Amount", "sale amount")) || 0,
+            subtotalSalesTax: parseFloat(getColumnValue(row, "subtotal_sales_tax", "Subtotal_Sales_Tax", "tax amount", "Tax Amount")) || 0,
+            commission: parseFloat(getColumnValue(row, "commission", "Commission")) || 0,
+            deliveryCommission: parseFloat(getColumnValue(row, "delivery_commission", "Delivery_Commission", "delivery commission")) || 0,
+            processingFee: parseFloat(getColumnValue(row, "processing_fee", "merchant_service_fee", "Processing_Fee", "processing fee")) || 0,
+            merchantFundedPromotion: parseFloat(getColumnValue(row, "merchant_funded_promotion", "Merchant_Funded_Promotion", "merchant funded promotion")) || 0,
+            merchantNetTotal: parseFloat(getColumnValue(row, "merchant_net_total", "Merchant_Net_Total", "Net_Sales", "net sales")) || 0,
+            transactionNote: getColumnValue(row, "transaction_note", "Transaction_Note", "transaction note") || null,
             customerType: getColumnValue(row, "gh_plus_customer", "Customer_Type", "customer type", "Customer Type") || "Unknown",
           });
           processedCount++;

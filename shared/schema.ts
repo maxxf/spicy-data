@@ -101,20 +101,34 @@ export const grubhubTransactions = pgTable("grubhub_transactions", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   clientId: varchar("client_id").notNull().references(() => clients.id),
   locationId: varchar("location_id").references(() => locations.id),
+  
+  // Order identification
   orderId: text("order_id").notNull(),
   orderDate: text("order_date").notNull(),
+  transactionType: text("transaction_type").notNull(), // "Prepaid Order", "Order Adjustment", etc.
+  transactionId: text("transaction_id").notNull(), // Unique transaction identifier from Grubhub
+  
+  // Location and order details
   restaurant: text("restaurant").notNull(),
-  saleAmount: real("sale_amount").notNull(),
-  taxAmount: real("tax_amount").notNull(),
-  deliveryCharge: real("delivery_charge").notNull(),
-  processingFee: real("processing_fee").notNull(),
-  promotionCost: real("promotion_cost").notNull(),
-  netSales: real("net_sales").notNull(),
+  orderChannel: text("order_channel"),
+  fulfillmentType: text("fulfillment_type"),
+  
+  // Financial details (from CSV columns)
+  subtotal: real("subtotal").notNull().default(0),
+  subtotalSalesTax: real("subtotal_sales_tax").notNull().default(0),
+  commission: real("commission").notNull().default(0),
+  deliveryCommission: real("delivery_commission").notNull().default(0),
+  processingFee: real("processing_fee").notNull().default(0),
+  merchantFundedPromotion: real("merchant_funded_promotion").notNull().default(0),
+  merchantNetTotal: real("merchant_net_total").notNull().default(0),
+  transactionNote: text("transaction_note"),
+  
+  // Customer info
   customerType: text("customer_type").notNull(),
   uploadedAt: timestamp("uploaded_at").defaultNow().notNull(),
 }, (table) => ({
-  // Unique constraint to prevent duplicate transactions
-  uniqueTransaction: uniqueIndex("grubhub_unique_transaction").on(table.clientId, table.orderId, table.orderDate),
+  // Unique constraint on transaction_id to allow multiple rows per order
+  uniqueTransaction: uniqueIndex("grubhub_unique_transaction").on(table.clientId, table.transactionId),
 }));
 
 export const promotions = pgTable("promotions", {
