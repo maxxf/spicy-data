@@ -39,6 +39,9 @@ export interface IStorage {
   getLocationsByClient(clientId: string): Promise<Location[]>;
   getAllLocations(): Promise<Location[]>;
   updateLocation(id: string, updates: Partial<Location>): Promise<Location | undefined>;
+  deleteLocation(id: string): Promise<boolean>;
+  mergeLocations(targetLocationId: string, sourceLocationIds: string[]): Promise<Location>;
+  getDuplicateLocations(clientId?: string): Promise<Array<{ canonicalName: string; locationIds: string[]; count: number }>>;
   findLocationByName(clientId: string, name: string, platform: "ubereats" | "doordash" | "grubhub"): Promise<Location | undefined>;
 
   createUberEatsTransaction(transaction: InsertUberEatsTransaction): Promise<UberEatsTransaction>;

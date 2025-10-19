@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, real, timestamp, integer, boolean } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, real, timestamp, integer, boolean, uniqueIndex } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -42,7 +42,10 @@ export const uberEatsTransactions = pgTable("uber_eats_transactions", {
   netPayout: real("net_payout").notNull(),
   customerRating: integer("customer_rating"),
   uploadedAt: timestamp("uploaded_at").defaultNow().notNull(),
-});
+}, (table) => ({
+  // Unique constraint to prevent duplicate transactions
+  uniqueTransaction: uniqueIndex("uber_eats_unique_transaction").on(table.clientId, table.orderId, table.date),
+}));
 
 export const doordashTransactions = pgTable("doordash_transactions", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -89,7 +92,10 @@ export const doordashTransactions = pgTable("doordash_transactions", {
   orderSource: text("order_source"),
   
   uploadedAt: timestamp("uploaded_at").defaultNow().notNull(),
-});
+}, (table) => ({
+  // Unique constraint to prevent duplicate transactions
+  uniqueTransaction: uniqueIndex("doordash_unique_transaction").on(table.clientId, table.orderNumber, table.transactionDate),
+}));
 
 export const grubhubTransactions = pgTable("grubhub_transactions", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -106,7 +112,10 @@ export const grubhubTransactions = pgTable("grubhub_transactions", {
   netSales: real("net_sales").notNull(),
   customerType: text("customer_type").notNull(),
   uploadedAt: timestamp("uploaded_at").defaultNow().notNull(),
-});
+}, (table) => ({
+  // Unique constraint to prevent duplicate transactions
+  uniqueTransaction: uniqueIndex("grubhub_unique_transaction").on(table.clientId, table.orderId, table.orderDate),
+}));
 
 export const promotions = pgTable("promotions", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),

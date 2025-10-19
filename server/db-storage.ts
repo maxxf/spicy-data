@@ -74,18 +74,16 @@ export function calculateDoorDashMetrics(txns: DoordashTransaction[]) {
         adSpend += t.otherPayments;
       }
       
-      // Offer/Discount Value
+      // Offer/Discount Value (absolute values to handle both positive and negative representations)
       const offersValue = Math.abs(t.offersOnItems || 0) + 
                         Math.abs(t.deliveryOfferRedemptions || 0) +
                         Math.abs(t.marketingCredits || 0) +
                         Math.abs(t.thirdPartyContribution || 0);
       offerDiscountValue += offersValue;
       
-      // Marketing Attribution
-      const hasMarketing = (t.offersOnItems < 0) || 
-                          (t.deliveryOfferRedemptions < 0) || 
-                          (t.marketingCredits > 0) || 
-                          (t.thirdPartyContribution > 0);
+      // Marketing Attribution: ANY non-zero promotional value indicates marketing-driven order
+      // This handles both negative discounts and positive rebates/credits
+      const hasMarketing = offersValue > 0;
       
       if (hasMarketing) {
         marketingDrivenSales += sales;
@@ -171,6 +169,71 @@ export class DbStorage implements IStorage {
     return updated;
   }
 
+  async deleteLocation(id: string): Promise<boolean> {
+    const result = await this.db.delete(locations).where(eq(locations.id, id));
+    return result.rowCount ? result.rowCount > 0 : false;
+  }
+
+  async mergeLocations(targetLocationId: string, sourceLocationIds: string[]): Promise<Location> {
+    // Update all transactions to point to the target location
+    for (const sourceId of sourceLocationIds) {
+      await this.db
+        .update(uberEatsTransactions)
+        .set({ locationId: targetLocationId })
+        .where(eq(uberEatsTransactions.locationId, sourceId));
+      
+      await this.db
+        .update(doordashTransactions)
+        .set({ locationId: targetLocationId })
+        .where(eq(doordashTransactions.locationId, sourceId));
+      
+      await this.db
+        .update(grubhubTransactions)
+        .set({ locationId: targetLocationId })
+        .where(eq(grubhubTransactions.locationId, sourceId));
+      
+      await this.db
+        .update(campaignLocationMetrics)
+        .set({ locationId: targetLocationId })
+        .where(eq(campaignLocationMetrics.locationId, sourceId));
+      
+      // Delete the source location
+      await this.deleteLocation(sourceId);
+    }
+    
+    // Return the target location
+    const [target] = await this.db.select().from(locations).where(eq(locations.id, targetLocationId));
+    return target;
+  }
+
+  async getDuplicateLocations(clientId?: string): Promise<Array<{ canonicalName: string; locationIds: string[]; count: number }>> {
+    const query = clientId
+      ? this.db.select().from(locations).where(eq(locations.clientId, clientId))
+      : this.db.select().from(locations);
+    
+    const allLocations = await query;
+    
+    // Group by canonical name
+    const groups = new Map<string, string[]>();
+    for (const loc of allLocations) {
+      const name = loc.canonicalName;
+      if (!groups.has(name)) {
+        groups.set(name, []);
+      }
+      groups.get(name)!.push(loc.id);
+    }
+    
+    // Return only duplicates (count > 1)
+    return Array.from(groups.entries())
+      .filter(([_, ids]) => ids.length > 1)
+      .map(([canonicalName, locationIds]) => ({
+        canonicalName,
+        locationIds,
+        count: locationIds.length,
+      }))
+      .sort((a, b) => b.count - a.count);
+  }
+
   async findLocationByName(
     clientId: string,
     name: string,
@@ -206,11 +269,30 @@ export class DbStorage implements IStorage {
   ): Promise<void> {
     if (transactions.length === 0) return;
     
-    // Insert in chunks of 500
+    // Insert in chunks of 500, using upsert to prevent duplicates
     const chunkSize = 500;
     for (let i = 0; i < transactions.length; i += chunkSize) {
       const chunk = transactions.slice(i, i + chunkSize);
-      await this.db.insert(uberEatsTransactions).values(chunk);
+      await this.db.insert(uberEatsTransactions)
+        .values(chunk)
+        .onConflictDoUpdate({
+          target: [uberEatsTransactions.clientId, uberEatsTransactions.orderId, uberEatsTransactions.date],
+          set: {
+            locationId: sql`EXCLUDED.location_id`,
+            time: sql`EXCLUDED.time`,
+            location: sql`EXCLUDED.location`,
+            subtotal: sql`EXCLUDED.subtotal`,
+            tax: sql`EXCLUDED.tax`,
+            deliveryFee: sql`EXCLUDED.delivery_fee`,
+            serviceFee: sql`EXCLUDED.service_fee`,
+            marketingPromo: sql`EXCLUDED.marketing_promo`,
+            marketingAmount: sql`EXCLUDED.marketing_amount`,
+            platformFee: sql`EXCLUDED.platform_fee`,
+            netPayout: sql`EXCLUDED.net_payout`,
+            customerRating: sql`EXCLUDED.customer_rating`,
+            uploadedAt: sql`EXCLUDED.uploaded_at`,
+          },
+        });
     }
   }
 
@@ -236,11 +318,38 @@ export class DbStorage implements IStorage {
   ): Promise<void> {
     if (transactions.length === 0) return;
     
-    // Insert in chunks of 500
+    // Insert in chunks of 500, using upsert to prevent duplicates
     const chunkSize = 500;
     for (let i = 0; i < transactions.length; i += chunkSize) {
       const chunk = transactions.slice(i, i + chunkSize);
-      await this.db.insert(doordashTransactions).values(chunk);
+      await this.db.insert(doordashTransactions)
+        .values(chunk)
+        .onConflictDoUpdate({
+          target: [doordashTransactions.clientId, doordashTransactions.orderNumber, doordashTransactions.transactionDate],
+          set: {
+            locationId: sql`EXCLUDED.location_id`,
+            storeLocation: sql`EXCLUDED.store_location`,
+            channel: sql`EXCLUDED.channel`,
+            orderStatus: sql`EXCLUDED.order_status`,
+            salesExclTax: sql`EXCLUDED.sales_excl_tax`,
+            orderSubtotal: sql`EXCLUDED.order_subtotal`,
+            taxes: sql`EXCLUDED.taxes`,
+            deliveryFees: sql`EXCLUDED.delivery_fees`,
+            commission: sql`EXCLUDED.commission`,
+            errorCharges: sql`EXCLUDED.error_charges`,
+            offersOnItems: sql`EXCLUDED.offers_on_items`,
+            deliveryOfferRedemptions: sql`EXCLUDED.delivery_offer_redemptions`,
+            marketingCredits: sql`EXCLUDED.marketing_credits`,
+            thirdPartyContribution: sql`EXCLUDED.third_party_contribution`,
+            otherPayments: sql`EXCLUDED.other_payments`,
+            otherPaymentsDescription: sql`EXCLUDED.other_payments_description`,
+            marketingSpend: sql`EXCLUDED.marketing_spend`,
+            totalPayout: sql`EXCLUDED.total_payout`,
+            netPayment: sql`EXCLUDED.net_payment`,
+            orderSource: sql`EXCLUDED.order_source`,
+            uploadedAt: sql`EXCLUDED.uploaded_at`,
+          },
+        });
     }
   }
 
@@ -266,11 +375,27 @@ export class DbStorage implements IStorage {
   ): Promise<void> {
     if (transactions.length === 0) return;
     
-    // Insert in chunks of 500
+    // Insert in chunks of 500, using upsert to prevent duplicates
     const chunkSize = 500;
     for (let i = 0; i < transactions.length; i += chunkSize) {
       const chunk = transactions.slice(i, i + chunkSize);
-      await this.db.insert(grubhubTransactions).values(chunk);
+      await this.db.insert(grubhubTransactions)
+        .values(chunk)
+        .onConflictDoUpdate({
+          target: [grubhubTransactions.clientId, grubhubTransactions.orderId, grubhubTransactions.orderDate],
+          set: {
+            locationId: sql`EXCLUDED.location_id`,
+            restaurant: sql`EXCLUDED.restaurant`,
+            saleAmount: sql`EXCLUDED.sale_amount`,
+            taxAmount: sql`EXCLUDED.tax_amount`,
+            deliveryCharge: sql`EXCLUDED.delivery_charge`,
+            processingFee: sql`EXCLUDED.processing_fee`,
+            promotionCost: sql`EXCLUDED.promotion_cost`,
+            netSales: sql`EXCLUDED.net_sales`,
+            customerType: sql`EXCLUDED.customer_type`,
+            uploadedAt: sql`EXCLUDED.uploaded_at`,
+          },
+        });
     }
   }
 

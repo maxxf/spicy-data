@@ -763,6 +763,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/locations/duplicates", async (req, res) => {
+    try {
+      const { clientId } = req.query;
+      const duplicates = await storage.getDuplicateLocations(clientId as string | undefined);
+      res.json(duplicates);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/locations/merge", async (req, res) => {
+    try {
+      const { targetLocationId, sourceLocationIds } = req.body;
+
+      if (!targetLocationId || !sourceLocationIds || !Array.isArray(sourceLocationIds)) {
+        return res.status(400).json({ error: "Missing or invalid required fields" });
+      }
+
+      const mergedLocation = await storage.mergeLocations(targetLocationId, sourceLocationIds);
+      res.json(mergedLocation);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/locations/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const deleted = await storage.deleteLocation(id);
+      
+      if (!deleted) {
+        return res.status(404).json({ error: "Location not found" });
+      }
+
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   app.get("/api/analytics/weeks", async (req, res) => {
     try {
       const weeks = await storage.getAvailableWeeks();
