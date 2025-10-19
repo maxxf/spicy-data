@@ -265,32 +265,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
             channel: row.Channel || row.channel || null,
             orderStatus: row["Final order status"] || row.Order_Status || row["Order Status"] || row.order_status || null,
             
-            // Sales metrics (new methodology uses "Sales (excl. tax)")
-            salesExclTax: parseNegativeFloat(row["Sales (excl. tax)"] || row.sales_excl_tax || row.salesExclTax),
-            orderSubtotal: parseNegativeFloat(row.Order_Subtotal || row["Order Subtotal"] || row.order_subtotal),
-            taxes: parseNegativeFloat(row.Taxes || row.taxes),
+            // Sales metrics (new methodology uses "Sales (excl. tax)" or "Subtotal")
+            salesExclTax: parseNegativeFloat(row["Sales (excl. tax)"] || row.Subtotal || row.sales_excl_tax || row.salesExclTax),
+            orderSubtotal: parseNegativeFloat(row.Subtotal || row.Order_Subtotal || row["Order Subtotal"] || row.order_subtotal),
+            taxes: parseNegativeFloat(row["Subtotal tax passed to merchant"] || row.Taxes || row.taxes),
             
             // Fees and charges
             deliveryFees: parseNegativeFloat(row.Delivery_Fees || row["Delivery Fees"] || row.delivery_fees),
             commission: parseNegativeFloat(row.Commission || row.commission),
-            errorCharges: parseNegativeFloat(row.Error_Charges || row["Error Charges"] || row.error_charges),
+            errorCharges: parseNegativeFloat(row["Error charges"] || row.Error_Charges || row["Error Charges"] || row.error_charges),
             
             // Marketing/promotional fields (typically negative for discounts)
-            offersOnItems: parseNegativeFloat(row["Offers on items (incl. tax)"] || row.offers_on_items),
-            deliveryOfferRedemptions: parseNegativeFloat(row["Delivery Offer Redemptions (incl. tax)"] || row.delivery_offer_redemptions),
-            marketingCredits: parseNegativeFloat(row["Marketing Credits"] || row.marketing_credits),
-            thirdPartyContribution: parseNegativeFloat(row["Third-party Contribution"] || row.third_party_contribution),
+            offersOnItems: parseNegativeFloat(
+              row["Offers on items (incl. tax)"] || 
+              row["Customer discounts from marketing | (funded by you)"] || 
+              row.offers_on_items
+            ),
+            deliveryOfferRedemptions: parseNegativeFloat(
+              row["Delivery Offer Redemptions (incl. tax)"] || 
+              row["Customer discounts from marketing | (funded by DoorDash)"] || 
+              row.delivery_offer_redemptions
+            ),
+            marketingCredits: parseNegativeFloat(
+              row["Marketing Credits"] || 
+              row["DoorDash marketing credit"] || 
+              row.marketing_credits
+            ),
+            thirdPartyContribution: parseNegativeFloat(
+              row["Third-party Contribution"] || 
+              row["Customer discounts from marketing | (funded by a third-party)"] ||
+              row.third_party_contribution
+            ),
             
-            // Other payments (ad spend, credits, etc.)
-            otherPayments: Math.abs(parseNegativeFloat(row["Other payments"] || row.other_payments)),
-            otherPaymentsDescription: row["Other payments description"] || row.other_payments_description || null,
+            // Other payments (ad spend, credits, etc.) - Note: Marketing fees column includes taxes
+            otherPayments: Math.abs(parseNegativeFloat(
+              row["Other payments"] || 
+              row["Marketing fees | (including any applicable taxes)"] || 
+              row.other_payments
+            )),
+            otherPaymentsDescription: row["Other payments description"] || row.Description || row.other_payments_description || null,
             
             // Legacy marketing field
             marketingSpend: parseNegativeFloat(row.Marketing_Spend || row["Marketing Spend"] || row.marketing_spend),
             
             // Payout (includes all statuses)
-            totalPayout: parseNegativeFloat(row["Total payout"] || row.total_payout || row.Total_Payout),
-            netPayment: parseNegativeFloat(row.Net_Payment || row["Net Payment"] || row.net_payment),
+            totalPayout: parseNegativeFloat(row["Net total"] || row["Total payout"] || row.total_payout || row.Total_Payout),
+            netPayment: parseNegativeFloat(row["Net total"] || row.Net_Payment || row["Net Payment"] || row.net_payment),
             
             // Source
             orderSource: row.Order_Source || row["Order Source"] || row.order_source || null,
