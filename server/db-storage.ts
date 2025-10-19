@@ -42,6 +42,7 @@ import {
   type AnalyticsFilters,
 } from "@shared/schema";
 import type { IStorage } from "./storage";
+import { getUniqueWeeks } from "../shared/week-utils";
 
 // Helper function to calculate DoorDash metrics using consistent attribution logic
 export function calculateDoorDashMetrics(txns: DoordashTransaction[]) {
@@ -1081,9 +1082,19 @@ export class DbStorage implements IStorage {
     // Collect dates from Uber Eats transactions
     const uberTxns = await this.db.select().from(uberEatsTransactions);
     uberTxns.forEach(t => {
+      if (!t.date || t.date.trim() === '') return;
       const [month, day, year] = t.date.split('/');
-      const date = new Date(`${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`);
-      if (!isNaN(date.getTime())) {
+      if (!month || !day || !year) return;
+      // Convert 2-digit year to 4-digit
+      // For years 00-29, assume 2000-2029; for 30-99, assume 1930-1999
+      // But since we filter >= 2020, effectively only 20-29 will pass
+      let fullYear = year;
+      if (year.length === 2) {
+        const yearNum = parseInt(year, 10);
+        fullYear = yearNum < 30 ? `20${year}` : `19${year}`;
+      }
+      const date = new Date(`${fullYear}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`);
+      if (!isNaN(date.getTime()) && date.getFullYear() >= 2020) {
         allDates.push(date);
       }
     });
@@ -1091,8 +1102,9 @@ export class DbStorage implements IStorage {
     // Collect dates from DoorDash transactions
     const doorDashTxns = await this.db.select().from(doordashTransactions);
     doorDashTxns.forEach(t => {
+      if (!t.transactionDate || t.transactionDate.trim() === '') return;
       const date = new Date(t.transactionDate);
-      if (!isNaN(date.getTime())) {
+      if (!isNaN(date.getTime()) && date.getFullYear() >= 2020) {
         allDates.push(date);
       }
     });
@@ -1100,8 +1112,9 @@ export class DbStorage implements IStorage {
     // Collect dates from Grubhub transactions
     const grubhubTxns = await this.db.select().from(grubhubTransactions);
     grubhubTxns.forEach(t => {
-      const date = new Date(t.dateCompleted);
-      if (!isNaN(date.getTime())) {
+      if (!t.orderDate || t.orderDate.trim() === '') return;
+      const date = new Date(t.orderDate);
+      if (!isNaN(date.getTime()) && date.getFullYear() >= 2020) {
         allDates.push(date);
       }
     });
@@ -1110,35 +1123,7 @@ export class DbStorage implements IStorage {
       return [];
     }
 
-    // Group dates by week (Sunday to Saturday)
-    const weekMap = new Map<string, { weekStart: Date; weekEnd: Date }>();
-
-    allDates.forEach(date => {
-      // Get the Sunday of the week for this date
-      const dayOfWeek = date.getDay();
-      const weekStart = new Date(date);
-      weekStart.setDate(date.getDate() - dayOfWeek);
-      weekStart.setHours(0, 0, 0, 0);
-
-      // Get the Saturday of the week
-      const weekEnd = new Date(weekStart);
-      weekEnd.setDate(weekStart.getDate() + 6);
-      weekEnd.setHours(23, 59, 59, 999);
-
-      const weekKey = weekStart.toISOString().split('T')[0];
-      if (!weekMap.has(weekKey)) {
-        weekMap.set(weekKey, { weekStart, weekEnd });
-      }
-    });
-
-    // Convert to array and sort by most recent first
-    const weeks = Array.from(weekMap.values())
-      .sort((a, b) => b.weekStart.getTime() - a.weekStart.getTime())
-      .map(({ weekStart, weekEnd }) => ({
-        weekStart: weekStart.toISOString().split('T')[0],
-        weekEnd: weekEnd.toISOString().split('T')[0],
-      }));
-
-    return weeks;
+    // Use shared utility to get unique weeks (Monday to Sunday, UTC-safe)
+    return getUniqueWeeks(allDates);
   }
 }

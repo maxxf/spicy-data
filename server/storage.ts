@@ -767,7 +767,7 @@ export class MemStorage implements IStorage {
 
     // Collect dates from Grubhub transactions
     this.grubhubTransactions.forEach(t => {
-      const date = new Date(t.dateCompleted);
+      const date = new Date(t.orderDate);
       if (!isNaN(date.getTime())) {
         allDates.push(date);
       }
