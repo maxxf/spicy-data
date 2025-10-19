@@ -752,6 +752,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/analytics/weeks", async (req, res) => {
+    try {
+      const weeks = await storage.getAvailableWeeks();
+      res.json(weeks);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   app.get("/api/analytics/overview", async (req, res) => {
     try {
       const { clientId, platform, weekStart, weekEnd, locationTag } = req.query;

@@ -73,6 +73,8 @@ export interface IStorage {
   getPaidAdCampaign(id: string): Promise<PaidAdCampaign | undefined>;
   getPaidAdCampaignByCampaignId(campaignId: string): Promise<PaidAdCampaign | undefined>;
   getAllPaidAdCampaigns(clientId?: string): Promise<PaidAdCampaign[]>;
+  
+  getAvailableWeeks(): Promise<Array<{ weekStart: string; weekEnd: string }>>
   updatePaidAdCampaign(id: string, updates: Partial<InsertPaidAdCampaign>): Promise<PaidAdCampaign | undefined>;
   deletePaidAdCampaign(id: string): Promise<boolean>;
   getPaidAdCampaignMetrics(filters?: AnalyticsFilters): Promise<PaidAdCampaignMetrics[]>;
@@ -740,6 +742,70 @@ export class MemStorage implements IStorage {
     });
     
     return toDelete.length;
+  }
+
+  async getAvailableWeeks(): Promise<Array<{ weekStart: string; weekEnd: string }>> {
+    const allDates: Date[] = [];
+
+    // Collect dates from Uber Eats transactions
+    this.uberEatsTransactions.forEach(t => {
+      const [month, day, year] = t.date.split('/');
+      const date = new Date(`${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`);
+      if (!isNaN(date.getTime())) {
+        allDates.push(date);
+      }
+    });
+
+    // Collect dates from DoorDash transactions
+    this.doordashTransactions.forEach(t => {
+      const date = new Date(t.transactionDate);
+      if (!isNaN(date.getTime())) {
+        allDates.push(date);
+      }
+    });
+
+    // Collect dates from Grubhub transactions
+    this.grubhubTransactions.forEach(t => {
+      const date = new Date(t.dateCompleted);
+      if (!isNaN(date.getTime())) {
+        allDates.push(date);
+      }
+    });
+
+    if (allDates.length === 0) {
+      return [];
+    }
+
+    // Group dates by week (Sunday to Saturday)
+    const weekMap = new Map<string, { weekStart: Date; weekEnd: Date }>();
+
+    allDates.forEach(date => {
+      // Get the Sunday of the week for this date
+      const dayOfWeek = date.getDay();
+      const weekStart = new Date(date);
+      weekStart.setDate(date.getDate() - dayOfWeek);
+      weekStart.setHours(0, 0, 0, 0);
+
+      // Get the Saturday of the week
+      const weekEnd = new Date(weekStart);
+      weekEnd.setDate(weekStart.getDate() + 6);
+      weekEnd.setHours(23, 59, 59, 999);
+
+      const weekKey = weekStart.toISOString().split('T')[0];
+      if (!weekMap.has(weekKey)) {
+        weekMap.set(weekKey, { weekStart, weekEnd });
+      }
+    });
+
+    // Convert to array and sort by most recent first
+    const weeks = Array.from(weekMap.values())
+      .sort((a, b) => b.weekStart.getTime() - a.weekStart.getTime())
+      .map(({ weekStart, weekEnd }) => ({
+        weekStart: weekStart.toISOString().split('T')[0],
+        weekEnd: weekEnd.toISOString().split('T')[0],
+      }));
+
+    return weeks;
   }
 }
 

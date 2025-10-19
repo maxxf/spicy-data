@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { MetricCard } from "@/components/metric-card";
 import { ClientSelector } from "@/components/client-selector";
 import { PlatformSelector } from "@/components/platform-selector";
+import { WeekSelector } from "@/components/week-selector";
 import { DataTable } from "@/components/data-table";
 import { PlatformBadge } from "@/components/platform-badge";
 import {
@@ -37,17 +38,34 @@ interface ClientPerformance {
 export default function Dashboard() {
   const [selectedClientId, setSelectedClientId] = useState<string | null>("capriottis");
   const [selectedPlatform, setSelectedPlatform] = useState<string | null>(null);
+  const [selectedWeek, setSelectedWeek] = useState<{ weekStart: string; weekEnd: string } | null>(null);
+
+  // Fetch available weeks to default to most recent
+  const { data: weeks } = useQuery<Array<{ weekStart: string; weekEnd: string }>>({
+    queryKey: ["/api/analytics/weeks"],
+  });
+
+  // Default to most recent week when weeks data loads
+  useEffect(() => {
+    if (weeks && weeks.length > 0 && !selectedWeek) {
+      setSelectedWeek(weeks[0]); // First week is most recent (sorted desc)
+    }
+  }, [weeks, selectedWeek]);
 
   // Build query params for filters
   const buildQueryParams = () => {
     const params = new URLSearchParams();
     if (selectedClientId) params.append("clientId", selectedClientId);
     if (selectedPlatform) params.append("platform", selectedPlatform);
+    if (selectedWeek) {
+      params.append("weekStart", selectedWeek.weekStart);
+      params.append("weekEnd", selectedWeek.weekEnd);
+    }
     return params.toString() ? `?${params.toString()}` : "";
   };
 
   const { data: overview, isLoading: overviewLoading } = useQuery<DashboardOverview>({
-    queryKey: ["/api/analytics/overview", selectedClientId, selectedPlatform],
+    queryKey: ["/api/analytics/overview", selectedClientId, selectedPlatform, selectedWeek],
     queryFn: async () => {
       const response = await fetch(`/api/analytics/overview${buildQueryParams()}`);
       if (!response.ok) throw new Error("Failed to fetch overview");
@@ -56,7 +74,7 @@ export default function Dashboard() {
   });
 
   const { data: locationMetrics, isLoading: locationsLoading } = useQuery<LocationMetrics[]>({
-    queryKey: ["/api/analytics/locations", selectedClientId, selectedPlatform],
+    queryKey: ["/api/analytics/locations", selectedClientId, selectedPlatform, selectedWeek],
     queryFn: async () => {
       const response = await fetch(`/api/analytics/locations${buildQueryParams()}`);
       if (!response.ok) throw new Error("Failed to fetch locations");
@@ -254,6 +272,12 @@ export default function Dashboard() {
           </p>
         </div>
         <div className="flex items-center gap-4 flex-wrap">
+          <WeekSelector
+            weeks={weeks}
+            selectedWeek={selectedWeek}
+            onWeekChange={setSelectedWeek}
+            showAllOption={false}
+          />
           <ClientSelector
             selectedClientId={selectedClientId}
             onClientChange={setSelectedClientId}

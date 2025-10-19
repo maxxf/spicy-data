@@ -1,7 +1,8 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ClientSelector } from "@/components/client-selector";
 import { PlatformSelector } from "@/components/platform-selector";
+import { WeekSelector } from "@/components/week-selector";
 import { MetricCard } from "@/components/metric-card";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -22,16 +23,33 @@ export default function CampaignsPage() {
   const [selectedClientId, setSelectedClientId] = useState<string | null>("capriottis");
   const [selectedPlatform, setSelectedPlatform] = useState<string | null>(null);
   const [selectedStatus, setSelectedStatus] = useState<string>("all");
+  const [selectedWeek, setSelectedWeek] = useState<{ weekStart: string; weekEnd: string } | null>(null);
+
+  // Fetch available weeks to default to most recent
+  const { data: weeks } = useQuery<Array<{ weekStart: string; weekEnd: string }>>({
+    queryKey: ["/api/analytics/weeks"],
+  });
+
+  // Default to most recent week when weeks data loads
+  useEffect(() => {
+    if (weeks && weeks.length > 0 && !selectedWeek) {
+      setSelectedWeek(weeks[0]);
+    }
+  }, [weeks, selectedWeek]);
 
   const buildQueryParams = () => {
     const params = new URLSearchParams();
     if (selectedClientId) params.append("clientId", selectedClientId);
     if (selectedPlatform) params.append("platform", selectedPlatform);
+    if (selectedWeek) {
+      params.append("weekStart", selectedWeek.weekStart);
+      params.append("weekEnd", selectedWeek.weekEnd);
+    }
     return params.toString() ? `?${params.toString()}` : "";
   };
 
   const { data: promotions, isLoading: promotionsLoading } = useQuery<PromotionMetrics[]>({
-    queryKey: ["/api/analytics/promotions", selectedClientId, selectedPlatform],
+    queryKey: ["/api/analytics/promotions", selectedClientId, selectedPlatform, selectedWeek],
     queryFn: async () => {
       const response = await fetch(`/api/analytics/promotions${buildQueryParams()}`);
       if (!response.ok) throw new Error("Failed to fetch promotions");
@@ -40,7 +58,7 @@ export default function CampaignsPage() {
   });
 
   const { data: paidAds, isLoading: paidAdsLoading } = useQuery<PaidAdCampaignMetrics[]>({
-    queryKey: ["/api/analytics/paid-ads", selectedClientId, selectedPlatform],
+    queryKey: ["/api/analytics/paid-ads", selectedClientId, selectedPlatform, selectedWeek],
     queryFn: async () => {
       const response = await fetch(`/api/analytics/paid-ads${buildQueryParams()}`);
       if (!response.ok) throw new Error("Failed to fetch campaigns");
@@ -63,11 +81,13 @@ export default function CampaignsPage() {
 
   // Calculate aggregate metrics for promotions
   const promotionMetrics = useMemo(() => {
-    if (!filteredPromotions) return { totalOrders: 0, totalRevenue: 0, totalCost: 0, aggregateROI: 0 };
+    if (!filteredPromotions || filteredPromotions.length === 0) {
+      return { totalOrders: 0, totalRevenue: 0, totalCost: 0, aggregateROI: 0 };
+    }
     
-    const totalOrders = filteredPromotions.reduce((sum, p) => sum + p.orders, 0);
-    const totalRevenue = filteredPromotions.reduce((sum, p) => sum + p.revenueImpact, 0);
-    const totalCost = filteredPromotions.reduce((sum, p) => sum + p.discountCost, 0);
+    const totalOrders = filteredPromotions.reduce((sum, p) => sum + (p.orders || 0), 0);
+    const totalRevenue = filteredPromotions.reduce((sum, p) => sum + (p.revenueImpact || 0), 0);
+    const totalCost = filteredPromotions.reduce((sum, p) => sum + (p.discountCost || 0), 0);
     // Calculate ROI from aggregate totals as a percentage: (revenue - cost) / cost * 100
     // MetricCard with format="percent" will add % suffix
     const aggregateROI = totalCost > 0 
@@ -79,13 +99,15 @@ export default function CampaignsPage() {
 
   // Calculate aggregate metrics for paid ads
   const paidAdMetrics = useMemo(() => {
-    if (!filteredPaidAds) return { totalSpend: 0, totalRevenue: 0, totalOrders: 0, aggregateROAS: 0, totalClicks: 0, totalImpressions: 0 };
+    if (!filteredPaidAds || filteredPaidAds.length === 0) {
+      return { totalSpend: 0, totalRevenue: 0, totalOrders: 0, aggregateROAS: 0, totalClicks: 0, totalImpressions: 0 };
+    }
     
-    const totalSpend = filteredPaidAds.reduce((sum, p) => sum + p.spend, 0);
-    const totalRevenue = filteredPaidAds.reduce((sum, p) => sum + p.revenue, 0);
-    const totalOrders = filteredPaidAds.reduce((sum, p) => sum + p.orders, 0);
-    const totalClicks = filteredPaidAds.reduce((sum, p) => sum + p.clicks, 0);
-    const totalImpressions = filteredPaidAds.reduce((sum, p) => sum + p.impressions, 0);
+    const totalSpend = filteredPaidAds.reduce((sum, p) => sum + (p.spend || 0), 0);
+    const totalRevenue = filteredPaidAds.reduce((sum, p) => sum + (p.revenue || 0), 0);
+    const totalOrders = filteredPaidAds.reduce((sum, p) => sum + (p.orders || 0), 0);
+    const totalClicks = filteredPaidAds.reduce((sum, p) => sum + (p.clicks || 0), 0);
+    const totalImpressions = filteredPaidAds.reduce((sum, p) => sum + (p.impressions || 0), 0);
     // Calculate ROAS from aggregate totals: revenue / spend
     const aggregateROAS = totalSpend > 0
       ? totalRevenue / totalSpend
@@ -94,7 +116,8 @@ export default function CampaignsPage() {
     return { totalSpend, totalRevenue, totalOrders, aggregateROAS, totalClicks, totalImpressions };
   }, [filteredPaidAds]);
 
-  const formatCurrency = (value: number) => {
+  const formatCurrency = (value: number | undefined | null) => {
+    if (value == null) return '—';
     return new Intl.NumberFormat("en-US", {
       style: "currency",
       currency: "USD",
@@ -103,12 +126,12 @@ export default function CampaignsPage() {
     }).format(value);
   };
 
-  const formatPercent = (value: number) => {
-    return `${value.toFixed(2)}%`;
+  const formatPercent = (value: number | undefined | null) => {
+    return value != null ? `${value.toFixed(2)}%` : '—';
   };
 
-  const formatNumber = (value: number) => {
-    return value.toLocaleString();
+  const formatNumber = (value: number | undefined | null) => {
+    return value != null ? value.toLocaleString() : '—';
   };
 
   const isLoading = promotionsLoading || paidAdsLoading;
@@ -125,6 +148,12 @@ export default function CampaignsPage() {
           </p>
         </div>
         <div className="flex items-center gap-3 flex-wrap">
+          <WeekSelector
+            weeks={weeks}
+            selectedWeek={selectedWeek}
+            onWeekChange={setSelectedWeek}
+            showAllOption={false}
+          />
           <PlatformSelector
             selectedPlatform={selectedPlatform}
             onPlatformChange={setSelectedPlatform}
@@ -274,7 +303,7 @@ export default function CampaignsPage() {
                             )}
                           </TableCell>
                           <TableCell className="text-right font-mono" data-testid={`text-orders-${promotion.id}`}>
-                            {promotion.orders.toLocaleString()}
+                            {formatNumber(promotion.orders)}
                           </TableCell>
                           <TableCell className="text-right font-mono">
                             {formatCurrency(promotion.revenueImpact)}
@@ -452,13 +481,13 @@ export default function CampaignsPage() {
                             {formatCurrency(campaign.revenue)}
                           </TableCell>
                           <TableCell className="text-right font-mono">
-                            {campaign.roas > 0 ? (
+                            {campaign.roas != null && campaign.roas > 0 ? (
                               <span className={campaign.roas >= 1 ? "text-green-600 dark:text-green-400 flex items-center justify-end gap-1" : "text-yellow-600 dark:text-yellow-400 flex items-center justify-end gap-1"}>
                                 {campaign.roas >= 1 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
                                 {campaign.roas.toFixed(2)}x
                               </span>
                             ) : (
-                              <span className="text-muted-foreground">-</span>
+                              <span className="text-muted-foreground">—</span>
                             )}
                           </TableCell>
                         </TableRow>
