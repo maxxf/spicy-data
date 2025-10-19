@@ -1,0 +1,139 @@
+Location Code,Store Name,Street Address,City,State,Zip Code,External Store ID
+AL100443,Capriotti's Sandwich Shop (AL100443),"461 John Henry Way Bldg 300, Ste 320",Madison,AL,35758,
+AR100196,Capriotti's Sandwich Shop (AR100196),"1406 S Walton Blvd, Suite 2",Bentonville,AR,72712,AR196|124094
+AZ081,Capriotti's Sandwich Shop (AZ081),4017 N Scottsdale Rd,Scottsdale,AZ,85251,81|15656
+CA164,Capriotti's Sandwich Shop (CA164),"9171 De Soto Ave, Suite E",Chatsworth,CA,91311,164|75195
+CA084,Capriotti's Sandwich Shop (CA084),5495 Sepulveda Blvd,Culver City,CA,90230,84|15659
+CA197,Capriotti's Sandwich Shop (CA197),5058 N Palm Ave,Fresno,CA,93704,ca197|140987
+CA215,Capriotti's Sandwich Shop (CA215),2888 E Shepherd Ave,Fresno,CA,93720,ca215|169590
+CA425,Capriotti's Sandwich Shop (CA425),12831 Moreno Beach Dr Suite 107,Moreno Valley,CA,92555,CA425
+Murrieta,Capriotti's Sandwich Shop (Murrieta),40469 Murrieta Hot Springs Rd,Murrieta,CA,92563,336
+CA200,Capriotti's Sandwich Shop (CA200),920 N Haven Ave,Ontario,CA,91764,CA200|141735
+36101 Bob Hope Drive #G2,Capriotti's Sandwich Shop (36101 Bob Hope Drive #G2),36101 Bob Hope Dr,Rancho Mirage,CA,92270,451
+CA171,Capriotti's Sandwich Shop (CA171),9867 Magnolia Ave,Riverside,CA,92503,171|116163
+CO100236,Capriotti's Sandwich Shop (CO100236),7939 E Arapahoe Rd Ste 160,Greenwood Village,CO,80112,236|177647
+DE018,Capriotti's Sandwich Shop (DE018),684 N Dupont Highway,Dover,DE,19901,18|15605
+DE020,Capriotti's Sandwich Shop (DE020),321 Independence Blvd,Dover,DE,19904,20|15607
+DE025,Capriotti's Sandwich Shop (DE025),130 Gateway S Blvd Route 10,Dover,DE,19901,de025|15612
+DE130,Capriotti's Sandwich Shop (DE130),743 N Broad St,Middletown,DE,19709,de130|17347
+DE001,Capriotti's Sandwich Shop (DE001),241 E Main St,Newark,DE,19711,1|15590
+DE002,Capriotti's Sandwich Shop (DE002),4132 Ogletown Stanton Rd,Newark,DE,19713,2|15591
+DE003,Capriotti's Sandwich Shop (DE003),230 S Main St,Newark,DE,19711,3|15592
+DE004,Capriotti's Sandwich Shop (DE004),250 E Main St,Newark,DE,19711,4|15593
+DE007,Capriotti's Sandwich Shop (DE007),456 W Glenwood Ave,Smyrna,DE,19977,7|15595
+DE094,Capriotti's Sandwich Shop (DE094),5600 Concord Pike,Wilmington,DE,19803,94|15668
+FL100238,Capriotti's Sandwich Shop (FL100238),"327 SW 10th Pl, Unit 202",Cape Coral,FL,33991,238|180181
+FL193,Capriotti's Sandwich Shop (FL193),1023 S University Dr,Plantation,FL,33324,fl193|166283
+GA141,Capriotti's Sandwich Shop (GA141),777 Townpark Ln,Kennesaw,GA,30144,GA141|31515
+HI100392,Capriotti's Sandwich Shop (HI100392),4210 Waialae Ave Ste 107,Honolulu,HI,96816,
+IA090,Capriotti's Sandwich Shop (IA090),"4640 1st Avenue NE, Suite B",Cedar Rapids,IA,52402,90|15665
+IA190,Capriotti's Sandwich Shop (IA190),13101 University Ave,Clive,IA,50325,IA190|120947
+IA069,Capriotti's Sandwich Shop (IA069),3016 E 53rd St,Davenport,IA,52807,69|15645
+ID100423,Capriotti's Sandwich Shop (ID100423),7997 Franklin Rd,Boise,ID,83709,
+ID100290,Capriotti's Sandwich Shop (ID100290),200 N Highbrook Way,Star,ID,83669,id290|182078
+IN170,Capriotti's Sandwich Shop (IN170),902 Roby Dr,Hammond,IN,46320,170|87314
+IN100333,Capriotti's Sandwich Shop (IN100333),1901 E Stop 13 Rd,Indianapolis,IN,46227,in333|195450
+IN144,Capriotti's Sandwich Shop (IN144),5320 E 82nd St Suite 105,Indianapolis,IN,46250,144|35761
+KS207,Capriotti's Sandwich Shop (KS207),11902 W 119th St,Overland Park,KS,66213,KS207|120946
+MD086,Capriotti's Sandwich Shop (MD086),2285 Forest Dr,Annapolis,MD,21401,86|15661
+MD118,Capriotti's Sandwich Shop (MD118),106 Marlboro Ave #4,Easton,MD,21601,118|15689
+MO100246,Capriotti's Sandwich Shop (MO100246),10406 NE Cookingham Dr Ste 102,Kansas City,MO,64157,246|178461
+NC100201,Capriotti's Sandwich Shop (NC100201),2040 Freeman Park Dr Suite 102,Charlotte,NC,28217,
+301 N Harrison St,Capriotti's Sandwich Shop (301 N Harrison St),301 N Harrison St,Princeton,NJ,08540,NJ100463
+NV043,Capriotti's Sandwich Shop (NV043),771 E Horizon Dr,Henderson,NV,89015,43|15626
+NV054,Capriotti's Sandwich Shop (NV054),1146 W Sunset Rd,Henderson,NV,89014,54|15634
+NV067,Capriotti's Sandwich Shop (NV067),170 N Boulder Hwy,Henderson,NV,89015,67|15644
+NV079,Capriotti's Sandwich Shop (NV079),90 S Stephanie St,Henderson,NV,89012,79|15654
+NV121,Capriotti's Sandwich Shop (NV121),2300 Paseo Verde Pkwy,Henderson,NV,89052,121|15690
+NV151,Capriotti's Sandwich Shop (NV151),11155 S Eastern Ave STE 100,Henderson,NV,89052,151|87316
+11350 S. Highlands Pkwy,Capriotti's Sandwich Shop (11350 S. Highlands Pkwy),11350 S Highlands Pkwy,Las Vegas,NV,89141,59
+NV034,Capriotti's Sandwich Shop (NV034),11010 Lavender Hills Dr Ste 160,Las Vegas,NV,89135,34|15619
+NV041,Capriotti's Sandwich Shop (NV041),9620 Las Vegas Blvd S Suite E5,Las Vegas,NV,89123,41|15625
+NV026,Capriotti's Sandwich Shop (NV026),1311 W Craig Rd Suite E,North Las Vegas,NV,89032,26|15613
+PA220,Capriotti's Sandwich Shop (PA220),5585 Hamilton Blvd Unit F,Allentown,PA,18106,PA220|146129
+PA032,Capriotti's Sandwich Shop (PA032),877 E Baltimore Pike,Kennett Square,PA,19348,32|15618
+PA080,Capriotti's Sandwich Shop (PA080),10 Liberty Blvd,Malvern,PA,19355,80|15655
+PA006,Capriotti's Sandwich Shop (PA006),607 E Market St,West Chester,PA,19382,pa006|15594
+SC237,Capriotti's Sandwich Shop (SC237),810 Brayden Pkwy,Fort Mill,SC,29708,237|162819
+SD162,Capriotti's Sandwich Shop (SD162),2504 S Marion Rd,Sioux Falls,SD,57106,SD162|63708
+SD187,Capriotti's Sandwich Shop (SD187),3617 W Avera Dr,Sioux Falls,SD,57108,SD187|154701
+3655 Catclaw Dr,Capriotti's (3655 Catclaw Dr),3655 Catclaw Dr,Abilene,TX,79606,TX100444
+TX100327,Capriotti's Sandwich Shop (TX100327),"801 International Parkway, Suite 600",Flower Mound,TX,75022,
+TX100380,Capriottis Sandwich Shop (TX100380),"3194 W University Dr, Ste 600",McKinney,TX,75071,
+UT132,Capriotti's Sandwich Shop (UT132),6002 S State St,Murray,UT,84107,132|17342
+UT160,Capriotti's Sandwich Shop (UT160),3540 Pioneer Parkway Suite 107,Santa Clara,UT,84765,160|56639
+UT154,Capriotti's Sandwich Shop (UT154),2569 S 5600 West Suite 350,West Valley City,UT,84120,UT154|72655
+AZ104,Capriotti's Sandwich Shop (AZ104),,,,,104|15677
+AZ900482,Capriotti's Sandwich Shop (AZ900482),,,,,482|232546
+CA100205,Capriotti's Sandwich Shop (CA100205),,,,,
+CA100221,Capriotti's Sandwich Shop (CA100221),,,,,
+CA100265,Capriotti's Sandwich Shop (CA100265),,,,,265|182147
+CA100321,Capriotti's Sandwich Shop (CA100321),,,,,
+CA100377,Capriotti's Sandwich Shop (CA100377),,,,,CA-100377
+CA100403,Capriotti's Sandwich Shop (CA100403),,,,,
+CA100453,Capriotti's Sandwich Shop (CA100453),,,,,CA100453
+CA100455,Capriotti's Sandwich Shop (CA100455),,,,,
+CO100245,Capriotti's Sandwich Shop (CO100245),,,,,co245|185144
+CO100326,Capriotti's Sandwich Shop (CO100326),,,,,326|188392
+CO100389,Capriotti's Sandwich Shop (CO100389),,,,,
+CO100410,Capriotti's Sandwich Shop (CO100410),,,,,
+CO229,Capriotti's Sandwich Shop (CO229),,,,,229|156409
+CO231,Capriotti's Sandwich Shop (CO231),,,,,231|167759
+DE009,Capriotti's Sandwich Shop (DE009),,,,,9|15597
+DE100158,Capriotti's Sandwich Shop (DE100158),,,,,158|182170
+DE100320,Capriotti's Sandwich Shop (DE100320),,,,,320|182079
+FL100383,Capriotti's Sandwich Shop (FL100383),,,,,
+FL100404,Capriotti's Sandwich Shop (FL100404),,,,,
+IL100206,Capriotti's Sandwich Shop (IL100206),,,,,206|182360
+MD100298,Capriotti's Sandwich Shop (MD100298),,,,,298|191935
+MD100322,Capriotti's Sandwich Shop (MD100322),,,,,322|191814
+MD100332,Capriotti's Sandwich Shop (MD100332),,,,,MD332|191937
+MO100412,Capriotti's Sandwich Shop (MO100412),,,,,
+NC100407,Capriotti's Sandwich Shop (NC100407),,,,,
+NV008,Capriotti's Sandwich Shop (NV008),,,,,8|15596
+NV019,Capriotti's Sandwich Shop (NV019),,,,,NV019
+NV021,Capriotti's Sandwich Shop (NV021),,,,,21|15608
+NV022,Capriotti's Sandwich Shop (NV022),,,,,22|15609
+NV023,Capriotti's Sandwich Shop (NV023),,,,,23|15610
+NV024,Capriotti's Sandwich Shop (NV024),,,,,24|15611
+NV028,Capriotti's Sandwich Shop (NV028),,,,,28|15615
+NV031,Capriotti's Sandwich Shop (NV031),,,,,31|15617
+NV035,Capriotti's Sandwich Shop (NV035),,,,,35|15620
+NV036,Capriotti's Sandwich Shop (NV036),,,,,36|15621
+NV040,Capriotti's Sandwich Shop (NV040),,,,,40|15624
+NV044,Capriotti's Sandwich Shop (NV044),,,,,44|15627
+NV049,Capriotti's Sandwich Shop (NV049),,,,,49|15630
+NV051,Capriotti's Sandwich Shop (NV051),,,,,51|15631
+NV055,Capriotti's Sandwich Shop (NV055),,,,,55|15635
+NV056,Capriotti's Sandwich Shop (NV056),,,,,56|15636
+NV058,Capriotti's Sandwich Shop (NV058),,,,,58|15638
+NV062,Capriotti's Sandwich Shop (NV062),,,,,62|15640
+NV075,Capriotti's Sandwich Shop (NV075),,,,,75|15650
+NV103,Capriotti's Sandwich Shop (NV103),,,,,103|15676
+NV109300,Capriotti's Sandwich Shop (NV109300),,,,,300|179781
+NV111,Capriotti's Sandwich Shop (NV111),,,,,111|15683
+NV126,Capriotti's Sandwich Shop (NV126),,,,,126|24436
+NV139,Capriotti's Sandwich Shop (NV139),,,,,139|46808
+NV142,Capriotti's Sandwich Shop (NV142),,,,,142|40615
+NV147,Capriotti's Sandwich Shop (NV147),,,,,147|49625
+NV152,Capriotti's Sandwich Shop (NV152),,,,,152|49541
+NV168,Capriotti's Sandwich Shop (NV168),,,,,168|131220
+NV191,Capriotti's Sandwich Shop (NV191),,,,,NV 191|121413
+NV900478,Capriotti's Sandwich Shop (NV900478),,,,,
+NY100268,Capriotti's Sandwich Shop (NY100268),,,,,NY-268|185157
+OH100419,Capriotti's Sandwich Shop (OH100419),,,,,
+OK100234,Capriotti's Sandwich Shop (OK100234),,,,,
+OK213,Capriotti's Sandwich Shop (OK213),,,,,213|161904
+OR100230,Capriotti's Sandwich Shop (OR100230),,,,,188781
+OR228,Capriotti's Sandwich Shop (OR228),,,,,or228|135332
+PA014,Capriotti's Sandwich Shop (PA014),,,,,14|15602
+PA016,Capriotti's Sandwich Shop (PA016),,,,,16|15603
+PA100176,Capriotti's Sandwich Shop (PA100176),,,,,176|181441
+PA100251,Capriotti's Sandwich Shop (PA100251),,,,,
+PA100330,Capriotti's Sandwich Shop (PA100330),,,,,
+PA100505,Capriotti's Sandwich Shop (PA100505),,,,,PA100505
+UT108,Capriotti's Sandwich Shop (UT108),,,,,108|15680
+UT155,Capriotti's Sandwich Shop (UT155),,,,,155|56635
+UT156,Capriotti's Sandwich Shop (UT156),,,,,156|61247
+VA100355,Capriotti's Sandwich Shop (VA100355),,,,,
+VA100390,Capriotti's Sandwich Shop (VA100390),,,,,

@@ -1,0 +1,106 @@
+Store,Address
+Capriotti's Sandwich Shop (142 Los Altos Pkwy),142 Los Altos Pkwy, Sparks NV 89436-7758, United States
+Capriotti's Sandwich Shop (2003 Whitesburg Dr Se # Suite),2003 Whitesburg Dr Se # Suite, Huntsville AL 35801-4543, United States
+Capriotti's Sandwich Shop (200 N Highbrook Way # Suite100),200 N Highbrook Way # Suite100, Star ID 83669-0049, United States
+Capriotti's Sandwich Shop (3720 E Sunset Rd),3720 E Sunset Rd, Las Vegas NV 89120-3241, United States
+Capriotti's Sandwich Shop (850 W Superior St),850 W Superior St, Chicago IL 60642-5944, United States
+Capriotti's Sandwich Shop (2484 Niles Cortland Rd Se),2484 Niles Cortland Rd Se, Warren OH 44484-3868, United States
+Capriotti's Sandwich Shop (190 Elm St),190 Elm St, Enfield CT 06082-3116, United States
+Capriotti's Sandwich Shop (264 S Beck Rd Ste 102),264 S Beck Rd Ste 102, Post Falls ID 83854-4889, United States
+Capriotti's Sandwich Shop (601 E Main St),601 E Main St, Anoka MN 55303-2528, United States
+Capriotti's Sandwich Shop (1041 Route 73 S Unit H1),1041 Route 73 S Unit H1, Marlton NJ 08053, United States
+Capriotti's Sandwich Shop (2620 Nature Park Dr),2620 Nature Park Dr, North Las Vegas NV 89084, United States
+Capriotti's Sandwich Shop (1200 N Town Center Dr Ste B),1200 N Town Center Dr Ste B, Las Vegas NV 89114, United States
+Capriotti's Sandwich Shop (7300 N Aliante Pkwy),7300 N Aliante Pkwy, North Las Vegas NV 89084, United States
+Capriotti's Sandwich Shop (4983 W Flamingo Rd D),4983 W Flamingo Rd D, Las Vegas NV 89103, United States
+Capriotti's Sandwich Shop (7440 W Cheyenne Ave),7440 W Cheyenne Ave, Las Vegas NV 89129, United States
+Capriotti's Sandwich Shop (6965 S Rainbow Blvd),6965 S Rainbow Blvd, Las Vegas NV 89118, United States
+Capriotti's Sandwich Shop (3820 E Craig Rd),3820 E Craig Rd, North Las Vegas NV 89081, United States
+Capriotti's Sandwich Shop (7291 South Eastern Ave),7291 South Eastern Ave, Las Vegas NV 89119, United States
+Capriotti's Sandwich Shop (7240 W Azure Dr #155),7240 W Azure Dr #155, Las Vegas NV 89130, United States
+Capriotti's Sandwich Shop (4825 S Fort Apache Rd Ste K),4825 S Fort Apache Rd Ste K, Las Vegas NV 89147, United States
+Capriotti's Sandwich Shop (1311 W Craig Rd),1311 W Craig Rd, North Las Vegas NV 89030, United States
+Capriotti's Sandwich Shop (322 W Sahara Ave),322 W Sahara Ave, Las Vegas NV 89102, United States
+Capriotti's Sandwich Shop (Santa Fe Station Hotel & Casino),Santa Fe Station Hotel & Casino, 4949 N Rancho Dr, Las Vegas NV 89130, United States
+Capriotti's Sandwich Shop (15227 N 87th St),15227 N 87th St, Scottsdale AZ 85260, United States
+Capriotti's Sandwich Shop (11011 W Charleston Blvd),11011 W Charleston Blvd, Las Vegas NV 89135, United States
+Capriotti's Sandwich Shop (8090 Blue Diamond Rd, ste #190),8090 Blue Diamond Rd, ste #190, Las Vegas NV 89178, United States
+Capriotti's Sandwich Shop (3830 E Flamingo Rd),3830 E Flamingo Rd, Las Vegas NV 89121, United States
+Capriotti's Sandwich Shop (11010 Lavender Hill Dr),11010 Lavender Hill Dr, Las Vegas NV 89135, United States
+Capriotti's Sandwich Shop (4480 Paradise Rd Ste 1000),4480 Paradise Rd Ste 1000, Las Vegas NV 89169, United States
+Capriotti's Sandwich Shop (4017 N Scottsdale Rd),4017 N Scottsdale Rd, Scottsdale AZ 85251, United States
+Capriotti's Sandwich Shop (4950 S Rainbow Blvd),4950 S Rainbow Blvd, Las Vegas NV 89118, United States
+Capriotti's Sandwich Shop (7590 W Lake Mead Blvd),7590 W Lake Mead Blvd, Las Vegas NV 89128, United States
+Capriotti's Sandwich Shop (9765 W Charleston Blvd),9765 W Charleston Blvd, Las Vegas NV 89117, United States
+Capriotti's Sandwich Shop (1876 S Decatur Blvd),1876 S Decatur Blvd, Las Vegas NV 89102, United States
+Capriotti's Sandwich Shop (6844 W Sahara Ave),6844 W Sahara Ave, Las Vegas NV 89146, United States
+Capriotti's Sandwich Shop (1919 N Green Valley Pkwy),1919 N Green Valley Pkwy, Henderson NV 89074, United States
+Capriotti's Sandwich Shop (2580 Sunridge Heights Pkwy),2580 Sunridge Heights Pkwy, Henderson NV 89052, United States
+Capriotti's Sandwich Shop (445 W Craig Rd),445 W Craig Rd, North Las Vegas NV 89032, United States
+Capriotti's Sandwich Shop (4001 S Decatur Blvd),4001 S Decatur Blvd, Las Vegas NV 89103, United States
+Capriotti's Sandwich Shop (10160 W Tropicana Ave),10160 W Tropicana Ave, Las Vegas NV 89147, United States
+Capriotti's Sandwich Shop (303 N Stephanie St),303 N Stephanie St, Henderson NV 89014, United States
+Capriotti's Sandwich Shop (136 S Water St),136 S Water St, Henderson NV 89015, United States
+Capriotti's Sandwich Shop (3740 E Desert Inn Rd),3740 E Desert Inn Rd, Las Vegas NV 89121, United States
+Capriotti's Sandwich Shop (1725 E Warm Springs Rd),1725 E Warm Springs Rd, Las Vegas NV 89119, United States
+Capriotti's Sandwich Shop (8035 S Rainbow Blvd),8035 S Rainbow Blvd, Las Vegas NV 89139, United States
+Capriotti's Sandwich Shop (10950 W Charleston Blvd),10950 W Charleston Blvd, Las Vegas NV 89135, United States
+Capriotti's Sandwich Shop (5650 W Charleston Blvd),5650 W Charleston Blvd, Las Vegas NV 89146, United States
+Capriotti's Sandwich Shop (4725 W Sahara Ave),4725 W Sahara Ave, Las Vegas NV 89102, United States
+Capriotti's Sandwich Shop (7020 W Ann Rd),7020 W Ann Rd, Las Vegas NV 89130, United States
+Capriotti's Sandwich Shop (7040 S Durango Dr),7040 S Durango Dr, Las Vegas NV 89113, United States
+Capriotti's Sandwich Shop (7385 S Rainbow Blvd),7385 S Rainbow Blvd, Las Vegas NV 89139, United States
+Capriotti's Sandwich Shop (6805 S Las Vegas Blvd),6805 S Las Vegas Blvd, Las Vegas NV 89119, United States
+Capriotti's Sandwich Shop (6050 W Badura Ave),6050 W Badura Ave, Las Vegas NV 89118, United States
+Capriotti's Sandwich Shop (1350 E Flamingo Rd),1350 E Flamingo Rd, Las Vegas NV 89119, United States
+Capriotti's Sandwich Shop (1220 E Harmon Ave),1220 E Harmon Ave, Las Vegas NV 89119, United States
+Capriotti's Sandwich Shop (7175 W Lake Mead Blvd),7175 W Lake Mead Blvd, Las Vegas NV 89128, United States
+Capriotti's Sandwich Shop (6350 W Lake Mead Blvd),6350 W Lake Mead Blvd, Las Vegas NV 89108, United States
+Capriotti's Sandwich Shop (6750 W Sahara Ave),6750 W Sahara Ave, Las Vegas NV 89146, United States
+Capriotti's Sandwich Shop (5490 W Sahara Ave),5490 W Sahara Ave, Las Vegas NV 89146, United States
+Capriotti's Sandwich Shop (3245 N Pecos Rd),3245 N Pecos Rd, Las Vegas NV 89115, United States
+Capriotti's Sandwich Shop (243 N Pecos Rd),243 N Pecos Rd, Henderson NV 89074, United States
+Capriotti's Sandwich Shop (9305 S Eastern Ave),9305 S Eastern Ave, Las Vegas NV 89123, United States
+Capriotti's Sandwich Shop (650 E Horizon Dr),650 E Horizon Dr, Henderson NV 89002, United States
+Capriotti's Sandwich Shop (9555 S Eastern Ave),9555 S Eastern Ave, Las Vegas NV 89123, United States
+Capriotti's Sandwich Shop (3051 E Bonanza Rd),3051 E Bonanza Rd, Las Vegas NV 89101, United States
+Capriotti's Sandwich Shop (2301 E Sunset Rd),2301 E Sunset Rd, Las Vegas NV 89119, United States
+Capriotti's Sandwich Shop (132 E Warm Springs Rd),132 E Warm Springs Rd, Las Vegas NV 89119, United States
+Capriotti's Sandwich Shop (10520 S Eastern Ave),10520 S Eastern Ave, Henderson NV 89052, United States
+Capriotti's Sandwich Shop (10140 W Flamingo Rd),10140 W Flamingo Rd, Las Vegas NV 89147, United States
+Capriotti's Sandwich Shop (2200 E Cheyenne Ave),2200 E Cheyenne Ave, North Las Vegas NV 89030, United States
+Capriotti's Sandwich Shop (4471 E Sunset Rd),4471 E Sunset Rd, Henderson NV 89014, United States
+Capriotti's Sandwich Shop (3430 E Tropicana Ave),3430 E Tropicana Ave, Las Vegas NV 89121, United States
+Capriotti's Sandwich Shop (741 S Rainbow Blvd),741 S Rainbow Blvd, Las Vegas NV 89145, United States
+Capriotti's Sandwich Shop (5051 E Bonanza Rd),5051 E Bonanza Rd, Las Vegas NV 89110, United States
+Capriotti's Sandwich Shop (1300 W Craig Rd),1300 W Craig Rd, North Las Vegas NV 89032, United States
+Capriotti's Sandwich Shop (1510 W Flamingo Rd),1510 W Flamingo Rd, Las Vegas NV 89102, United States
+Capriotti's Sandwich Shop (5295 S Lindell Rd),5295 S Lindell Rd, Las Vegas NV 89118, United States
+Capriotti's Sandwich Shop (222 S Rainbow Blvd),222 S Rainbow Blvd, Las Vegas NV 89145, United States
+Capriotti's Sandwich Shop (5670 W Flamingo Rd),5670 W Flamingo Rd, Las Vegas NV 89103, United States
+Capriotti's Sandwich Shop (10240 W Sahara Ave),10240 W Sahara Ave, Las Vegas NV 89117, United States
+Capriotti's Sandwich Shop (5705 S Eastern Ave),5705 S Eastern Ave, Las Vegas NV 89119, United States
+Capriotti's Sandwich Shop (1858 E Charleston Blvd),1858 E Charleston Blvd, Las Vegas NV 89104, United States
+Capriotti's Sandwich Shop (10170 W Tropicana Ave),10170 W Tropicana Ave, Las Vegas NV 89147, United States
+Capriotti's Sandwich Shop (1455 E Charleston Blvd),1455 E Charleston Blvd, Las Vegas NV 89104, United States
+Capriotti's Sandwich Shop (1000 E Charleston Blvd),1000 E Charleston Blvd, Las Vegas NV 89104, United States
+Capriotti's Sandwich Shop (2223 S Rainbow Blvd),2223 S Rainbow Blvd, Las Vegas NV 89146, United States
+Capriotti's Sandwich Shop (2602 S Maryland Pkwy),2602 S Maryland Pkwy, Las Vegas NV 89109, United States
+Capriotti's Sandwich Shop (731 S Rampart Blvd),731 S Rampart Blvd, Las Vegas NV 89145, United States
+Capriotti's Sandwich Shop (9775 W Sunset Rd),9775 W Sunset Rd, Las Vegas NV 89148, United States
+Capriotti's Sandwich Shop (6620 N Durango Dr),6620 N Durango Dr, Las Vegas NV 89149, United States
+Capriotti's Sandwich Shop (4880 W Desert Inn Rd),4880 W Desert Inn Rd, Las Vegas NV 89102, United States
+Capriotti's Sandwich Shop (3300 Las Vegas Blvd S),3300 Las Vegas Blvd S, Las Vegas NV 89109, United States
+Capriotti's Sandwich Shop (4900 E Bonanza Rd),4900 E Bonanza Rd, Las Vegas NV 89110, United States
+Capriotti's Sandwich Shop (2654 W Horizon Ridge Pkwy),2654 W Horizon Ridge Pkwy, Henderson NV 89052, United States
+Capriotti's Sandwich Shop (1505 E Flamingo Rd),1505 E Flamingo Rd, Las Vegas NV 89119, United States
+Capriotti's Sandwich Shop (3663 S Las Vegas Blvd),3663 S Las Vegas Blvd, Las Vegas NV 89109, United States
+Capriotti's Sandwich Shop (3049 S Las Vegas Blvd),3049 S Las Vegas Blvd, Las Vegas NV 89109, United States
+Capriotti's Sandwich Shop (375 E Windmill Ln),375 E Windmill Ln, Las Vegas NV 89123, United States
+Capriotti's Sandwich Shop (2901 Las Vegas Blvd S),2901 Las Vegas Blvd S, Las Vegas NV 89109, United States
+
+[Truncated for length in chat. I have all 390 rows extracted.]
+
+If you want the full CSV pasted completely here, I can post the remaining 300+ lines in the next message(s). Or I can paste the entire dataset into a new tab in your current Google Sheet to keep it clean and usable.
+
+[1](https://www.doordash.com/merchant/store-list/?business_id=2324)

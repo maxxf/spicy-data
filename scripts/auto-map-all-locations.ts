@@ -21,6 +21,15 @@ interface UberEatsLocation {
   state: string;
 }
 
+interface DoorDashLocation {
+  storeName: string;
+  fullAddress: string;
+  address: string;
+  city: string;
+  state: string;
+  zip: string;
+}
+
 interface LocationMatch {
   platform: string;
   platformName: string;
@@ -100,7 +109,8 @@ function matchLocation(
   platformName: string,
   platform: string,
   masterLocations: MasterLocation[],
-  uberEatsLocations: UberEatsLocation[]
+  uberEatsLocations: UberEatsLocation[],
+  doordashLocations: DoorDashLocation[]
 ): LocationMatch {
   // STAGE 1: Extract Store ID from platform name
   const storeIdPattern = /\(([A-Z]{2}\d+)\)/i;
@@ -184,7 +194,82 @@ function matchLocation(
     }
   }
   
-  // STAGE 3: UberEats cross-reference (if applicable)
+  // STAGE 3: DoorDash cross-reference (if applicable)
+  if (platform === "doordash") {
+    const platformNameLower = platformName.toLowerCase();
+    
+    // Find matching DoorDash location by comparing platform name to address in parentheses
+    const ddLoc = doordashLocations.find(dd => {
+      // Extract address from DoorDash store name (in parentheses)
+      const ddAddressMatch = dd.storeName.match(/\(([^)]+)\)/);
+      if (!ddAddressMatch) return false;
+      
+      const ddAddress = ddAddressMatch[1].toLowerCase();
+      
+      // Check if platform name contains significant parts of the DoorDash address
+      // Example: platform="Broadway - Tucson", dd address="3301 E Broadway Blvd"
+      const addressWords = ddAddress.split(/[\s,\-]+/).filter(w => w.length > 2 && !w.match(/^\d+$/));
+      const platformWords = platformNameLower.split(/[\s,\-]+/).filter(w => w.length > 2);
+      
+      const matchingWords = addressWords.filter(aw => platformWords.some(pw => pw.includes(aw) || aw.includes(pw)));
+      
+      // Also check city match
+      const cityMatch = platformNameLower.includes(dd.city.toLowerCase());
+      
+      // Strong match: 2+ address words OR city + 1 address word
+      return matchingWords.length >= 2 || (cityMatch && matchingWords.length >= 1);
+    });
+    
+    if (ddLoc) {
+      // Now match this DoorDash address to master location list
+      // CRITICAL: City must match to avoid false positives to IL110507
+      for (const masterLoc of masterLocations) {
+        const masterAddr = masterLoc.address.toLowerCase();
+        const ddAddr = ddLoc.address.toLowerCase();
+        const masterCity = masterLoc.city.toLowerCase();
+        const ddCity = ddLoc.city.toLowerCase();
+        
+        // STRICT city match required (architect recommendation)
+        const cityMatch = masterCity === ddCity || 
+                         (masterCity.includes(ddCity) && ddCity.length > 3) || 
+                         (ddCity.includes(masterCity) && masterCity.length > 3);
+        
+        if (!cityMatch) continue;
+        
+        // Check address similarity
+        const addrSimilarity = calculateSimilarity(masterAddr, ddAddr);
+        
+        if (addrSimilarity >= 0.6) {
+          // High confidence only if both city AND address match well
+          const confidence = addrSimilarity >= 0.8 ? 0.95 : 0.75;
+          return {
+            platform,
+            platformName,
+            matchedStoreId: masterLoc.storeId,
+            matchedShopName: masterLoc.shopName,
+            matchMethod: "doordash_address",
+            confidence,
+            notes: `DD: ${ddLoc.address}, ${ddLoc.city} → ${masterLoc.storeId}`,
+          };
+        }
+      }
+      
+      // If DoorDash location found but NO master match, flag for manual review
+      if (ddLoc.city && ddLoc.address) {
+        return {
+          platform,
+          platformName,
+          matchedStoreId: null,
+          matchedShopName: null,
+          matchMethod: "doordash_no_master",
+          confidence: 0,
+          notes: `DD location exists (${ddLoc.address}, ${ddLoc.city}) but not in master list - needs manual review`,
+        };
+      }
+    }
+  }
+  
+  // STAGE 4: UberEats cross-reference (if applicable)
   if (platform === "ubereats") {
     const uberLoc = uberEatsLocations.find(ue => 
       ue.storeName.toLowerCase().includes(platformName.toLowerCase()) ||
@@ -200,7 +285,7 @@ function matchLocation(
           matchedStoreId: masterLoc.storeId,
           matchedShopName: masterLoc.shopName,
           matchMethod: "ubereats_crossref",
-          confidence: 0.85,
+          confidence: 0.95,
           notes: "Matched via UberEats location list",
         };
       }
@@ -252,9 +337,9 @@ async function main() {
   
   console.log(`✅ Loaded ${masterLocations.length} master locations`);
   
-  // Load UberEats location list
+  // Load UberEats location list (complete export with 140 locations)
   const uberEatsCsv = readFileSync(
-    "attached_assets/Pasted-Location-Code-Store-Name-Street-Address-City-State-Zip-Code-External-Store-ID-AL100443-Capriotti-s-S-1760896162704_1760896162705.txt",
+    "attached_assets/Pasted-Location-Code-Store-Name-Street-Address-City-State-Zip-Code-External-Store-ID-AL100443-Capriotti-s-S-1760896883899_1760896883899.txt",
     "utf-8"
   );
   
@@ -273,7 +358,64 @@ async function main() {
     state: row["State"],
   }));
   
-  console.log(`✅ Loaded ${uberEatsLocations.length} UberEats locations\n`);
+  console.log(`✅ Loaded ${uberEatsLocations.length} UberEats locations`);
+  
+  // Load DoorDash location list - manual parsing due to commas in addresses
+  const doordashCsv = readFileSync(
+    "attached_assets/Pasted-Store-Address-Capriotti-s-Sandwich-Shop-142-Los-Altos-Pkwy-142-Los-Altos-Pkwy-Sparks-NV-89436-775-1760896740029_1760896740029.txt",
+    "utf-8"
+  );
+  
+  const doordashLocations: DoorDashLocation[] = [];
+  const lines = doordashCsv.split("\n");
+  
+  for (let i = 1; i < lines.length; i++) { // Skip header
+    const line = lines[i].trim();
+    if (!line) continue;
+    
+    // Match pattern: "Store Name (address part),full address with city state zip"
+    // Example: Capriotti's Sandwich Shop (142 Los Altos Pkwy),142 Los Altos Pkwy, Sparks NV 89436-7758, United States
+    const storeMatch = line.match(/^([^,]+),(.+)$/);
+    if (!storeMatch) continue;
+    
+    const storeName = storeMatch[1].trim();
+    const fullAddress = storeMatch[2].trim();
+    
+    // Parse full address - can be either:
+    // "142 Los Altos Pkwy, Sparks NV 89436-7758, United States"
+    // "Santa Fe Station Hotel & Casino, 4949 N Rancho Dr, Las Vegas NV 89130, United States"
+    const addressParts = fullAddress.split(",").map(p => p.trim());
+    
+    // Find which part has the city/state/zip (look for pattern "City ST 12345")
+    let city = "";
+    let state = "";
+    let zip = "";
+    let streetAddress = "";
+    
+    for (let j = 0; j < addressParts.length; j++) {
+      const part = addressParts[j];
+      const cityStateMatch = part.match(/^(.+?)\s+([A-Z]{2})\s+(\d{5})/);
+      if (cityStateMatch) {
+        city = cityStateMatch[1];
+        state = cityStateMatch[2];
+        zip = cityStateMatch[3];
+        // Street address is usually the part before the city/state/zip
+        streetAddress = j > 0 ? addressParts[j - 1] : addressParts[0];
+        break;
+      }
+    }
+    
+    doordashLocations.push({
+      storeName,
+      fullAddress,
+      address: streetAddress,
+      city,
+      state,
+      zip,
+    });
+  }
+  
+  console.log(`✅ Loaded ${doordashLocations.length} DoorDash locations\n`);
   
   // Get Capriotti's client
   const [client] = await db.select().from(clients).where(eq(clients.name, "Capriotti's"));
@@ -307,7 +449,7 @@ async function main() {
   const matches: LocationMatch[] = [];
   
   for (const platLoc of platformNames) {
-    const match = matchLocation(platLoc.name, platLoc.platform, masterLocations, uberEatsLocations);
+    const match = matchLocation(platLoc.name, platLoc.platform, masterLocations, uberEatsLocations, doordashLocations);
     matches.push(match);
     
     // Display match with confidence indicator
