@@ -732,6 +732,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/analytics/locations/consolidated", async (req, res) => {
+    try {
+      const { clientId, platform, weekStart, weekEnd, locationTag } = req.query;
+      const filters: AnalyticsFilters = {
+        clientId: clientId as string | undefined,
+        platform: platform as "ubereats" | "doordash" | "grubhub" | undefined,
+        weekStart: weekStart as string | undefined,
+        weekEnd: weekEnd as string | undefined,
+        locationTag: locationTag as string | undefined,
+      };
+      const metrics = await storage.getConsolidatedLocationMetrics(filters);
+      res.json(metrics);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   app.get("/api/promotions", async (req, res) => {
     try {
       const { clientId } = req.query;

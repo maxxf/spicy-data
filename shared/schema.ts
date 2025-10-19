@@ -303,6 +303,23 @@ export type LocationMetrics = {
   netPayoutPercent: number;
 };
 
+export type ConsolidatedLocationMetrics = {
+  canonicalName: string | null;
+  location: string;
+  totalSales: number;
+  totalOrders: number;
+  aov: number;
+  totalMarketingInvestment: number;
+  marketingRoas: number;
+  netPayout: number;
+  netPayoutPercent: number;
+  platformBreakdown: {
+    ubereats?: PlatformMetrics;
+    doordash?: PlatformMetrics;
+    grubhub?: PlatformMetrics;
+  };
+};
+
 export type DashboardOverview = {
   totalSales: number;
   totalOrders: number;

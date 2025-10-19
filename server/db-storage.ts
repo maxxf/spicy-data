@@ -36,6 +36,8 @@ import {
   type InsertLocationWeeklyFinancial,
   type DashboardOverview,
   type LocationMetrics,
+  type ConsolidatedLocationMetrics,
+  type PlatformMetrics,
   type LocationMatchSuggestion,
   type AnalyticsFilters,
 } from "@shared/schema";
@@ -621,6 +623,86 @@ export class DbStorage implements IStorage {
     }
 
     return metrics;
+  }
+
+  async getConsolidatedLocationMetrics(filters?: AnalyticsFilters): Promise<ConsolidatedLocationMetrics[]> {
+    // Delegate to memory storage implementation by:
+    // 1. Get per-platform metrics
+    const platformMetrics = await this.getLocationMetrics(filters);
+    
+    //  2. Get all locations
+    let locations = filters?.clientId
+      ? await this.getLocationsByClient(filters.clientId)
+      : await this.getAllLocations();
+
+    // Filter by locationTag if specified
+    if (filters?.locationTag) {
+      locations = locations.filter(l => l.locationTag === filters.locationTag);
+    }
+
+    // 3. Group by canonical name
+    const grouped = new Map<string, ConsolidatedLocationMetrics>();
+
+    for (const metric of platformMetrics) {
+      const location = locations.find(l => l.id === metric.locationId);
+      if (!location) continue;
+
+      const key = location.canonicalName || metric.locationName;
+      
+      if (!grouped.has(key)) {
+        grouped.set(key, {
+          canonicalName: location.canonicalName || null,
+          location: key,
+          totalSales: 0,
+          totalOrders: 0,
+          aov: 0,
+          totalMarketingInvestment: 0,
+          marketingRoas: 0,
+          netPayout: 0,
+          netPayoutPercent: 0,
+          platformBreakdown: {},
+        });
+      }
+
+      const consolidated = grouped.get(key)!;
+      
+      // Aggregate totals
+      consolidated.totalSales += metric.totalSales;
+      consolidated.totalOrders += metric.totalOrders;
+      consolidated.totalMarketingInvestment += metric.totalMarketingInvestment;
+      consolidated.netPayout += metric.netPayout;
+
+      // Store platform-specific metrics
+      consolidated.platformBreakdown[metric.platform] = {
+        platform: metric.platform,
+        totalSales: metric.totalSales,
+        marketingDrivenSales: metric.marketingDrivenSales,
+        organicSales: metric.organicSales,
+        totalOrders: metric.totalOrders,
+        ordersFromMarketing: metric.ordersFromMarketing,
+        organicOrders: metric.organicOrders,
+        aov: metric.aov,
+        adSpend: metric.adSpend,
+        offerDiscountValue: metric.offerDiscountValue,
+        totalMarketingInvestment: metric.totalMarketingInvestment,
+        marketingInvestmentPercent: metric.marketingInvestmentPercent,
+        marketingRoas: metric.marketingRoas,
+        netPayout: metric.netPayout,
+        netPayoutPercent: metric.netPayoutPercent,
+      };
+    }
+
+    // Calculate consolidated metrics
+    const results = Array.from(grouped.values()).map(item => ({
+      ...item,
+      aov: item.totalOrders > 0 ? item.totalSales / item.totalOrders : 0,
+      marketingRoas: item.totalMarketingInvestment > 0 ? 
+        item.totalSales / item.totalMarketingInvestment : 0,
+      netPayoutPercent: item.totalSales > 0 ? 
+        (item.netPayout / item.totalSales) * 100 : 0,
+    }));
+
+    return results;
   }
 
   async getLocationMatchSuggestions(clientId?: string): Promise<LocationMatchSuggestion[]> {
