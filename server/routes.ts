@@ -9,6 +9,11 @@ import { z } from "zod";
 const upload = multer({ storage: multer.memoryStorage() });
 
 function parseCSV(buffer: Buffer, platform?: string): any[] {
+  // Strip UTF-8 BOM if present (0xEF, 0xBB, 0xBF)
+  if (buffer.length >= 3 && buffer[0] === 0xEF && buffer[1] === 0xBB && buffer[2] === 0xBF) {
+    buffer = buffer.subarray(3);
+  }
+  
   // Auto-detect Uber Eats header row (some exports have 2 header rows, newer ones have 1)
   if (platform === "ubereats") {
     const firstLineParse = parse(buffer, {
@@ -18,17 +23,18 @@ function parseCSV(buffer: Buffer, platform?: string): any[] {
       to_line: 2, // Read first 2 lines to check
     });
     
-    // If first row has alphabetic column names (not numeric/description), use line 1
-    // Otherwise use line 2 (old format with description row)
+    // Check if first row contains description text (like "as per", "whether it was", etc.)
+    // If so, skip it and use line 2 as headers
     const firstRow = firstLineParse[0];
-    const hasAlphabeticHeaders = firstRow && firstRow.length > 0 && 
-      /^[A-Za-z\s\-\_]+$/.test(String(firstRow[0]));
+    const isDescriptionRow = firstRow && firstRow.length > 0 && 
+      /\b(as per|whether it|either|mode of|platform from which)\b/i.test(String(firstRow[0]));
     
     return parse(buffer, {
       columns: true,
       skip_empty_lines: true,
       trim: true,
-      from_line: hasAlphabeticHeaders ? 1 : 2,
+      from_line: isDescriptionRow ? 2 : 1,
+      bom: true, // Handle BOM in column headers
     });
   }
   
@@ -36,6 +42,7 @@ function parseCSV(buffer: Buffer, platform?: string): any[] {
     columns: true,
     skip_empty_lines: true,
     trim: true,
+    bom: true, // Handle BOM in column headers
   });
 }
 
@@ -443,22 +450,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const locationName = getColumnValue(row, "Store Name", "Location", "Store_Name", "store_name");
           const locationId = locationMap.get(locationName) || null;
 
+          const salesExclTax = parseFloat(getColumnValue(row, "Sales (excl. tax)", "Sales_excl_tax", "sales_excl_tax")) || 0;
+          const tax = parseFloat(getColumnValue(row, "Tax on Sales", "Tax", "Tax_on_Sales", "tax_on_sales")) || 0;
+
           transactions.push({
             clientId,
             locationId,
             orderId,
             workflowId,
+            orderStatus: getColumnValue(row, "Order Status", "Order_Status", "order_status") || null,
             date: getColumnValue(row, "Order Date", "Date", "Order_Date", "order_date"),
             time: getColumnValue(row, "Order Accept Time", "Time", "Order_Accept_Time", "order_accept_time"),
             location: locationName,
-            subtotal: parseFloat(getColumnValue(row, "Sales (excl. tax)", "Subtotal", "Sales_excl_tax", "sales_excl_tax")) || 0,
-            tax: parseFloat(getColumnValue(row, "Tax on Sales", "Tax", "Tax_on_Sales", "tax_on_sales")) || 0,
+            
+            // Sales fields (updated methodology)
+            salesExclTax,
+            subtotal: salesExclTax + tax, // Calculate subtotal from sales + tax
+            tax,
+            
+            // Fee fields
             deliveryFee: parseFloat(getColumnValue(row, "Delivery Fee", "Delivery_Fee", "delivery_fee")) || 0,
             serviceFee: parseFloat(getColumnValue(row, "Service Fee", "Service_Fee", "service_fee")) || 0,
+            platformFee: parseFloat(getColumnValue(row, "Marketplace Fee", "Platform_Fee", "Platform Fee", "marketplace_fee")) || 0,
+            
+            // Marketing/promotional fields (updated methodology)
+            offersOnItems: parseFloat(getColumnValue(row, "Offers on items (incl. tax)", "Offers_on_items", "offers_on_items")) || 0,
+            deliveryOfferRedemptions: parseFloat(getColumnValue(row, "Delivery Offer Redemptions (incl. tax)", "Delivery_Offer_Redemptions", "delivery_offer_redemptions")) || 0,
             marketingPromo: getColumnValue(row, "Marketing Promotion", "Marketing_Promo", "marketing_promotion") || null,
             marketingAmount: parseFloat(getColumnValue(row, "Marketing Adjustment", "Marketing_Amount", "marketing_adjustment")) || 0,
-            platformFee: parseFloat(getColumnValue(row, "Marketplace Fee", "Platform_Fee", "Platform Fee", "marketplace_fee")) || 0,
+            
+            // Other payments (Ad Spend, Credits, Fees, etc.)
+            otherPayments: parseFloat(getColumnValue(row, "Other payments", "Other_payments", "other_payments")) || 0,
+            otherPaymentsDescription: getColumnValue(row, "Other payments description", "Other_payments_description", "other_payments_description") || null,
+            
+            // Payout
             netPayout: parseFloat(getColumnValue(row, "Total payout ", "Total payout", "Net_Payout", "net_payout")) || 0,
+            
+            // Other
             customerRating: null,
           });
         }
