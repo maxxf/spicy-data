@@ -285,9 +285,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
         }
         
-        // Step 3: Insert all transactions in batch
-        await storage.createUberEatsTransactionsBatch(transactions);
-        res.json({ success: true, rowsProcessed: transactions.length });
+        // Step 3: Deduplicate transactions by unique key (clientId, orderId, date) 
+        // since Uber Eats CSV can have multiple rows per order
+        const uniqueTransactions = new Map<string, InsertUberEatsTransaction>();
+        for (const txn of transactions) {
+          const key = `${txn.clientId}-${txn.orderId}-${txn.date}`;
+          // Keep the last occurrence (most complete data row)
+          uniqueTransactions.set(key, txn);
+        }
+        
+        const deduplicatedTransactions = Array.from(uniqueTransactions.values());
+        console.log(`Uber Eats: Reduced ${transactions.length} rows to ${deduplicatedTransactions.length} unique transactions`);
+        
+        // Step 4: Insert deduplicated transactions in batch
+        await storage.createUberEatsTransactionsBatch(deduplicatedTransactions);
+        res.json({ success: true, rowsProcessed: deduplicatedTransactions.length });
         return;
       } else if (platform === "doordash") {
         // Helper to safely parse negative values (discounts/offers are negative in CSV)
