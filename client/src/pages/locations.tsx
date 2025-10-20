@@ -114,16 +114,16 @@ export default function LocationsPage() {
       "AOV",
       "Marketing Spend",
       "Marketing ROAS",
-      "Net Payout",
+      "Net Payout $",
       "Net Payout %",
     ];
 
     const rows = consolidatedMetrics.map((location) => [
-      location.locationName,
+      location.location,
       location.totalSales?.toFixed(2) || "0.00",
       location.totalOrders || "0",
       location.aov?.toFixed(2) || "0.00",
-      location.marketingSpend?.toFixed(2) || "0.00",
+      location.totalMarketingInvestment?.toFixed(2) || "0.00",
       location.marketingRoas?.toFixed(2) || "0.00",
       location.netPayout?.toFixed(2) || "0.00",
       location.netPayoutPercent?.toFixed(1) || "0.0",
@@ -158,7 +158,7 @@ export default function LocationsPage() {
 
   const metricsColumns = [
     {
-      key: "locationName",
+      key: "location",
       label: "Location",
       sortable: true,
       render: (value: string) => (
@@ -170,7 +170,7 @@ export default function LocationsPage() {
     },
     {
       key: "totalSales",
-      label: "Total Sales",
+      label: "Sales",
       sortable: true,
       align: "right" as const,
       render: (value: number | undefined) =>
@@ -205,7 +205,7 @@ export default function LocationsPage() {
           : <span className="text-muted-foreground">—</span>,
     },
     {
-      key: "marketingSpend",
+      key: "totalMarketingInvestment",
       label: "Marketing Spend",
       sortable: true,
       align: "right" as const,
@@ -228,8 +228,23 @@ export default function LocationsPage() {
         value !== undefined ? `${value.toFixed(2)}x` : <span className="text-muted-foreground">—</span>,
     },
     {
+      key: "netPayout",
+      label: "Payout $",
+      sortable: true,
+      align: "right" as const,
+      render: (value: number | undefined) =>
+        value !== undefined
+          ? new Intl.NumberFormat("en-US", {
+              style: "currency",
+              currency: "USD",
+              minimumFractionDigits: 0,
+              maximumFractionDigits: 0,
+            }).format(value)
+          : <span className="text-muted-foreground">—</span>,
+    },
+    {
       key: "netPayoutPercent",
-      label: "Net Payout %",
+      label: "Payout %",
       sortable: true,
       align: "right" as const,
       render: (value: number | undefined) => {
