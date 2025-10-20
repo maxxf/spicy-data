@@ -420,7 +420,7 @@ export default function Dashboard() {
               label="Net Payout"
               value={(overview?.totalSales || 0) * ((overview?.netPayoutPercent || 0) / 100)}
               format="currency"
-              icon={<Percent className="w-5 h-5" />}
+              icon={<DollarSign className="w-5 h-5" />}
               change={6.5}
               changeLabel="vs. previous period"
             />
