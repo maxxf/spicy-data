@@ -375,23 +375,30 @@ export class DbStorage implements IStorage {
   ): Promise<void> {
     if (transactions.length === 0) return;
     
-    // Insert in chunks of 500, using upsert to prevent duplicates
+    // Insert in chunks of 500, using upsert to prevent duplicates based on transaction_id
     const chunkSize = 500;
     for (let i = 0; i < transactions.length; i += chunkSize) {
       const chunk = transactions.slice(i, i + chunkSize);
       await this.db.insert(grubhubTransactions)
         .values(chunk)
         .onConflictDoUpdate({
-          target: [grubhubTransactions.clientId, grubhubTransactions.orderId, grubhubTransactions.orderDate],
+          target: [grubhubTransactions.clientId, grubhubTransactions.transactionId],
           set: {
             locationId: sql`EXCLUDED.location_id`,
+            orderId: sql`EXCLUDED.order_id`,
+            orderDate: sql`EXCLUDED.order_date`,
+            transactionType: sql`EXCLUDED.transaction_type`,
             restaurant: sql`EXCLUDED.restaurant`,
-            saleAmount: sql`EXCLUDED.sale_amount`,
-            taxAmount: sql`EXCLUDED.tax_amount`,
-            deliveryCharge: sql`EXCLUDED.delivery_charge`,
+            orderChannel: sql`EXCLUDED.order_channel`,
+            fulfillmentType: sql`EXCLUDED.fulfillment_type`,
+            subtotal: sql`EXCLUDED.subtotal`,
+            subtotalSalesTax: sql`EXCLUDED.subtotal_sales_tax`,
+            commission: sql`EXCLUDED.commission`,
+            deliveryCommission: sql`EXCLUDED.delivery_commission`,
             processingFee: sql`EXCLUDED.processing_fee`,
-            promotionCost: sql`EXCLUDED.promotion_cost`,
-            netSales: sql`EXCLUDED.net_sales`,
+            merchantFundedPromotion: sql`EXCLUDED.merchant_funded_promotion`,
+            merchantNetTotal: sql`EXCLUDED.merchant_net_total`,
+            transactionNote: sql`EXCLUDED.transaction_note`,
             customerType: sql`EXCLUDED.customer_type`,
             uploadedAt: sql`EXCLUDED.uploaded_at`,
           },

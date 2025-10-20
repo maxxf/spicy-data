@@ -51,6 +51,7 @@ export interface IStorage {
   getDoordashTransactionsByClient(clientId: string): Promise<DoordashTransaction[]>;
 
   createGrubhubTransaction(transaction: InsertGrubhubTransaction): Promise<GrubhubTransaction>;
+  createGrubhubTransactionsBatch(transactions: InsertGrubhubTransaction[]): Promise<void>;
   getGrubhubTransactionsByClient(clientId: string): Promise<GrubhubTransaction[]>;
 
   getDashboardOverview(filters?: AnalyticsFilters): Promise<DashboardOverview>;
@@ -229,6 +230,18 @@ export class MemStorage implements IStorage {
     };
     this.grubhubTransactions.set(id, transaction);
     return transaction;
+  }
+
+  async createGrubhubTransactionsBatch(transactions: InsertGrubhubTransaction[]): Promise<void> {
+    for (const insertTransaction of transactions) {
+      const id = randomUUID();
+      const transaction: GrubhubTransaction = {
+        ...insertTransaction,
+        id,
+        uploadedAt: new Date(),
+      };
+      this.grubhubTransactions.set(id, transaction);
+    }
   }
 
   async getGrubhubTransactionsByClient(clientId: string): Promise<GrubhubTransaction[]> {

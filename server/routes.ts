@@ -366,9 +366,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
         res.json({ success: true, rowsProcessed: processedCount });
         return;
       } else if (platform === "grubhub") {
-        let processedCount = 0;
+        // Step 1: Collect unique locations and create them upfront
+        const locationMap = new Map<string, string>(); // key: locationName, value: locationId
+        const uniqueLocations = new Set<string>();
+        
         for (const row of rows) {
-          const storeId = getColumnValue(row, "store_number", "Store_Number", "grubhub_store_id", "store number") || undefined;
+          const locationName = getColumnValue(row, "store_name", "Restaurant", "Store_Name", "store name");
+          if (locationName && locationName.trim() !== "") {
+            uniqueLocations.add(locationName);
+          }
+        }
+        
+        // Batch create/find all locations
+        for (const locationName of uniqueLocations) {
+          const storeId = undefined; // Grubhub doesn't have consistent store IDs in the data
+          const locationId = await findOrCreateLocation(clientId, locationName, "grubhub", storeId);
+          locationMap.set(locationName, locationId);
+        }
+        
+        // Step 2: Build transactions array using cached location IDs
+        const transactions: InsertGrubhubTransaction[] = [];
+        
+        for (const row of rows) {
           const locationName = getColumnValue(row, "store_name", "Restaurant", "Store_Name", "store name");
           
           // Skip rows without order number OR transaction ID
@@ -378,9 +397,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
             continue;
           }
 
-          const locationId = await findOrCreateLocation(clientId, locationName, "grubhub", storeId);
+          const locationId = locationMap.get(locationName) || null;
 
-          await storage.createGrubhubTransaction({
+          transactions.push({
             clientId,
             locationId,
             orderId: orderNumber,
@@ -400,9 +419,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
             transactionNote: getColumnValue(row, "transaction_note", "Transaction_Note", "transaction note") || null,
             customerType: getColumnValue(row, "gh_plus_customer", "Customer_Type", "customer type", "Customer Type") || "Unknown",
           });
-          processedCount++;
         }
-        res.json({ success: true, rowsProcessed: processedCount });
+        
+        // Step 3: Insert all transactions in batch
+        await storage.createGrubhubTransactionsBatch(transactions);
+        res.json({ success: true, rowsProcessed: transactions.length });
         return;
       }
 
