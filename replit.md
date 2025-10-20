@@ -28,9 +28,18 @@ Preferred communication style: Simple, everyday language.
 - **Location Matching**: Uses a canonical name with platform-specific name mappings, fuzzy string matching for suggestions, and a location tagging system.
 - **Analytics**: Calculates ROAS, net payout percentages, AOV, and aggregations at platform/location levels, supporting multi-dimensional filtering and graceful null value handling.
 
+### Authentication & Authorization
+- **Technology**: Replit Auth (OIDC) with express-session and connect-pg-simple for session management
+- **User Roles**: Three-tier role system (user, brand_admin, super_admin) with role-based middleware
+- **Session Security**: Session regeneration on login (session fixation protection), sameSite='lax' cookies (CSRF protection), httpOnly secure cookies, 1-week TTL with PostgreSQL session store
+- **User Management**: Automatic user upsert on OIDC login with email normalization (lowercase), token refresh with session persistence
+- **Route Protection**: All ~35 API routes protected with isAuthenticated middleware; admin routes use isBrandAdmin/isSuperAdmin middleware
+- **Frontend**: Landing page for logged-out users, useAuth hook for client-side auth state, sidebar with user profile and logout button
+
 ### Database
 - **Design**: Drizzle ORM with PostgreSQL dialect, Zod schemas for validation.
-- **Current State**: In-memory storage for development, with an `IStorage` interface for future migration to Neon Database (PostgreSQL).
+- **Current State**: Using DbStorage (database-backed storage via Neon PostgreSQL) with sessions table for authentication.
+- **Tables**: users, sessions, clients, locations, transactions (Uber Eats, DoorDash, Grubhub), promotions, paid ad campaigns, campaign location metrics, location weekly financials.
 
 ### File Upload Processing
 - **Transaction Data Upload**: Supports CSV upload by platform and client. Server-side parsing, validation, and transaction creation. Location matching uses a master sheet for canonical IDs and platform-specific keys (e.g., `merchant_store_id` for DoorDash, `Store Name` code for Uber Eats, `street_address` for Grubhub). Unmapped transactions are assigned to a special "Unmapped Locations" bucket per client; no new locations are auto-created. Duplicate prevention uses upsert logic with platform-specific unique constraints:
@@ -65,11 +74,12 @@ Dashboard is **production-ready** and fully verified with real Capriotti's data:
 - **Corporate Locations**: 16 locations identified for weekly P&L reporting (5,154 transactions)
 
 ### Verified Features
-1. **Dashboard Page**: Week-by-week filtering with KPIs (Sales, Orders, AOV, ROAS, Net Payout) and Location Performance table
-2. **Campaigns Page**: Promotions and Paid Advertising analytics with transparent cost breakdowns
-3. **Locations Page**: Overview table and Test Locations Report showing 16 corporate locations with weekly financials
-4. **Income Statement**: Platform-specific P&L with 28 financial metrics, CSV export, and date range filtering
-5. **Data Integrity**: Upsert logic prevents duplicate uploads; refresh/replace pattern verified
+1. **Authentication**: Complete OIDC login/logout flow with session management, role-based access control, and security hardening (session regeneration, CSRF protection)
+2. **Dashboard Page**: Week-by-week filtering with KPIs (Sales, Orders, AOV, ROAS, Net Payout) and Location Performance table
+3. **Campaigns Page**: Promotions and Paid Advertising analytics with transparent cost breakdowns
+4. **Locations Page**: Overview table and Test Locations Report showing 16 corporate locations with weekly financials
+5. **Income Statement**: Platform-specific P&L with 28 financial metrics, CSV export, and date range filtering
+6. **Data Integrity**: Upsert logic prevents duplicate uploads; refresh/replace pattern verified
 
 ### Architecture Review Highlights
 - **Analytics Accuracy**: Platform-specific attribution logic confirmed correct for Uber Eats, DoorDash, and Grubhub
