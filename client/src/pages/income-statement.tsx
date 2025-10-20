@@ -75,6 +75,15 @@ export default function IncomeStatement() {
 
   const { data, isLoading } = useQuery<IncomeStatementData>({
     queryKey: ['/api/analytics/income-statement', clientId, startDate || undefined, endDate || undefined],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (clientId) params.append('clientId', clientId);
+      if (startDate) params.append('startDate', startDate);
+      if (endDate) params.append('endDate', endDate);
+      const response = await fetch(`/api/analytics/income-statement?${params.toString()}`);
+      if (!response.ok) throw new Error('Failed to fetch income statement');
+      return response.json();
+    },
     enabled: !!clientId,
   });
 
