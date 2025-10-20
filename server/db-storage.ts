@@ -5,6 +5,7 @@ import ws from "ws";
 
 neonConfig.webSocketConstructor = ws;
 import {
+  users,
   clients,
   locations,
   uberEatsTransactions,
@@ -15,6 +16,8 @@ import {
   campaignLocationMetrics,
   platformAdSpend,
   locationWeeklyFinancials,
+  type User,
+  type UpsertUser,
   type Client,
   type InsertClient,
   type Location,
@@ -185,6 +188,38 @@ export class DbStorage implements IStorage {
     }
     const pool = new Pool({ connectionString: process.env.DATABASE_URL });
     this.db = drizzle(pool);
+  }
+
+  // User operations (required for Replit Auth)
+  async getUser(id: string): Promise<User | undefined> {
+    const [user] = await this.db.select().from(users).where(eq(users.id, id));
+    return user;
+  }
+
+  async upsertUser(userData: UpsertUser): Promise<User> {
+    const [user] = await this.db
+      .insert(users)
+      .values({
+        id: userData.id!,
+        email: userData.email || null,
+        firstName: userData.firstName || null,
+        lastName: userData.lastName || null,
+        profileImageUrl: userData.profileImageUrl || null,
+        role: userData.role || "user",
+        clientId: userData.clientId || null,
+      })
+      .onConflictDoUpdate({
+        target: users.id,
+        set: {
+          email: sql`EXCLUDED.email`,
+          firstName: sql`EXCLUDED.first_name`,
+          lastName: sql`EXCLUDED.last_name`,
+          profileImageUrl: sql`EXCLUDED.profile_image_url`,
+          updatedAt: new Date(),
+        },
+      })
+      .returning();
+    return user;
   }
 
   async createClient(insertClient: InsertClient): Promise<Client> {
