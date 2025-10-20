@@ -125,7 +125,8 @@ export function calculateDoorDashMetrics(txns: DoordashTransaction[]) {
       totalSales += sales;
       
       // Ad Spend: Sum ALL "Other payments" where description is not null (updated methodology)
-      if (t.otherPaymentsDescription) {
+      const hasAdSpend = t.otherPaymentsDescription ? true : false;
+      if (hasAdSpend) {
         adSpend += Math.abs(t.otherPayments || 0);
       }
       
@@ -136,8 +137,10 @@ export function calculateDoorDashMetrics(txns: DoordashTransaction[]) {
                         Math.abs(t.thirdPartyContribution || 0);
       offerDiscountValue += offersValue;
       
-      // Marketing Attribution: Orders with promotional offers < 0 OR credits > 0
-      const hasMarketing = (t.offersOnItems < 0) || 
+      // Marketing Attribution: Orders with ad spend OR promotional offers/credits
+      // Focus on marketing-driven sales vs orders for accurate ROAS
+      const hasMarketing = hasAdSpend || 
+                          (t.offersOnItems < 0) || 
                           (t.deliveryOfferRedemptions < 0) || 
                           (t.marketingCredits !== 0) || 
                           (t.thirdPartyContribution !== 0);
