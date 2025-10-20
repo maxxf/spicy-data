@@ -309,8 +309,8 @@ export class DbStorage implements IStorage {
       .where(
         and(
           eq(uberEatsTransactions.clientId, clientId),
-          gte(uberEatsTransactions.orderDate, startDate),
-          lte(uberEatsTransactions.orderDate, endDate)
+          sql`date >= ${startDate}`,
+          sql`date <= ${endDate}`
         )
       );
     return result.rowCount || 0;
@@ -381,8 +381,8 @@ export class DbStorage implements IStorage {
       .where(
         and(
           eq(doordashTransactions.clientId, clientId),
-          gte(doordashTransactions.orderDate, startDate),
-          lte(doordashTransactions.orderDate, endDate)
+          sql`transaction_date >= ${startDate}`,
+          sql`transaction_date <= ${endDate}`
         )
       );
     return result.rowCount || 0;
@@ -447,8 +447,8 @@ export class DbStorage implements IStorage {
       .where(
         and(
           eq(grubhubTransactions.clientId, clientId),
-          gte(grubhubTransactions.orderDate, startDate),
-          lte(grubhubTransactions.orderDate, endDate)
+          sql`order_date >= ${startDate}`,
+          sql`order_date <= ${endDate}`
         )
       );
     return result.rowCount || 0;
