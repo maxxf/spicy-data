@@ -108,20 +108,30 @@ async function main() {
       continue;
     }
     
-    // Only count completed orders for consistency
-    if (orderStatus !== "Completed") {
-      continue;
+    // Import ALL order statuses (per new methodology - needed for net payout calculation)
+    // But track completed orders separately for metrics
+    if (orderStatus === "Completed") {
+      completedOrders++;
     }
-    
-    completedOrders++;
     
     const locationId = await findLocation(storeName);
     const uniqueKey = `${client.id}:${orderId}:${date}`;
 
-    // Parse financial fields
-    const salesInclTax = parseFloat(rowData["Sales (incl. tax)"] || "0") || 0;
+    // Parse financial fields (updated methodology)
+    const salesExclTax = parseFloat(rowData["Sales (excl. tax)"] || "0") || 0; // Primary sales metric
+    const salesInclTax = parseFloat(rowData["Sales (incl. tax)"] || "0") || 0; // For backward compatibility
     const taxOnSales = parseFloat(rowData["Tax on Sales"] || "0") || 0;
+    
+    // Marketing/Promotional fields (negative values indicate discounts)
+    const offersOnItems = parseFloat(rowData["Offers on items (incl. tax)"] || "0") || 0;
+    const deliveryOfferRedemptions = parseFloat(rowData["Delivery Offer Redemptions (incl. tax)"] || "0") || 0;
     const marketingAdjustment = parseFloat(rowData["Marketing Adjustment"] || "0") || 0;
+    
+    // Other payments (Ad Spend, Credits, Fees, etc.)
+    const otherPayments = parseFloat(rowData["Other payments"] || "0") || 0;
+    const otherPaymentsDescription = rowData["Other payments description"] || null;
+    
+    // Fees
     const marketplaceFee = parseFloat(rowData["Marketplace Fee"] || "0") || 0;
     const totalPayout = parseFloat(rowData["Total payout "] || rowData["Total payout"] || "0") || 0; // Note: may have trailing space
     
@@ -132,16 +142,33 @@ async function main() {
       date: date,
       time: rowData["Order Accept Time"] || "",
       location: storeName,
+      orderStatus: orderStatus,
+      
+      // Sales fields
+      salesExclTax: salesExclTax,
       subtotal: salesInclTax,
       tax: taxOnSales,
+      
+      // Fee fields
       deliveryFee: 0,
       serviceFee: 0,
-      marketingPromo: marketingAdjustment > 0 ? "Marketing Adjustment" : null,
-      marketingAmount: Math.abs(marketingAdjustment),
       platformFee: Math.abs(marketplaceFee), // Store as positive
+      
+      // Marketing/Promotional fields
+      offersOnItems: offersOnItems,
+      deliveryOfferRedemptions: deliveryOfferRedemptions,
+      marketingPromo: marketingAdjustment !== 0 ? "Marketing Adjustment" : null,
+      marketingAmount: Math.abs(marketingAdjustment),
+      
+      // Other payments
+      otherPayments: otherPayments,
+      otherPaymentsDescription: otherPaymentsDescription,
+      
+      // Payout
       netPayout: totalPayout,
+      
+      // Other
       customerRating: null,
-      orderStatus: orderStatus,
     });
   }
 
@@ -161,16 +188,21 @@ async function main() {
           locationId: sql`EXCLUDED.location_id`,
           time: sql`EXCLUDED.time`,
           location: sql`EXCLUDED.location`,
+          orderStatus: sql`EXCLUDED.order_status`,
+          salesExclTax: sql`EXCLUDED.sales_excl_tax`,
           subtotal: sql`EXCLUDED.subtotal`,
           tax: sql`EXCLUDED.tax`,
           deliveryFee: sql`EXCLUDED.delivery_fee`,
           serviceFee: sql`EXCLUDED.service_fee`,
+          platformFee: sql`EXCLUDED.platform_fee`,
+          offersOnItems: sql`EXCLUDED.offers_on_items`,
+          deliveryOfferRedemptions: sql`EXCLUDED.delivery_offer_redemptions`,
           marketingPromo: sql`EXCLUDED.marketing_promo`,
           marketingAmount: sql`EXCLUDED.marketing_amount`,
-          platformFee: sql`EXCLUDED.platform_fee`,
+          otherPayments: sql`EXCLUDED.other_payments`,
+          otherPaymentsDescription: sql`EXCLUDED.other_payments_description`,
           netPayout: sql`EXCLUDED.net_payout`,
           customerRating: sql`EXCLUDED.customer_rating`,
-          orderStatus: sql`EXCLUDED.order_status`,
         },
       });
     console.log(`  Processed ${Math.min((i + 100), ubereatsTransactionsToInsert.length)} / ${ubereatsTransactionsToInsert.length}`);

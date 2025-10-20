@@ -44,6 +44,62 @@ import {
 import type { IStorage } from "./storage";
 import { getUniqueWeeks } from "../shared/week-utils";
 
+// Helper function to calculate UberEats metrics using updated attribution methodology
+export function calculateUberEatsMetrics(txns: UberEatsTransaction[]) {
+  let totalOrders = 0;
+  let totalSales = 0;
+  let marketingDrivenSales = 0;
+  let adSpend = 0;
+  let offerDiscountValue = 0;
+  let netPayout = 0;
+  let ordersFromMarketing = 0;
+
+  txns.forEach((t) => {
+    // Order Filtering: ONLY count "Completed" orders for sales metrics
+    const isCompleted = t.orderStatus === "Completed";
+    
+    // Net Payout: Sum ALL order statuses (Completed, Refund, Cancelled, etc.)
+    netPayout += t.netPayout || 0;
+    
+    // Only count Completed orders for sales and order metrics
+    if (isCompleted) {
+      totalOrders++;
+      
+      // Sales Calculation: Use "Sales (excl. tax)" as primary metric
+      const sales = t.salesExclTax || t.subtotal || 0;
+      totalSales += sales;
+      
+      // Ad Spend: Sum ALL "Other payments" where description is not null
+      if (t.otherPaymentsDescription) {
+        adSpend += Math.abs(t.otherPayments || 0);
+      }
+      
+      // Offer/Discount Value: Sum absolute value of all promotional discounts
+      const offersValue = Math.abs(t.offersOnItems || 0) + 
+                        Math.abs(t.deliveryOfferRedemptions || 0);
+      offerDiscountValue += offersValue;
+      
+      // Marketing Attribution: Orders with promotional offers < 0
+      const hasMarketing = (t.offersOnItems < 0) || (t.deliveryOfferRedemptions < 0);
+      
+      if (hasMarketing) {
+        marketingDrivenSales += sales;
+        ordersFromMarketing++;
+      }
+    }
+  });
+
+  return {
+    totalOrders,
+    totalSales,
+    marketingDrivenSales,
+    adSpend,
+    offerDiscountValue,
+    netPayout,
+    ordersFromMarketing,
+  };
+}
+
 // Helper function to calculate DoorDash metrics using consistent attribution logic
 export function calculateDoorDashMetrics(txns: DoordashTransaction[]) {
   let totalOrders = 0;
@@ -69,21 +125,23 @@ export function calculateDoorDashMetrics(txns: DoordashTransaction[]) {
       const sales = t.salesExclTax || t.orderSubtotal || 0;
       totalSales += sales;
       
-      // Ad Spend from Other Payments (marketing fees stored as positive values)
-      if (t.otherPayments && t.otherPayments > 0) {
-        adSpend += t.otherPayments;
+      // Ad Spend: Sum ALL "Other payments" where description is not null (updated methodology)
+      if (t.otherPaymentsDescription) {
+        adSpend += Math.abs(t.otherPayments || 0);
       }
       
-      // Offer/Discount Value (absolute values to handle both positive and negative representations)
+      // Offer/Discount Value: Promotional discounts + credits (absolute values)
       const offersValue = Math.abs(t.offersOnItems || 0) + 
                         Math.abs(t.deliveryOfferRedemptions || 0) +
                         Math.abs(t.marketingCredits || 0) +
                         Math.abs(t.thirdPartyContribution || 0);
       offerDiscountValue += offersValue;
       
-      // Marketing Attribution: ANY non-zero promotional value indicates marketing-driven order
-      // This handles both negative discounts and positive rebates/credits
-      const hasMarketing = offersValue > 0;
+      // Marketing Attribution: Orders with promotional offers < 0 OR credits > 0
+      const hasMarketing = (t.offersOnItems < 0) || 
+                          (t.deliveryOfferRedemptions < 0) || 
+                          (t.marketingCredits !== 0) || 
+                          (t.thirdPartyContribution !== 0);
       
       if (hasMarketing) {
         marketingDrivenSales += sales;
@@ -526,13 +584,36 @@ export class DbStorage implements IStorage {
       platform: "ubereats" | "doordash" | "grubhub",
       dateFilter?: { weekStart: string; weekEnd: string }
     ) => {
-      let totalOrders = 0;
-      let totalSales = 0;
-      let marketingDrivenSales = 0;
-      let adSpend = 0;
-      let offerDiscountValue = 0;
-      let netPayout = 0;
-      let ordersFromMarketing = 0;
+      if (platform === "ubereats") {
+        // Filter by date for UberEats if needed
+        const filteredTxns = dateFilter 
+          ? txns.filter((t: any) => isUberEatsDateInRange(t.date, dateFilter.weekStart, dateFilter.weekEnd))
+          : txns;
+        
+        // Use shared helper for consistent UberEats attribution
+        const metrics = calculateUberEatsMetrics(filteredTxns as UberEatsTransaction[]);
+        return {
+          platform,
+          totalSales: metrics.totalSales,
+          marketingDrivenSales: metrics.marketingDrivenSales,
+          organicSales: metrics.totalSales - metrics.marketingDrivenSales,
+          totalOrders: metrics.totalOrders,
+          ordersFromMarketing: metrics.ordersFromMarketing,
+          organicOrders: metrics.totalOrders - metrics.ordersFromMarketing,
+          aov: metrics.totalOrders > 0 ? metrics.totalSales / metrics.totalOrders : 0,
+          adSpend: metrics.adSpend,
+          offerDiscountValue: metrics.offerDiscountValue,
+          totalMarketingInvestment: metrics.adSpend + metrics.offerDiscountValue,
+          marketingInvestmentPercent:
+            metrics.totalSales > 0 ? ((metrics.adSpend + metrics.offerDiscountValue) / metrics.totalSales) * 100 : 0,
+          marketingRoas:
+            (metrics.adSpend + metrics.offerDiscountValue) > 0
+              ? metrics.marketingDrivenSales / (metrics.adSpend + metrics.offerDiscountValue)
+              : 0,
+          netPayout: metrics.netPayout,
+          netPayoutPercent: metrics.totalSales > 0 ? (metrics.netPayout / metrics.totalSales) * 100 : 0,
+        };
+      }
 
       if (platform === "doordash") {
         // Use shared helper for consistent DoorDash attribution
@@ -560,23 +641,17 @@ export class DbStorage implements IStorage {
         };
       }
 
+      // Grubhub: inline calculation
+      let totalOrders = 0;
+      let totalSales = 0;
+      let marketingDrivenSales = 0;
+      let adSpend = 0;
+      let offerDiscountValue = 0;
+      let netPayout = 0;
+      let ordersFromMarketing = 0;
+
       txns.forEach((t) => {
-        if (platform === "ubereats") {
-          // Apply date filter for UberEats
-          if (dateFilter && !isUberEatsDateInRange(t.date, dateFilter.weekStart, dateFilter.weekEnd)) {
-            return;
-          }
-          
-          totalOrders++;
-          totalSales += t.subtotal;
-          netPayout += t.netPayout;
-          if (t.marketingPromo) {
-            const marketingAmt = t.marketingAmount || 0;
-            offerDiscountValue += marketingAmt;
-            marketingDrivenSales += t.subtotal;
-            ordersFromMarketing++;
-          }
-        } else if (platform === "grubhub") {
+        if (platform === "grubhub") {
           // Grubhub Platform-Specific Status Handling:
           // - Sales/Orders: Only count "Prepaid Order" transaction types (completed orders)
           // - Net Payout: Include ALL transaction types (Prepaid Order, Order Adjustment, Cancellation) for finance reconciliation
@@ -742,7 +817,22 @@ export class DbStorage implements IStorage {
         let netPayout = 0;
         let ordersFromMarketing = 0;
 
-        if (platform === "doordash") {
+        if (platform === "ubereats") {
+          // Filter by date for UberEats if needed
+          const filteredTxns = (filters?.weekStart && filters?.weekEnd)
+            ? txns.filter((t: any) => isUberEatsDateInRange(t.date, filters.weekStart!, filters.weekEnd!))
+            : txns;
+          
+          // Use shared helper for consistent UberEats attribution
+          const ueMetrics = calculateUberEatsMetrics(filteredTxns as UberEatsTransaction[]);
+          totalOrders = ueMetrics.totalOrders;
+          totalSales = ueMetrics.totalSales;
+          marketingDrivenSales = ueMetrics.marketingDrivenSales;
+          adSpend = ueMetrics.adSpend;
+          offerDiscountValue = ueMetrics.offerDiscountValue;
+          netPayout = ueMetrics.netPayout;
+          ordersFromMarketing = ueMetrics.ordersFromMarketing;
+        } else if (platform === "doordash") {
           // Use shared helper for consistent DoorDash attribution
           const ddMetrics = calculateDoorDashMetrics(txns as DoordashTransaction[]);
           totalOrders = ddMetrics.totalOrders;
@@ -754,23 +844,7 @@ export class DbStorage implements IStorage {
           ordersFromMarketing = ddMetrics.ordersFromMarketing;
         } else {
           txns.forEach((t) => {
-            if (platform === "ubereats") {
-              // Apply date filter for UberEats
-              if (filters?.weekStart && filters?.weekEnd && 
-                  !isUberEatsDateInRange(t.date, filters.weekStart, filters.weekEnd)) {
-                return;
-              }
-              
-              totalOrders++;
-              totalSales += t.subtotal;
-              netPayout += t.netPayout;
-              if (t.marketingPromo) {
-                const marketingAmt = t.marketingAmount || 0;
-                offerDiscountValue += marketingAmt;
-                marketingDrivenSales += t.subtotal;
-                ordersFromMarketing++;
-              }
-            } else if (platform === "grubhub") {
+            if (platform === "grubhub") {
               // Grubhub Platform-Specific Status Handling:
               // - Sales/Orders: Only count "Prepaid Order" transaction types (completed orders)
               // - Net Payout: Include ALL transaction types for finance reconciliation
