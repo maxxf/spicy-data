@@ -112,7 +112,7 @@ export function calculateDoorDashMetrics(txns: DoordashTransaction[]) {
 
   txns.forEach((t) => {
     const isMarketplace = !t.channel || t.channel === "Marketplace";
-    const isCompleted = !t.orderStatus || t.orderStatus === "Delivered" || t.orderStatus === "Picked Up";
+    const isCompleted = t.orderStatus === "Completed";
     
     // Net payout for Marketplace orders only (all statuses)
     if (isMarketplace) {
