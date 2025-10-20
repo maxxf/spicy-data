@@ -10,6 +10,7 @@ import Dashboard from "@/pages/dashboard";
 import UploadPage from "@/pages/upload";
 import LocationsPage from "@/pages/locations";
 import PromosPage from "@/pages/campaigns";
+import AdminPage from "@/pages/admin";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -19,6 +20,7 @@ function Router() {
       <Route path="/upload" component={UploadPage} />
       <Route path="/locations" component={LocationsPage} />
       <Route path="/campaigns" component={PromosPage} />
+      <Route path="/admin" component={AdminPage} />
       <Route component={NotFound} />
     </Switch>
   );

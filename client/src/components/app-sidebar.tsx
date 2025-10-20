@@ -1,4 +1,4 @@
-import { LayoutDashboard, Upload, MapPin, BarChart3, Megaphone } from "lucide-react";
+import { LayoutDashboard, Upload, MapPin, BarChart3, Megaphone, Settings } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import {
   Sidebar,
@@ -33,6 +33,11 @@ const navigation = [
     title: "Locations",
     url: "/locations",
     icon: MapPin,
+  },
+  {
+    title: "Admin",
+    url: "/admin",
+    icon: Settings,
   },
 ];
 

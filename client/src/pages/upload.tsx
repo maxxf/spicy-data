@@ -7,8 +7,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { Upload, CheckCircle2, TrendingUp, Database } from "lucide-react";
-import { Input } from "@/components/ui/input";
+import { Upload, CheckCircle2, TrendingUp } from "lucide-react";
 import type { Client } from "@shared/schema";
 
 type Platform = "ubereats" | "doordash" | "grubhub";
@@ -23,7 +22,6 @@ export default function UploadPage() {
   const [selectedClient, setSelectedClient] = useState<string>("");
   const [marketingFile, setMarketingFile] = useState<File | null>(null);
   const [marketingDataType, setMarketingDataType] = useState<MarketingDataType | "">("");
-  const [masterListUrl, setMasterListUrl] = useState<string>("https://docs.google.com/spreadsheets/d/1H-qG7iMx52CTC7HDwsHwTV8YdS60syK6V9V-RKQc5GA/edit?gid=1978235356#gid=1978235356");
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -105,30 +103,6 @@ export default function UploadPage() {
     });
   };
 
-  const importMasterListMutation = useMutation({
-    mutationFn: async ({ spreadsheetUrl, clientId }: { spreadsheetUrl: string; clientId: string }) => {
-      return apiRequest("POST", "/api/locations/import-master-list", {
-        spreadsheetUrl,
-        clientId,
-      });
-    },
-    onSuccess: (data: any) => {
-      toast({
-        title: "Master list imported",
-        description: `Created ${data.created} locations, updated ${data.updated}, skipped ${data.skipped}`,
-      });
-      queryClient.invalidateQueries({ queryKey: ["/api/locations"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/analytics/locations"] });
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Import failed",
-        description: error.message || "Failed to import master location list",
-        variant: "destructive",
-      });
-    },
-  });
-
   const uploadMarketingMutation = useMutation({
     mutationFn: async ({ file, dataType, clientId }: { file: File; dataType: MarketingDataType; clientId: string }) => {
       const formData = new FormData();
@@ -160,31 +134,6 @@ export default function UploadPage() {
       });
     },
   });
-
-  const handleImportMasterList = async () => {
-    if (!selectedClient) {
-      toast({
-        title: "Client required",
-        description: "Please select a client before importing",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (!masterListUrl) {
-      toast({
-        title: "URL required",
-        description: "Please enter the Google Sheets URL",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    await importMasterListMutation.mutateAsync({
-      spreadsheetUrl: masterListUrl,
-      clientId: selectedClient,
-    });
-  };
 
   const handleMarketingUpload = async () => {
     if (!selectedClient) {
@@ -248,51 +197,6 @@ export default function UploadPage() {
               </SelectContent>
             </Select>
           </div>
-        </CardContent>
-      </Card>
-
-      <Card className="border-primary/20 bg-primary/5">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Database className="w-5 h-5" />
-            Import Master Location List
-          </CardTitle>
-          <CardDescription>
-            Import canonical location data with Store IDs from Google Sheets. This enables automatic location matching across all platforms.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="master-list-url">Google Sheets URL</Label>
-            <Input
-              id="master-list-url"
-              type="text"
-              placeholder="https://docs.google.com/spreadsheets/d/..."
-              value={masterListUrl}
-              onChange={(e) => setMasterListUrl(e.target.value)}
-              data-testid="input-master-list-url"
-            />
-            <p className="text-xs text-muted-foreground">
-              Column C should contain Store IDs that match across all delivery platforms
-            </p>
-          </div>
-          <Button
-            onClick={handleImportMasterList}
-            disabled={!masterListUrl || !selectedClient || importMasterListMutation.isPending}
-            data-testid="button-import-master-list"
-          >
-            {importMasterListMutation.isPending ? (
-              <>
-                <Upload className="w-4 h-4 mr-2 animate-spin" />
-                Importing...
-              </>
-            ) : (
-              <>
-                <Database className="w-4 h-4 mr-2" />
-                Import Master List
-              </>
-            )}
-          </Button>
         </CardContent>
       </Card>
 
