@@ -176,10 +176,12 @@ async function importWeek10_6() {
     relax_quotes: true,
   });
 
-  console.log(`Parsed ${ubereatsRows.length} UberEats rows`);
+  console.log(`Parsed ${ubereatsRows.length} UberEats rows (item-level data)`);
 
-  // Use Map to deduplicate by unique constraint (clientId, orderId, date)
-  const ubereatsMap = new Map<string, any>();
+  // This is ITEM-LEVEL data, so we need to aggregate by Order ID
+  // Build a map of orders (grouping items by Order ID)
+  const orderMap = new Map<string, any>();
+  
   for (const row of ubereatsRows) {
     const date = row["Order Date"] || "";
     const orderId = row["Order ID"] || "";
@@ -193,41 +195,92 @@ async function importWeek10_6() {
       continue;
     }
 
-    const locationId = await findLocation(storeName, "ubereats");
-    const uniqueKey = `${client.id}:${orderId}:${date}`;
-
-    // New CSV format has different column names
+    const uniqueKey = `${orderId}:${date}`;
+    
+    // Parse all financial fields (these are per-item for sales, but per-order for fees)
     const salesExclTax = parseFloat(row["Sales (excl. tax)"] || "0") || 0;
     const taxOnSales = parseFloat(row["Tax on Sales"] || "0") || 0;
     const salesInclTax = parseFloat(row["Sales (incl. tax)"] || "0") || 0;
+    
+    // These are order-level fees (same across all items in an order)
     const marketingAdjustment = parseFloat(row["Marketing Adjustment"] || "0") || 0;
     const marketplaceFee = parseFloat(row["Marketplace Fee"] || "0") || 0;
-    const deliveryFee = parseFloat(row["Delivery Fee"] || "0") || 0;
+    const taxOnMarketplaceFee = parseFloat(row["Tax on Marketplace Fee"] || "0") || 0;
+    const deliveryNetworkFee = parseFloat(row["Delivery Network Fee"] || "0") || 0;
+    const taxOnDeliveryNetworkFee = parseFloat(row["Tax on Delivery Network Fee"] || "0") || 0;
+    const orderProcessingFee = parseFloat(row["Order Processing Fee"] || "0") || 0;
     const tips = parseFloat(row["Tips"] || "0") || 0;
     const otherPayments = parseFloat(row["Other payments"] || "0") || 0;
-    
-    // Calculate net payout (approximate - this is a simplified version)
     const totalSalesAfterAdj = parseFloat(row["Total Sales after Adjustments (incl tax)"] || "0") || 0;
-    const netPayout = totalSalesAfterAdj - marketplaceFee - Math.abs(marketingAdjustment) + tips + otherPayments;
 
-    // Keep the last occurrence (most recent data)
-    ubereatsMap.set(uniqueKey, {
+    if (!orderMap.has(uniqueKey)) {
+      orderMap.set(uniqueKey, {
+        orderId: orderId,
+        date: date,
+        storeName: storeName,
+        time: row["Order Accept Time"] || "",
+        orderStatus: row["Order Status"] || null,
+        
+        // Sum sales across items
+        salesInclTax: 0,
+        taxOnSales: 0,
+        
+        // These are order-level (take from first item)
+        marketingAdjustment: marketingAdjustment,
+        marketplaceFee: marketplaceFee,
+        taxOnMarketplaceFee: taxOnMarketplaceFee,
+        deliveryNetworkFee: deliveryNetworkFee,
+        taxOnDeliveryNetworkFee: taxOnDeliveryNetworkFee,
+        orderProcessingFee: orderProcessingFee,
+        tips: tips,
+        otherPayments: otherPayments,
+        totalSalesAfterAdj: totalSalesAfterAdj,
+      });
+    }
+    
+    // Accumulate item-level sales
+    const order = orderMap.get(uniqueKey)!;
+    order.salesInclTax += salesInclTax;
+    order.taxOnSales += taxOnSales;
+  }
+
+  console.log(`Aggregated into ${orderMap.size} unique orders`);
+
+  // Now convert aggregated orders to transactions
+  const ubereatsMap = new Map<string, any>();
+  for (const [uniqueKey, order] of orderMap) {
+    const locationId = await findLocation(order.storeName, "ubereats");
+    const clientKey = `${client.id}:${order.orderId}:${order.date}`;
+
+    // Calculate net payout: Total Sales After Adj - all fees + tips + other payments
+    // Marketing Adjustment is typically NEGATIVE (a cost), so we subtract it
+    const netPayout = order.totalSalesAfterAdj 
+      - order.marketplaceFee 
+      - order.taxOnMarketplaceFee
+      - order.deliveryNetworkFee
+      - order.taxOnDeliveryNetworkFee
+      - order.orderProcessingFee
+      - order.marketingAdjustment  // Already negative, so this subtracts the cost
+      + order.tips
+      + order.otherPayments;
+
+    ubereatsMap.set(clientKey, {
       clientId: client.id,
       locationId: locationId,
-      orderId: orderId,
-      date: date,
-      time: row["Order Accept Time"] || "",
-      location: storeName,
-      subtotal: salesInclTax, // Using sales incl tax as subtotal
-      tax: taxOnSales,
-      deliveryFee: deliveryFee,
-      serviceFee: 0, // Not in this format
-      marketingPromo: row["Other payments description"] || null,
-      marketingAmount: Math.abs(marketingAdjustment),
-      platformFee: marketplaceFee,
+      orderId: order.orderId,
+      date: order.date,
+      time: order.time,
+      location: order.storeName,
+      subtotal: order.salesInclTax,
+      tax: order.taxOnSales,
+      deliveryFee: 0, // Not clearly separated in this format
+      serviceFee: 0,
+      marketingPromo: order.marketingAdjustment < 0 ? "Marketing Adjustment" : null,
+      marketingAmount: Math.abs(order.marketingAdjustment), // Absolute value for reporting
+      platformFee: order.marketplaceFee,
       netPayout: netPayout,
-      customerRating: null, // Not in this format
-      orderStatus: row["Order Status"] || null,
+      customerRating: null,
+      orderStatus: order.orderStatus,
     });
   }
 
