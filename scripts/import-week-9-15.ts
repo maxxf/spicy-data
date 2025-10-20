@@ -60,13 +60,21 @@ async function main() {
   // Cache for location lookups
   const locationCache = new Map<string, string>();
 
+  // Get or find unmapped location bucket
+  const unmappedLocation = allLocations.find(l => l.canonicalName === "Unmapped Locations");
+  if (!unmappedLocation) {
+    console.error("⚠️  'Unmapped Locations' bucket not found!");
+    process.exit(1);
+  }
+  console.log(`Using 'Unmapped Locations' bucket: ${unmappedLocation.id}`);
+
   // Helper: Extract code from parentheses (e.g., "Capriotti's (IA069)" → "IA069")
   function extractCodeFromParentheses(text: string): string | null {
     const match = text.match(/\(([A-Za-z0-9|-]+)\)/);
     return match ? match[1].trim() : null;
   }
 
-  // Helper: Find location (no auto-create)
+  // Helper: Find location (returns unmapped bucket if no match)
   async function findLocation(storeName: string, platform: "ubereats" | "doordash" | "grubhub") {
     const cacheKey = `${platform}:${storeName}`;
     if (locationCache.has(cacheKey)) {
@@ -83,7 +91,10 @@ async function main() {
           return location.id;
         }
       }
-      return null;
+      // Route to unmapped bucket instead of returning null
+      console.log(`⚠️  No match found for "${storeName}" (code: ${extractedCode || 'none'}) → routing to Unmapped Locations`);
+      locationCache.set(cacheKey, unmappedLocation.id);
+      return unmappedLocation.id;
     }
 
     // DoorDash and Grubhub: Use platform-specific name fields
@@ -118,7 +129,10 @@ async function main() {
       return bestMatch.location.id;
     }
 
-    return null;
+    // Route to unmapped bucket instead of returning null
+    console.log(`⚠️  No match found for "${storeName}" → routing to Unmapped Locations`);
+    locationCache.set(cacheKey, unmappedLocation.id);
+    return unmappedLocation.id;
   }
 
   function calculateSimilarity(str1: string, str2: string): number {
