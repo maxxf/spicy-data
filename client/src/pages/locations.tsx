@@ -14,11 +14,14 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import type { Location, LocationMatchSuggestion, ConsolidatedLocationMetrics } from "@shared/schema";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { TestLocationsReport } from "@/components/test-locations-report";
 
 export default function LocationsPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
+  const [activeTab, setActiveTab] = useState("overview");
   const [selectedClientId, setSelectedClientId] = useState<string | null>("capriottis");
   const [selectedLocationId, setSelectedLocationId] = useState<string | null>(null);
   const [selectedPlatform, setSelectedPlatform] = useState<string | null>(null);
@@ -340,95 +343,120 @@ export default function LocationsPage() {
         </p>
       </div>
 
-      {weeks && weeks.length > 0 ? (
-        <div className="flex flex-wrap gap-4">
-          <ClientSelector
-            selectedClientId={selectedClientId}
-            onClientChange={(clientId) => {
-              setSelectedClientId(clientId);
-              setSelectedLocationId(null); // Reset location when client changes
-            }}
-            showAllOption={false}
-          />
-          <LocationSelector
-            clientId={selectedClientId}
-            selectedLocationId={selectedLocationId}
-            onLocationChange={setSelectedLocationId}
-            showAllOption={true}
-          />
-          <PlatformSelector
-            selectedPlatform={selectedPlatform}
-            onPlatformChange={setSelectedPlatform}
-          />
-          <WeekSelector
-            weeks={weeks}
-            selectedWeek={selectedWeek}
-            onWeekChange={setSelectedWeek}
-            showAllOption={false}
-          />
-        </div>
-      ) : (
-        <div className="flex gap-4">
-          <Skeleton className="h-10 w-40" />
-          <Skeleton className="h-10 w-40" />
-          <Skeleton className="h-10 w-48" />
-        </div>
-      )}
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList>
+          <TabsTrigger value="overview" data-testid="tab-overview">Overview</TabsTrigger>
+          <TabsTrigger value="test-locations" data-testid="tab-test-locations">Test Locations Report</TabsTrigger>
+        </TabsList>
 
-      {suggestions && suggestions.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <AlertCircle className="w-5 h-5 text-yellow-600" />
-              Unmatched Locations
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground mb-4">
-              Review and link locations found in uploaded files to existing canonical locations
-            </p>
-            <DataTable
-              data={suggestions}
-              columns={suggestionColumns}
-            />
-          </CardContent>
-        </Card>
-      )}
-
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between gap-4 space-y-0 pb-4">
-          <CardTitle>Weekly Performance by Location</CardTitle>
-          <Button
-            onClick={exportToCSV}
-            variant="outline"
-            size="sm"
-            disabled={!consolidatedMetrics || consolidatedMetrics.length === 0}
-            data-testid="button-export-csv"
-          >
-            <Download className="w-4 h-4 mr-2" />
-            Export CSV
-          </Button>
-        </CardHeader>
-        <CardContent>
-          {metricsLoading ? (
-            <div className="space-y-2">
-              {[...Array(5)].map((_, i) => (
-                <Skeleton key={i} className="h-12" />
-              ))}
+        <TabsContent value="overview" className="space-y-6 mt-6">
+          {weeks && weeks.length > 0 ? (
+            <div className="flex flex-wrap gap-4">
+              <ClientSelector
+                selectedClientId={selectedClientId}
+                onClientChange={(clientId) => {
+                  setSelectedClientId(clientId);
+                  setSelectedLocationId(null); // Reset location when client changes
+                }}
+                showAllOption={false}
+              />
+              <LocationSelector
+                clientId={selectedClientId}
+                selectedLocationId={selectedLocationId}
+                onLocationChange={setSelectedLocationId}
+                showAllOption={true}
+              />
+              <PlatformSelector
+                selectedPlatform={selectedPlatform}
+                onPlatformChange={setSelectedPlatform}
+              />
+              <WeekSelector
+                weeks={weeks}
+                selectedWeek={selectedWeek}
+                onWeekChange={setSelectedWeek}
+                showAllOption={false}
+              />
             </div>
-          ) : consolidatedMetrics && consolidatedMetrics.length > 0 ? (
-            <DataTable
-              data={consolidatedMetrics}
-              columns={metricsColumns}
-            />
           ) : (
-            <div className="text-center py-12 text-muted-foreground">
-              No location data available for the selected filters. Try adjusting your filters or upload transaction data.
+            <div className="flex gap-4">
+              <Skeleton className="h-10 w-40" />
+              <Skeleton className="h-10 w-40" />
+              <Skeleton className="h-10 w-48" />
             </div>
           )}
-        </CardContent>
-      </Card>
 
+          {suggestions && suggestions.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <AlertCircle className="w-5 h-5 text-yellow-600" />
+                  Unmatched Locations
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Review and link locations found in uploaded files to existing canonical locations
+                </p>
+                <DataTable
+                  data={suggestions}
+                  columns={suggestionColumns}
+                />
+              </CardContent>
+            </Card>
+          )}
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between gap-4 space-y-0 pb-4">
+              <CardTitle>Weekly Performance by Location</CardTitle>
+              <Button
+                onClick={exportToCSV}
+                variant="outline"
+                size="sm"
+                disabled={!consolidatedMetrics || consolidatedMetrics.length === 0}
+                data-testid="button-export-csv"
+              >
+                <Download className="w-4 h-4 mr-2" />
+                Export CSV
+              </Button>
+            </CardHeader>
+            <CardContent>
+              {metricsLoading ? (
+                <div className="space-y-2">
+                  {[...Array(5)].map((_, i) => (
+                    <Skeleton key={i} className="h-12" />
+                  ))}
+                </div>
+              ) : consolidatedMetrics && consolidatedMetrics.length > 0 ? (
+                <DataTable
+                  data={consolidatedMetrics}
+                  columns={metricsColumns}
+                />
+              ) : (
+                <div className="text-center py-12 text-muted-foreground">
+                  No location data available for the selected filters. Try adjusting your filters or upload transaction data.
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="test-locations" className="space-y-6 mt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Corp Locations Financials</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {selectedClientId ? (
+                <TestLocationsReport clientId={selectedClientId} />
+              ) : (
+                <div className="text-center py-12 text-muted-foreground">
+                  Please select a client to view test locations report
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

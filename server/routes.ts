@@ -1717,6 +1717,88 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Test locations weekly financials report
+  app.get("/api/analytics/test-locations-report", async (req, res) => {
+    try {
+      const { clientId } = req.query;
+      
+      if (!clientId) {
+        return res.status(400).json({ error: "clientId is required" });
+      }
+
+      // Test location store IDs
+      const testLocationStoreIds = [
+        'AZ900482', 'NV008', 'NV036', 'NV051', 'NV054', 'NV067', 'NV079',
+        'NV103', 'NV111', 'NV121', 'NV126', 'NV151', 'NV152', 'NV191',
+        'NV900467', 'NV900478'
+      ];
+
+      // Get all locations for this client
+      const allLocations = await storage.getLocationsByClient(clientId as string);
+      
+      // Filter to only test locations
+      const testLocations = allLocations.filter(loc => 
+        loc.storeId && testLocationStoreIds.some(testId => loc.storeId?.startsWith(testId))
+      );
+
+      // Get weekly financials for all locations
+      const allFinancials = await storage.getLocationWeeklyFinancialsByClient(clientId as string);
+      
+      // Filter to only test location financials
+      const testLocationIds = new Set(testLocations.map(l => l.id));
+      const testFinancials = allFinancials.filter(f => testLocationIds.has(f.locationId));
+
+      // Create location name lookup
+      const locationNameMap = new Map(testLocations.map(loc => [
+        loc.id, 
+        loc.storeId || loc.canonicalName
+      ]));
+
+      // Get unique weeks
+      const weekSet = new Set<string>();
+      testFinancials.forEach(f => weekSet.add(f.weekStartDate));
+      const weeks = Array.from(weekSet).sort();
+
+      // Group financials by location
+      const byLocation = new Map<string, Map<string, LocationWeeklyFinancial>>();
+      testFinancials.forEach(f => {
+        if (!byLocation.has(f.locationId)) {
+          byLocation.set(f.locationId, new Map());
+        }
+        byLocation.get(f.locationId)!.set(f.weekStartDate, f);
+      });
+
+      // Format response
+      const response = {
+        weeks,
+        locations: Array.from(byLocation.entries())
+          .map(([locationId, weeklyData]) => ({
+            locationId,
+            locationName: locationNameMap.get(locationId) || 'Unknown',
+            weeklyMetrics: weeks.map(week => {
+              const data = weeklyData.get(week);
+              return data ? {
+                weekStartDate: week,
+                sales: data.sales,
+                marketingSales: data.marketingSales,
+                marketingSpend: data.marketingSpend,
+                marketingPercent: data.marketingPercent,
+                roas: data.roas,
+                payout: data.payout,
+                payoutPercent: data.payoutPercent,
+                payoutWithCogs: data.payoutWithCogs,
+              } : null;
+            }),
+          }))
+          .sort((a, b) => a.locationName.localeCompare(b.locationName)),
+      };
+
+      res.json(response);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   app.get("/api/export/weekly-financials", async (req, res) => {
     try {
       const { clientId, aggregation = "by-location" } = req.query;
