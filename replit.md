@@ -138,22 +138,31 @@ Preferred communication style: Simple, everyday language.
 **Transaction Data Upload:**
 - CSV file upload with platform and client ID identification
 - Server-side parsing, column validation, location matching, and transaction record creation
-- **Store ID Extraction & Location Matching (Platform-Specific):**
-  - **Uber Eats**: Fuzzy matching on location name (codes in parentheses are NOT master Store IDs)
-    - Example: "Capriotti's Sandwich Shop (SD162)" → Fuzzy matches to master location with Store ID "NV040"
-    - Pattern in parentheses (SD162) is platform-specific, NOT the universal Store ID
-    - Uses string similarity (0.8 threshold) to link to existing master locations
-  - **DoorDash**: Store IDs extracted from "Merchant Store ID" CSV column ✅
-    - Field: `merchant_store_id` or `Merchant Store ID` or `Merchant_Store_ID`
-    - Contains alphanumeric Store IDs that directly match master location list (Column C)
-    - Direct match by Store ID ensures accurate consolidation
-  - **Grubhub**: Address-based matching using Column G from master location list
+- **Location Matching Strategy (Platform-Specific):**
+
+**Master Sheet Structure:**
+  - **Column C**: "Shop IDs Owned" - Master Store Code (canonical ID, e.g., "69|15645")
+  - **Column E**: Platform-specific matching keys for DoorDash and Uber Eats
+  - **Column G**: Address for Grubhub matching
+
+**Platform Matching Logic:**
+  - **DoorDash**: "Merchant Store ID" from CSV → Column E (doorDashStoreKey) ✅
+    - CSV Field: `merchant_store_id` or `Merchant Store ID` or `Merchant_Store_ID`
+    - Matches to: doorDashStoreKey field (Column E from master sheet)
+    - Direct exact match ensures accurate consolidation
+    
+  - **Uber Eats**: "Store Name" from CSV → Column E (uberEatsStoreLabel) ✅
+    - CSV Field: `Store Name` (e.g., "Capriotti's Sandwich Shop (IA069)")
+    - Matches to: uberEatsStoreLabel field (Column E from master sheet)
+    - NOTE: CSV "Store ID" column is auxiliary data, NOT used for matching
+    - Direct exact match by Store Name ensures accurate consolidation
+    
+  - **Grubhub**: "street_address" from CSV → Column G (address) with fuzzy matching
     - CSV Field: `store_address` or `Address` or `Store_Address`
-    - Master Sheet: Column G contains address for matching
+    - Matches to: address field (Column G from master sheet)
     - Priority 1: Exact address match (case-insensitive)
     - Priority 2: Fuzzy name matching (0.8 threshold) as fallback
     - Grubhub lacks reliable Store IDs, so address is the primary join key
-  - Master location list (Column C) provides universal Store IDs for cross-platform consolidation
 - **Batch optimization for high-volume imports:**
   - Location caching: Collects unique locations upfront and batch creates/finds them to eliminate N+1 query problems
   - Batch insert: Processes transactions in chunks of 500 with upsert logic to prevent duplicates

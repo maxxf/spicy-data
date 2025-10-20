@@ -13,12 +13,14 @@ export const clients = pgTable("clients", {
 export const locations = pgTable("locations", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   clientId: varchar("client_id").notNull().references(() => clients.id),
-  storeId: text("store_id"), // Universal Store ID from master list (e.g., CA100377, DE025)
+  storeId: text("store_id"), // Column C: Master Store Code (canonical ID, e.g., "69|15645")
   canonicalName: text("canonical_name").notNull(),
   address: text("address"), // Column G from master sheet - used for Grubhub matching
-  uberEatsName: text("uber_eats_name"),
-  doordashName: text("doordash_name"),
-  grubhubName: text("grubhub_name"),
+  doorDashStoreKey: text("doordash_store_key"), // Column E from master - matches DoorDash "Merchant Store ID"
+  uberEatsStoreLabel: text("ubereats_store_label"), // Column E from master - matches UE "Store Name (ID)"
+  uberEatsName: text("uber_eats_name"), // Display name from Uber Eats CSV
+  doordashName: text("doordash_name"), // Display name from DoorDash CSV
+  grubhubName: text("grubhub_name"), // Display name from Grubhub CSV
   isVerified: boolean("is_verified").default(false).notNull(),
   locationTag: text("location_tag"), // e.g., "Corporate", "Franchise"
   createdAt: timestamp("created_at").defaultNow().notNull(),

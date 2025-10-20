@@ -174,46 +174,40 @@ async function findOrCreateLocation(
   clientId: string,
   locationName: string,
   platform: "ubereats" | "doordash" | "grubhub",
-  storeId?: string
+  platformKey?: string
 ): Promise<string> {
-  // Priority 1: Match by Store ID if provided (cross-platform unique identifier)
-  if (storeId) {
-    const allLocations = await storage.getLocationsByClient(clientId);
-    const locationByStoreId = allLocations.find(l => l.storeId === storeId);
-    if (locationByStoreId) {
-      // Update platform-specific name if not already set
-      const updates: any = {};
-      if (platform === "ubereats" && !locationByStoreId.uberEatsName) {
-        updates.uberEatsName = locationName;
-      } else if (platform === "doordash" && !locationByStoreId.doordashName) {
-        updates.doordashName = locationName;
-      } else if (platform === "grubhub" && !locationByStoreId.grubhubName) {
-        updates.grubhubName = locationName;
-      }
-      if (Object.keys(updates).length > 0) {
-        await storage.updateLocation(locationByStoreId.id, updates);
-      }
-      return locationByStoreId.id;
-    }
-  }
-
-  // Priority 2: Check existing location by platform-specific name
-  const existingLocation = await storage.findLocationByName(clientId, locationName, platform);
-  
-  if (existingLocation) {
-    // Update with Store ID if not already set
-    if (storeId && !existingLocation.storeId) {
-      await storage.updateLocation(existingLocation.id, { 
-        storeId,
-        canonicalName: storeId // Use Store ID as canonical name
-      });
-    }
-    return existingLocation.id;
-  }
-
-  // Priority 3: Fuzzy matching
   const allLocations = await storage.getLocationsByClient(clientId);
   
+  // DoorDash: Match by doorDashStoreKey (Column E)
+  if (platform === "doordash" && platformKey) {
+    const locationByKey = allLocations.find(l => l.doorDashStoreKey === platformKey);
+    if (locationByKey) {
+      // Update DoorDash display name if not set
+      if (!locationByKey.doordashName) {
+        await storage.updateLocation(locationByKey.id, {
+          doordashName: locationName
+        });
+      }
+      return locationByKey.id;
+    }
+  }
+  
+  // Uber Eats: Match locationName to uberEatsStoreLabel (Column E)
+  // locationName is like "Capriotti's Sandwich Shop (IA069)"
+  if (platform === "ubereats") {
+    const locationByLabel = allLocations.find(l => l.uberEatsStoreLabel === locationName);
+    if (locationByLabel) {
+      // Update Uber Eats display name if not set
+      if (!locationByLabel.uberEatsName) {
+        await storage.updateLocation(locationByLabel.id, {
+          uberEatsName: locationName
+        });
+      }
+      return locationByLabel.id;
+    }
+  }
+
+  // Fallback: Fuzzy matching for locations without Column E data
   let bestMatch: { location: any; score: number } | null = null;
   for (const loc of allLocations) {
     const canonicalSimilarity = calculateStringSimilarity(locationName, loc.canonicalName);
@@ -223,8 +217,6 @@ async function findOrCreateLocation(
       platformSimilarity = calculateStringSimilarity(locationName, loc.uberEatsName);
     } else if (platform === "doordash" && loc.doordashName) {
       platformSimilarity = calculateStringSimilarity(locationName, loc.doordashName);
-    } else if (platform === "grubhub" && loc.grubhubName) {
-      platformSimilarity = calculateStringSimilarity(locationName, loc.grubhubName);
     }
 
     const score = Math.max(canonicalSimilarity, platformSimilarity);
@@ -238,25 +230,23 @@ async function findOrCreateLocation(
     const updates: any = {};
     if (platform === "ubereats") updates.uberEatsName = locationName;
     if (platform === "doordash") updates.doordashName = locationName;
-    if (platform === "grubhub") updates.grubhubName = locationName;
-    if (storeId && !bestMatch.location.storeId) {
-      updates.storeId = storeId;
-      updates.canonicalName = storeId;
-    }
     
     await storage.updateLocation(bestMatch.location.id, updates);
     return bestMatch.location.id;
   }
 
-  // Create new location with Store ID
+  // Create new unmatched location (will need manual verification)
   const newLocation = await storage.createLocation({
     clientId,
-    storeId: storeId || null,
-    canonicalName: storeId || locationName, // Use Store ID as canonical if available
+    storeId: null, // No Column C match
+    canonicalName: locationName,
+    doorDashStoreKey: platform === "doordash" ? platformKey || null : null,
+    uberEatsStoreLabel: platform === "ubereats" ? locationName : null,
     uberEatsName: platform === "ubereats" ? locationName : null,
     doordashName: platform === "doordash" ? locationName : null,
-    grubhubName: platform === "grubhub" ? locationName : null,
-    isVerified: storeId ? true : false, // Auto-verify if we have Store ID
+    grubhubName: null,
+    isVerified: false, // Not verified since no Column C/E match
+    locationTag: null,
   });
 
   return newLocation.id;
@@ -301,13 +291,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const rows = parseCSV(req.file.buffer, platform);
 
       if (platform === "ubereats") {
-        // NOTE: Uber Eats location names have codes in parentheses like (SD162), 
-        // but these are NOT the master Store IDs from Column C. 
-        // Use fuzzy matching to link to existing master locations instead.
+        // NOTE: Uber Eats matching uses Store Name (e.g., "Capriotti's Sandwich Shop (IA069)")
+        // which matches to Column E (uberEatsStoreLabel) in the master sheet
+        // The CSV "Store ID" column is auxiliary data, not used for matching
 
         // Step 1: Collect unique locations and create them upfront
         const locationMap = new Map<string, string>();
-        const uniqueLocations = new Set<string>(); // just names, no Store ID extraction
+        const uniqueLocations = new Set<string>(); // just store names
         
         for (const row of rows) {
           const locationName = getColumnValue(row, "Store Name", "Location", "Store_Name", "store_name");
@@ -316,9 +306,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         }
         
-        // Batch create/find all locations (fuzzy match to master locations)
+        // Batch create/find all locations by matching Store Name to uberEatsStoreLabel (Column E)
         for (const locationName of uniqueLocations) {
-          const locationId = await findOrCreateLocation(clientId, locationName, "ubereats"); // No storeId
+          const locationId = await findOrCreateLocation(clientId, locationName, "ubereats");
           locationMap.set(locationName, locationId);
         }
         
@@ -1154,7 +1144,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           continue;
         }
 
-        // Column C (index 2) is the Store ID
+        // Column C (index 2) is the Master Store Code (canonical ID)
         const storeId = row[2]?.toString().trim();
         if (!storeId) {
           skipped++;
@@ -1164,6 +1154,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Try to find a canonical name from the row
         // Assuming Column A or B might have the location name
         const canonicalName = row[0]?.toString().trim() || row[1]?.toString().trim() || storeId;
+        
+        // Column E (index 4) - Platform-specific matching key for DD & UE
+        const platformMatchKey = row[4]?.toString().trim() || null;
         
         // Column G (index 6) is the address - used for Grubhub matching
         const address = row[6]?.toString().trim() || null;
@@ -1181,6 +1174,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
           if (address && address !== existingLocation.address) {
             updates.address = address;
           }
+          if (platformMatchKey) {
+            // Column E is used for both DoorDash and Uber Eats matching
+            if (!existingLocation.doorDashStoreKey) {
+              updates.doorDashStoreKey = platformMatchKey;
+            }
+            if (!existingLocation.uberEatsStoreLabel) {
+              updates.uberEatsStoreLabel = platformMatchKey;
+            }
+          }
           
           if (Object.keys(updates).length > 0) {
             await storage.updateLocation(existingLocation.id, updates);
@@ -1189,12 +1191,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
             skipped++;
           }
         } else {
-          // Create new location with Store ID
+          // Create new location with Store ID from Column C
           await storage.createLocation({
             clientId,
-            storeId,
+            storeId, // Column C: Shop IDs Owned
             canonicalName,
-            address,
+            address, // Column G: Address
+            doorDashStoreKey: platformMatchKey, // Column E: for DoorDash matching
+            uberEatsStoreLabel: platformMatchKey, // Column E: for Uber Eats matching
             uberEatsName: null,
             doordashName: null,
             grubhubName: null,
