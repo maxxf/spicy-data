@@ -655,7 +655,7 @@ export class DbStorage implements IStorage {
           // Grubhub Platform-Specific Status Handling:
           // - Sales/Orders: Only count "Prepaid Order" transaction types (completed orders)
           // - Net Payout: Include ALL transaction types (Prepaid Order, Order Adjustment, Cancellation) for finance reconciliation
-          const isPrepaidOrder = !t.transactionType || t.transactionType === "Prepaid Order";
+          const isPrepaidOrder = t.transactionType === "Prepaid Order";
           
           // Always include net payout for ALL transaction types
           netPayout += t.merchantNetTotal || 0;
@@ -848,7 +848,7 @@ export class DbStorage implements IStorage {
               // Grubhub Platform-Specific Status Handling:
               // - Sales/Orders: Only count "Prepaid Order" transaction types (completed orders)
               // - Net Payout: Include ALL transaction types for finance reconciliation
-              const isPrepaidOrder = !t.transactionType || t.transactionType === "Prepaid Order";
+              const isPrepaidOrder = t.transactionType === "Prepaid Order";
               
               // Always include net payout for ALL transaction types
               netPayout += t.merchantNetTotal || 0;
