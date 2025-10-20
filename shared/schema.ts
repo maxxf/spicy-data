@@ -36,14 +36,31 @@ export const uberEatsTransactions = pgTable("uber_eats_transactions", {
   date: text("date").notNull(),
   time: text("time").notNull(),
   location: text("location").notNull(),
-  subtotal: real("subtotal").notNull(),
+  
+  // Sales fields (updated methodology)
+  salesExclTax: real("sales_excl_tax").notNull().default(0), // "Sales (excl. tax)" - primary sales metric
+  subtotal: real("subtotal").notNull(), // "Sales (incl. tax)" - kept for backward compatibility
   tax: real("tax").notNull(),
+  
+  // Fee fields
   deliveryFee: real("delivery_fee").notNull(),
   serviceFee: real("service_fee").notNull(),
-  marketingPromo: text("marketing_promo"),
-  marketingAmount: real("marketing_amount").notNull(),
   platformFee: real("platform_fee").notNull(),
+  
+  // Marketing/Promotional fields (updated methodology)
+  offersOnItems: real("offers_on_items").notNull().default(0), // "Offers on items (incl. tax)" - negative for discounts
+  deliveryOfferRedemptions: real("delivery_offer_redemptions").notNull().default(0), // "Delivery Offer Redemptions (incl. tax)" - negative for discounts
+  marketingPromo: text("marketing_promo"), // Legacy field - kept for backward compatibility
+  marketingAmount: real("marketing_amount").notNull(), // Legacy field - kept for backward compatibility
+  
+  // Other payments (Ad Spend, Credits, Fees, etc.)
+  otherPayments: real("other_payments").notNull().default(0), // "Other payments" - can be positive or negative
+  otherPaymentsDescription: text("other_payments_description"), // "Other payments description" - e.g., "Ad Spend", "Ad Credits"
+  
+  // Payout
   netPayout: real("net_payout").notNull(),
+  
+  // Other
   customerRating: integer("customer_rating"),
   uploadedAt: timestamp("uploaded_at").defaultNow().notNull(),
 }, (table) => ({
