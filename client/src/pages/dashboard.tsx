@@ -26,7 +26,7 @@ import {
   ChartLegendContent,
 } from "@/components/ui/chart";
 import { PieChart, Pie, Cell, LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, BarChart, Bar, Legend } from "recharts";
-import type { DashboardOverview, LocationMetrics } from "@shared/schema";
+import type { DashboardOverview, ConsolidatedLocationMetrics } from "@shared/schema";
 
 interface ClientPerformance {
   clientId: string;
@@ -76,10 +76,10 @@ export default function Dashboard() {
     },
   });
 
-  const { data: locationMetrics, isLoading: locationsLoading } = useQuery<LocationMetrics[]>({
-    queryKey: ["/api/analytics/locations", selectedClientId, selectedLocationId, selectedPlatform, selectedWeek],
+  const { data: locationMetrics, isLoading: locationsLoading } = useQuery<ConsolidatedLocationMetrics[]>({
+    queryKey: ["/api/analytics/locations/consolidated", selectedClientId, selectedLocationId, selectedPlatform, selectedWeek],
     queryFn: async () => {
-      const response = await fetch(`/api/analytics/locations${buildQueryParams()}`);
+      const response = await fetch(`/api/analytics/locations/consolidated${buildQueryParams()}`);
       if (!response.ok) throw new Error("Failed to fetch locations");
       return response.json();
     },
@@ -161,17 +161,9 @@ export default function Dashboard() {
 
   const locationColumns = [
     {
-      key: "locationName",
+      key: "location",
       label: "Location",
       sortable: true,
-    },
-    {
-      key: "platform",
-      label: "Platform",
-      sortable: true,
-      render: (value: string) => (
-        <PlatformBadge platform={value as "ubereats" | "doordash" | "grubhub"} />
-      ),
     },
     {
       key: "totalSales",
@@ -203,11 +195,33 @@ export default function Dashboard() {
         }).format(value),
     },
     {
+      key: "totalMarketingInvestment",
+      label: "Marketing Spend",
+      sortable: true,
+      align: "right" as const,
+      render: (value: number) =>
+        new Intl.NumberFormat("en-US", {
+          style: "currency",
+          currency: "USD",
+        }).format(value),
+    },
+    {
       key: "marketingRoas",
       label: "ROAS",
       sortable: true,
       align: "right" as const,
       render: (value: number | null) => value != null ? `${value.toFixed(2)}x` : 'N/A',
+    },
+    {
+      key: "netPayout",
+      label: "Payout $",
+      sortable: true,
+      align: "right" as const,
+      render: (value: number) =>
+        new Intl.NumberFormat("en-US", {
+          style: "currency",
+          currency: "USD",
+        }).format(value),
     },
   ];
 
