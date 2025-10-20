@@ -188,13 +188,28 @@ function normalizeAddress(address: string): string {
     .toLowerCase()
     .trim()
     .replace(/\s+/g, ' ') // Collapse multiple spaces
+    // Remove suite/unit numbers (do this early, before other normalizations)
+    .replace(/\s+(suite|ste|unit|apt|apartment|#)\s*[a-z0-9\-]+.*$/i, '')
+    .replace(/\s+#\s*[a-z0-9\-]+.*$/i, '')  // Catch standalone "#123" patterns
+    // Expand directional abbreviations (N/S/E/W)
+    .replace(/\b([nsew])\b/g, (match, dir) => {
+      const directions: Record<string, string> = { 'n': 'north', 's': 'south', 'e': 'east', 'w': 'west' };
+      return directions[dir] || match;
+    })
+    // Normalize street type abbreviations
     .replace(/\bstreet\b/g, 'st')
     .replace(/\bavenue\b/g, 'ave')
     .replace(/\broad\b/g, 'rd')
     .replace(/\bboulevard\b/g, 'blvd')
     .replace(/\bdrive\b/g, 'dr')
     .replace(/\blane\b/g, 'ln')
-    .replace(/[.,]/g, ''); // Remove punctuation
+    .replace(/\bparkway\b/g, 'pkwy')
+    .replace(/\bcourt\b/g, 'ct')
+    .replace(/\bcircle\b/g, 'cir')
+    .replace(/\bplace\b/g, 'pl')
+    // Remove punctuation
+    .replace(/[.,]/g, '')
+    .trim(); // Final trim after removals
 }
 
 // Helper: Get or create the "Unmapped Locations" bucket for a client
@@ -578,22 +593,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return;
       } else if (platform === "grubhub") {
         // Step 1: Collect unique locations and create them upfront
-        const locationMap = new Map<string, string>(); // key: locationName, value: locationId
-        const uniqueLocations = new Map<string, { address?: string; storeNumber?: string }>(); // name -> {address, storeNumber}
+        // NOTE: For Grubhub, store_name is always "Capriotti's Sandwich Shop"
+        // Use address as primary key, but include store_number for rows with missing addresses
+        const locationMap = new Map<string, string>(); // key: addressKey, value: locationId
+        const uniqueLocations = new Map<string, { locationName: string; address?: string; storeNumber?: string }>(); // addressKey -> {locationName, address, storeNumber}
         
         for (const row of rows) {
           const locationName = getColumnValue(row, "store_name", "Restaurant", "Store_Name", "store name");
           const address = getColumnValue(row, "street_address", "store_address", "Address", "Store_Address", "address") || undefined;
           const storeNumber = getColumnValue(row, "store_number", "Store_Number", "store number") || undefined;
+          
+          // Create unique key: use address if available, otherwise fall back to store_number
+          // This ensures rows with missing addresses still get individual matching attempts via store_number
+          const cleanStoreNumber = storeNumber?.replace(/['"]/g, '').trim() || '';
+          const addressKey = address ? normalizeAddress(address) : `store:${cleanStoreNumber || 'unknown'}`;
+          
           if (locationName && locationName.trim() !== "") {
-            uniqueLocations.set(locationName, { address, storeNumber });
+            // Store the first occurrence of each unique address/store combo
+            if (!uniqueLocations.has(addressKey)) {
+              uniqueLocations.set(addressKey, { locationName, address, storeNumber });
+            }
           }
         }
         
         // Batch create/find all locations using address (primary) and store_number (fallback) for matching
-        for (const [locationName, { address, storeNumber }] of uniqueLocations) {
+        for (const [addressKey, { locationName, address, storeNumber }] of uniqueLocations) {
           const locationId = await findOrCreateLocationByAddress(clientId, locationName, "grubhub", address, storeNumber);
-          locationMap.set(locationName, locationId);
+          locationMap.set(addressKey, locationId);
         }
         
         // Step 2: Build transactions array using cached location IDs
@@ -609,7 +635,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
             continue;
           }
 
-          const locationId = locationMap.get(locationName) || null;
+          // Reconstruct the same addressKey used for deduplication
+          const address = getColumnValue(row, "street_address", "store_address", "Address", "Store_Address", "address") || undefined;
+          const storeNumber = getColumnValue(row, "store_number", "Store_Number", "store number") || undefined;
+          const cleanStoreNumber = storeNumber?.replace(/['"]/g, '').trim() || '';
+          const addressKey = address ? normalizeAddress(address) : `store:${cleanStoreNumber || 'unknown'}`;
+          const locationId = locationMap.get(addressKey) || null;
           
           // Parse financial fields
           const subtotal = parseFloat(getColumnValue(row, "subtotal", "Subtotal", "Sale_Amount", "sale amount")) || 0;
