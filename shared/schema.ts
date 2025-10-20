@@ -15,6 +15,7 @@ export const locations = pgTable("locations", {
   clientId: varchar("client_id").notNull().references(() => clients.id),
   storeId: text("store_id"), // Universal Store ID from master list (e.g., CA100377, DE025)
   canonicalName: text("canonical_name").notNull(),
+  address: text("address"), // Column G from master sheet - used for Grubhub matching
   uberEatsName: text("uber_eats_name"),
   doordashName: text("doordash_name"),
   grubhubName: text("grubhub_name"),

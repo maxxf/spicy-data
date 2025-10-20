@@ -9,7 +9,7 @@ import { ClientSelector } from "@/components/client-selector";
 import { LocationSelector } from "@/components/location-selector";
 import { PlatformSelector } from "@/components/platform-selector";
 import { WeekSelector } from "@/components/week-selector";
-import { CheckCircle2, AlertCircle, Link as LinkIcon, MapPin } from "lucide-react";
+import { CheckCircle2, AlertCircle, Link as LinkIcon, MapPin, Download } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import type { Location, LocationMatchSuggestion, ConsolidatedLocationMetrics } from "@shared/schema";
@@ -93,6 +93,65 @@ export default function LocationsPage() {
       });
     },
   });
+
+  const exportToCSV = () => {
+    if (!consolidatedMetrics || consolidatedMetrics.length === 0) {
+      toast({
+        title: "No data to export",
+        description: "Please select filters to view location data first",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const headers = [
+      "Location Name",
+      "Total Sales",
+      "Total Orders",
+      "AOV",
+      "Marketing Spend",
+      "Marketing ROAS",
+      "Net Payout",
+      "Net Payout %",
+    ];
+
+    const rows = consolidatedMetrics.map((location) => [
+      location.locationName,
+      location.totalSales?.toFixed(2) || "0.00",
+      location.totalOrders || "0",
+      location.aov?.toFixed(2) || "0.00",
+      location.marketingSpend?.toFixed(2) || "0.00",
+      location.marketingRoas?.toFixed(2) || "0.00",
+      location.netPayout?.toFixed(2) || "0.00",
+      location.netPayoutPercent?.toFixed(1) || "0.0",
+    ]);
+
+    const csvContent = [
+      headers.join(","),
+      ...rows.map((row) => row.join(",")),
+    ].join("\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    
+    const weekLabel = selectedWeek 
+      ? `${selectedWeek.weekStart}_to_${selectedWeek.weekEnd}`
+      : "all_weeks";
+    const clientLabel = selectedClientId || "all_clients";
+    
+    link.setAttribute("href", url);
+    link.setAttribute("download", `location_performance_${clientLabel}_${weekLabel}.csv`);
+    link.style.visibility = "hidden";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    toast({
+      title: "Export successful",
+      description: `Downloaded ${consolidatedMetrics.length} locations`,
+    });
+  };
 
   const metricsColumns = [
     {
@@ -337,8 +396,18 @@ export default function LocationsPage() {
       )}
 
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between gap-4 space-y-0 pb-4">
           <CardTitle>Weekly Performance by Location</CardTitle>
+          <Button
+            onClick={exportToCSV}
+            variant="outline"
+            size="sm"
+            disabled={!consolidatedMetrics || consolidatedMetrics.length === 0}
+            data-testid="button-export-csv"
+          >
+            <Download className="w-4 h-4 mr-2" />
+            Export CSV
+          </Button>
         </CardHeader>
         <CardContent>
           {metricsLoading ? (

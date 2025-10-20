@@ -104,6 +104,72 @@ function calculateStringSimilarity(str1: string, str2: string): number {
   return (longer.length - distance) / longer.length;
 }
 
+// Special function for Grubhub: Match by address instead of Store ID
+async function findOrCreateLocationByAddress(
+  clientId: string,
+  locationName: string,
+  platform: "grubhub",
+  address?: string
+): Promise<string> {
+  // Priority 1: Match by address to existing master locations
+  if (address) {
+    const allLocations = await storage.getLocationsByClient(clientId);
+    const locationByAddress = allLocations.find(l => 
+      l.address && l.address.toLowerCase().trim() === address.toLowerCase().trim()
+    );
+    if (locationByAddress) {
+      // Update Grubhub name if not already set
+      if (!locationByAddress.grubhubName) {
+        await storage.updateLocation(locationByAddress.id, {
+          grubhubName: locationName
+        });
+      }
+      return locationByAddress.id;
+    }
+  }
+
+  // Priority 2: Fuzzy match on canonical name
+  const allLocations = await storage.getLocationsByClient(clientId);
+  
+  let bestMatch: { location: any; score: number } | null = null;
+  for (const loc of allLocations) {
+    const canonicalSimilarity = calculateStringSimilarity(locationName, loc.canonicalName);
+    const grubhubSimilarity = loc.grubhubName 
+      ? calculateStringSimilarity(locationName, loc.grubhubName) 
+      : 0;
+    
+    const score = Math.max(canonicalSimilarity, grubhubSimilarity);
+    
+    if (score >= 0.8 && (!bestMatch || score > bestMatch.score)) {
+      bestMatch = { location: loc, score };
+    }
+  }
+
+  if (bestMatch) {
+    const updates: any = { grubhubName: locationName };
+    if (address && !bestMatch.location.address) {
+      updates.address = address;
+    }
+    await storage.updateLocation(bestMatch.location.id, updates);
+    return bestMatch.location.id;
+  }
+
+  // Create new location without Store ID (Grubhub doesn't have reliable IDs)
+  const newLocation = await storage.createLocation({
+    clientId,
+    storeId: null,
+    canonicalName: locationName,
+    address: address || null,
+    uberEatsName: null,
+    doordashName: null,
+    grubhubName: locationName,
+    isVerified: false, // Not verified since no Store ID
+    locationTag: null,
+  });
+
+  return newLocation.id;
+}
+
 async function findOrCreateLocation(
   clientId: string,
   locationName: string,
@@ -235,27 +301,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const rows = parseCSV(req.file.buffer, platform);
 
       if (platform === "ubereats") {
-        // Helper to extract Store ID from Uber Eats location name (in parentheses)
-        const extractUberStoreId = (locationName: string): string | undefined => {
-          const match = locationName.match(/\(([A-Z0-9]+)\)/);
-          return match ? match[1] : undefined;
-        };
+        // NOTE: Uber Eats location names have codes in parentheses like (SD162), 
+        // but these are NOT the master Store IDs from Column C. 
+        // Use fuzzy matching to link to existing master locations instead.
 
         // Step 1: Collect unique locations and create them upfront
         const locationMap = new Map<string, string>();
-        const uniqueLocations = new Map<string, string | undefined>(); // name -> storeId
+        const uniqueLocations = new Set<string>(); // just names, no Store ID extraction
         
         for (const row of rows) {
           const locationName = getColumnValue(row, "Store Name", "Location", "Store_Name", "store_name");
-          const storeId = extractUberStoreId(locationName);
           if (locationName && locationName.trim() !== "") {
-            uniqueLocations.set(locationName, storeId);
+            uniqueLocations.add(locationName);
           }
         }
         
-        // Batch create/find all locations
-        for (const [locationName, storeId] of uniqueLocations) {
-          const locationId = await findOrCreateLocation(clientId, locationName, "ubereats", storeId);
+        // Batch create/find all locations (fuzzy match to master locations)
+        for (const locationName of uniqueLocations) {
+          const locationId = await findOrCreateLocation(clientId, locationName, "ubereats"); // No storeId
           locationMap.set(locationName, locationId);
         }
         
@@ -429,19 +492,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } else if (platform === "grubhub") {
         // Step 1: Collect unique locations and create them upfront
         const locationMap = new Map<string, string>(); // key: locationName, value: locationId
-        const uniqueLocations = new Map<string, string | undefined>(); // name -> storeId
+        const uniqueLocations = new Map<string, { address?: string }>(); // name -> {address}
         
         for (const row of rows) {
           const locationName = getColumnValue(row, "store_name", "Restaurant", "Store_Name", "store name");
-          const storeId = getColumnValue(row, "store_number", "Store_Number", "Store Number") || undefined;
+          const address = getColumnValue(row, "store_address", "Address", "Store_Address", "address") || undefined;
           if (locationName && locationName.trim() !== "") {
-            uniqueLocations.set(locationName, storeId);
+            uniqueLocations.set(locationName, { address });
           }
         }
         
-        // Batch create/find all locations
-        for (const [locationName, storeId] of uniqueLocations) {
-          const locationId = await findOrCreateLocation(clientId, locationName, "grubhub", storeId);
+        // Batch create/find all locations using address for matching
+        for (const [locationName, { address }] of uniqueLocations) {
+          const locationId = await findOrCreateLocationByAddress(clientId, locationName, "grubhub", address);
           locationMap.set(locationName, locationId);
         }
         
@@ -1101,6 +1164,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Try to find a canonical name from the row
         // Assuming Column A or B might have the location name
         const canonicalName = row[0]?.toString().trim() || row[1]?.toString().trim() || storeId;
+        
+        // Column G (index 6) is the address - used for Grubhub matching
+        const address = row[6]?.toString().trim() || null;
 
         // Check if location with this Store ID already exists
         const allLocations = await storage.getLocationsByClient(clientId);
@@ -1111,6 +1177,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const updates: any = {};
           if (canonicalName && canonicalName !== existingLocation.canonicalName) {
             updates.canonicalName = canonicalName;
+          }
+          if (address && address !== existingLocation.address) {
+            updates.address = address;
           }
           
           if (Object.keys(updates).length > 0) {
@@ -1125,6 +1194,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             clientId,
             storeId,
             canonicalName,
+            address,
             uberEatsName: null,
             doordashName: null,
             grubhubName: null,
