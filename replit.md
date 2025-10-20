@@ -29,8 +29,9 @@ Preferred communication style: Simple, everyday language.
 **Component Architecture:**
 - Modular structure with shared UI components
 - Custom components like MetricCard, DataTable, PlatformBadge, FileUploadZone, ClientSelector, PlatformSelector, WeekSelector
-- Page-based routing: Dashboard, Campaigns, Upload, Locations
+- Page-based routing: Dashboard, Campaigns, Upload, Locations, Admin
 - Sidebar navigation with a responsive context
+- **Admin Page**: One-time client onboarding features including master location list import from Google Sheets
 - Comprehensive filtering system:
   - **Week filtering** via WeekSelector component - defaults to most recent week from transaction data
   - Client filtering via ClientSelector component
@@ -71,6 +72,10 @@ Preferred communication style: Simple, everyday language.
   - Marketing Investment: Ad Spend (from "Other payments") + Offer Value (promotional discounts + credits)
   - Marketing Attribution: Orders with promotional offers, delivery offers, marketing credits, or third-party contributions
   - Net Payout: Sums ALL order statuses (including refunds, cancellations)
+- **Grubhub Sales Calculation**:
+  - `saleAmount` = `subtotal` + `subtotalSalesTax` (calculated during CSV import)
+  - Includes all transaction types: Prepaid Orders, Order Adjustments, Cancellations
+  - Analytics use `saleAmount` field for total sales metrics
 
 **API Endpoints:**
 - `/api/clients`: Client management
