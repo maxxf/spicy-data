@@ -398,7 +398,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/clients", async (req, res) => {
+  app.post("/api/clients", isAuthenticated, async (req, res) => {
     try {
       const { name } = req.body;
       if (!name) {
@@ -412,7 +412,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/upload", upload.single("file"), async (req, res) => {
+  app.post("/api/upload", isAuthenticated, upload.single("file"), async (req, res) => {
     try {
       if (!req.file) {
         return res.status(400).json({ error: "No file uploaded" });
@@ -766,7 +766,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   }
 
   // Marketing data upload endpoint
-  app.post("/api/upload/marketing", upload.single("file"), async (req, res) => {
+  app.post("/api/upload/marketing", isAuthenticated, upload.single("file"), async (req, res) => {
     try {
       if (!req.file) {
         return res.status(400).json({ error: "No file uploaded" });
@@ -1117,7 +1117,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/locations", async (req, res) => {
+  app.get("/api/locations", isAuthenticated, async (req, res) => {
     try {
       const { clientId } = req.query;
       const locations = clientId
@@ -1129,7 +1129,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/locations", async (req, res) => {
+  app.post("/api/locations", isAuthenticated, async (req, res) => {
     try {
       const validatedData = insertLocationSchema.parse(req.body);
       const location = await storage.createLocation(validatedData);
@@ -1142,7 +1142,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/locations/suggestions", async (req, res) => {
+  app.get("/api/locations/suggestions", isAuthenticated, async (req, res) => {
     try {
       const { clientId } = req.query;
       const suggestions = await storage.getLocationMatchSuggestions(clientId as string);
@@ -1152,7 +1152,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/locations/match", async (req, res) => {
+  app.post("/api/locations/match", isAuthenticated, async (req, res) => {
     try {
       const { locationName, platform, matchedLocationId } = req.body;
 
@@ -1177,7 +1177,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/locations/duplicates", async (req, res) => {
+  app.get("/api/locations/duplicates", isAuthenticated, async (req, res) => {
     try {
       const { clientId } = req.query;
       const duplicates = await storage.getDuplicateLocations(clientId as string | undefined);
@@ -1187,7 +1187,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/locations/merge", async (req, res) => {
+  app.post("/api/locations/merge", isAuthenticated, async (req, res) => {
     try {
       const { targetLocationId, sourceLocationIds } = req.body;
 
@@ -1202,7 +1202,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/locations/:id", async (req, res) => {
+  app.delete("/api/locations/:id", isAuthenticated, async (req, res) => {
     try {
       const { id } = req.params;
       const deleted = await storage.deleteLocation(id);
@@ -1218,7 +1218,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Delete transactions by date range (for data cleanup/reimport)
-  app.delete("/api/transactions", async (req, res) => {
+  app.delete("/api/transactions", isAuthenticated, async (req, res) => {
     try {
       const { clientId, startDate, endDate } = req.query;
 
@@ -1264,7 +1264,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Preview Google Sheets data structure (for debugging)
-  app.post("/api/locations/preview-sheet", async (req, res) => {
+  app.post("/api/locations/preview-sheet", isAuthenticated, async (req, res) => {
     try {
       const { spreadsheetUrl } = req.body;
 
@@ -1306,7 +1306,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Diagnostic endpoint to show CSV structure from each platform
-  app.get("/api/diagnostics/csv-structure", async (req, res) => {
+  app.get("/api/diagnostics/csv-structure", isAuthenticated, async (req, res) => {
     try {
       const { clientId } = req.query;
 
@@ -1344,7 +1344,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Import master location list from Google Sheets
-  app.post("/api/locations/import-master-list", async (req, res) => {
+  app.post("/api/locations/import-master-list", isAuthenticated, async (req, res) => {
     try {
       const { spreadsheetUrl, clientId } = req.body;
 
@@ -1471,7 +1471,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/analytics/weeks", async (req, res) => {
+  app.get("/api/analytics/weeks", isAuthenticated, async (req, res) => {
     try {
       const weeks = await storage.getAvailableWeeks();
       res.json(weeks);
@@ -1481,7 +1481,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Comprehensive diagnostic report endpoint
-  app.get("/api/analytics/diagnostic", async (req, res) => {
+  app.get("/api/analytics/diagnostic", isAuthenticated, async (req, res) => {
     try {
       const { weekStart, weekEnd, clientId } = req.query;
       
@@ -1589,7 +1589,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/analytics/overview", async (req, res) => {
+  app.get("/api/analytics/overview", isAuthenticated, async (req, res) => {
     try {
       const { clientId, locationId, platform, weekStart, weekEnd, locationTag } = req.query;
       const filters: AnalyticsFilters = {
@@ -1607,7 +1607,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/analytics/client-performance", async (req, res) => {
+  app.get("/api/analytics/client-performance", isAuthenticated, async (req, res) => {
     try {
       const performance = await storage.getClientPerformance();
       res.json(performance);
@@ -1616,7 +1616,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/analytics/locations", async (req, res) => {
+  app.get("/api/analytics/locations", isAuthenticated, async (req, res) => {
     try {
       const { clientId, locationId, platform, weekStart, weekEnd, locationTag } = req.query;
       const filters: AnalyticsFilters = {
@@ -1634,7 +1634,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/analytics/locations/consolidated", async (req, res) => {
+  app.get("/api/analytics/locations/consolidated", isAuthenticated, async (req, res) => {
     try {
       const { clientId, locationId, platform, weekStart, weekEnd, locationTag } = req.query;
       const filters: AnalyticsFilters = {
@@ -1652,7 +1652,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/promotions", async (req, res) => {
+  app.get("/api/promotions", isAuthenticated, async (req, res) => {
     try {
       const { clientId } = req.query;
       const promotions = await storage.getAllPromotions(clientId as string);
@@ -1662,7 +1662,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/promotions", async (req, res) => {
+  app.post("/api/promotions", isAuthenticated, async (req, res) => {
     try {
       const validatedData = insertPromotionSchema.parse(req.body);
       const promotion = await storage.createPromotion(validatedData);
@@ -1675,7 +1675,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/promotions/:id", async (req, res) => {
+  app.get("/api/promotions/:id", isAuthenticated, async (req, res) => {
     try {
       const promotion = await storage.getPromotion(req.params.id);
       if (!promotion) {
@@ -1703,7 +1703,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/promotions/:id", async (req, res) => {
+  app.delete("/api/promotions/:id", isAuthenticated, async (req, res) => {
     try {
       const deleted = await storage.deletePromotion(req.params.id);
       if (!deleted) {
@@ -1715,7 +1715,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/analytics/promotions", async (req, res) => {
+  app.get("/api/analytics/promotions", isAuthenticated, async (req, res) => {
     try {
       const { clientId } = req.query;
       const metrics = await storage.getPromotionMetrics(clientId as string);
@@ -1725,7 +1725,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/paid-ads", async (req, res) => {
+  app.get("/api/paid-ads", isAuthenticated, async (req, res) => {
     try {
       const { clientId } = req.query;
       const campaigns = await storage.getAllPaidAdCampaigns(clientId as string);
@@ -1735,7 +1735,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/paid-ads", async (req, res) => {
+  app.post("/api/paid-ads", isAuthenticated, async (req, res) => {
     try {
       const validatedData = insertPaidAdCampaignSchema.parse(req.body);
       const campaign = await storage.createPaidAdCampaign(validatedData);
@@ -1748,7 +1748,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/paid-ads/:id", async (req, res) => {
+  app.get("/api/paid-ads/:id", isAuthenticated, async (req, res) => {
     try {
       const campaign = await storage.getPaidAdCampaign(req.params.id);
       if (!campaign) {
@@ -1776,7 +1776,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/paid-ads/:id", async (req, res) => {
+  app.delete("/api/paid-ads/:id", isAuthenticated, async (req, res) => {
     try {
       const deleted = await storage.deletePaidAdCampaign(req.params.id);
       if (!deleted) {
@@ -1788,7 +1788,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/analytics/paid-ads", async (req, res) => {
+  app.get("/api/analytics/paid-ads", isAuthenticated, async (req, res) => {
     try {
       const { clientId } = req.query;
       const metrics = await storage.getPaidAdCampaignMetrics(clientId as string);
@@ -1798,7 +1798,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/analytics/location-weekly-financials", async (req, res) => {
+  app.get("/api/analytics/location-weekly-financials", isAuthenticated, async (req, res) => {
     try {
       const { clientId, locationId } = req.query;
       
@@ -1816,7 +1816,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/location-weekly-financials", async (req, res) => {
+  app.post("/api/location-weekly-financials", isAuthenticated, async (req, res) => {
     try {
       const validatedData = insertLocationWeeklyFinancialSchema.parse(req.body);
       const financial = await storage.createLocationWeeklyFinancial(validatedData);
@@ -1830,7 +1830,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Test locations weekly financials report - calculated from transaction data
-  app.get("/api/analytics/test-locations-report", async (req, res) => {
+  app.get("/api/analytics/test-locations-report", isAuthenticated, async (req, res) => {
     try {
       const { clientId } = req.query;
       
@@ -2096,7 +2096,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Income Statement - Financial breakdown by platform
-  app.get("/api/analytics/income-statement", async (req, res) => {
+  app.get("/api/analytics/income-statement", isAuthenticated, async (req, res) => {
     try {
       const { clientId, startDate, endDate } = req.query;
       
@@ -2314,7 +2314,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/export/weekly-financials", async (req, res) => {
+  app.get("/api/export/weekly-financials", isAuthenticated, async (req, res) => {
     try {
       const { clientId, aggregation = "by-location" } = req.query;
       
