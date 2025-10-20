@@ -987,7 +987,7 @@ export class DbStorage implements IStorage {
     const results = [];
 
     for (const client of allClients) {
-      const overview = await this.getDashboardOverview(client.id);
+      const overview = await this.getDashboardOverview({ clientId: client.id });
       results.push({
         clientId: client.id,
         clientName: client.name,

@@ -130,8 +130,15 @@ Preferred communication style: Simple, everyday language.
 
 **Transaction Data Upload:**
 - CSV file upload with platform and client ID identification
-- Server-side parsing, column validation, location matching, and transaction record creation.
-- Success/error feedback via toast notifications.
+- Server-side parsing, column validation, location matching, and transaction record creation
+- **Batch optimization for high-volume imports:**
+  - Location caching: Collects unique locations upfront and batch creates/finds them to eliminate N+1 query problems
+  - Batch insert: Processes transactions in chunks of 500 with upsert logic to prevent duplicates
+  - Performance: DoorDash (21,762 txns in 17.5s), Grubhub (1,602 txns in 105s), Uber Eats (3,726 txns in 20.7s)
+  - DoorDash: Uses unique `transactionId` field to support multiple transaction types per order
+  - Uber Eats: Automatic deduplication for multi-row CSV structure (reduces duplicates within batch)
+  - Grubhub: Uses unique `transactionId` field to support multiple transaction types per order
+- Success/error feedback via toast notifications
 
 **Marketing Data Upload:**
 - Supports platform and data type selection (DoorDash/Uber Eats; Promotions/Ads/Campaigns/Offers).
