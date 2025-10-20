@@ -2134,14 +2134,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           acc.taxes += tax;
           acc.commissions += Math.abs(t.commission || 0);
           acc.restDeliveryCharge += t.deliveryCharge || 0;
-          acc.promoSpend += Math.abs(t.promotionCost || 0);
+          acc.promoSpend += Math.abs(t.merchantFundedPromotion || 0);
           acc.customerRefunds += Math.abs(t.refundAdjustment || 0);
           acc.customerTip += t.tip || 0;
           acc.restaurantFees += Math.abs(t.otherFees || 0);
         }
         
         // Net payout includes all transaction types
-        acc.netPayout += t.netSales || 0;
+        acc.netPayout += t.merchantNetTotal || 0;
         return acc;
       }, initMetrics());
 

@@ -148,14 +148,14 @@ export default function Dashboard() {
       label: "ROAS",
       sortable: true,
       align: "right" as const,
-      render: (value: number) => `${value.toFixed(2)}x`,
+      render: (value: number | null) => value != null ? `${value.toFixed(2)}x` : 'N/A',
     },
     {
       key: "netPayoutPercent",
       label: "Net Payout %",
       sortable: true,
       align: "right" as const,
-      render: (value: number) => `${value.toFixed(2)}%`,
+      render: (value: number | null) => value != null ? `${value.toFixed(2)}%` : 'N/A',
     },
   ];
 
@@ -207,7 +207,7 @@ export default function Dashboard() {
       label: "ROAS",
       sortable: true,
       align: "right" as const,
-      render: (value: number) => `${value.toFixed(2)}x`,
+      render: (value: number | null) => value != null ? `${value.toFixed(2)}x` : 'N/A',
     },
   ];
 
