@@ -538,14 +538,24 @@ export class DbStorage implements IStorage {
             ordersFromMarketing++;
           }
         } else if (platform === "grubhub") {
-          totalOrders++;
-          totalSales += t.saleAmount;
+          // Grubhub Platform-Specific Status Handling:
+          // - Sales/Orders: Only count "Prepaid Order" transaction types (completed orders)
+          // - Net Payout: Include ALL transaction types (Prepaid Order, Order Adjustment, Cancellation) for finance reconciliation
+          const isPrepaidOrder = !t.transactionType || t.transactionType === "Prepaid Order";
+          
+          // Always include net payout for ALL transaction types
           netPayout += t.netSales;
-          const promoAmount = t.promotionCost || 0;
-          offerDiscountValue += promoAmount;
-          if (promoAmount > 0) {
-            marketingDrivenSales += t.saleAmount;
-            ordersFromMarketing++;
+          
+          // Only count Prepaid Orders for sales and order metrics
+          if (isPrepaidOrder) {
+            totalOrders++;
+            totalSales += t.saleAmount;
+            const promoAmount = t.promotionCost || 0;
+            offerDiscountValue += promoAmount;
+            if (promoAmount > 0) {
+              marketingDrivenSales += t.saleAmount;
+              ordersFromMarketing++;
+            }
           }
         }
       });
@@ -721,13 +731,23 @@ export class DbStorage implements IStorage {
                 ordersFromMarketing++;
               }
             } else if (platform === "grubhub") {
-              totalOrders++;
-              totalSales += t.saleAmount;
+              // Grubhub Platform-Specific Status Handling:
+              // - Sales/Orders: Only count "Prepaid Order" transaction types (completed orders)
+              // - Net Payout: Include ALL transaction types for finance reconciliation
+              const isPrepaidOrder = !t.transactionType || t.transactionType === "Prepaid Order";
+              
+              // Always include net payout for ALL transaction types
               netPayout += t.netSales;
-              if (t.promotionCost && t.promotionCost > 0) {
-                offerDiscountValue += t.promotionCost;
-                marketingDrivenSales += t.saleAmount;
-                ordersFromMarketing++;
+              
+              // Only count Prepaid Orders for sales and order metrics
+              if (isPrepaidOrder) {
+                totalOrders++;
+                totalSales += t.saleAmount;
+                if (t.promotionCost && t.promotionCost > 0) {
+                  offerDiscountValue += t.promotionCost;
+                  marketingDrivenSales += t.saleAmount;
+                  ordersFromMarketing++;
+                }
               }
             }
           });
