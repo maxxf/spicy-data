@@ -957,6 +957,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Preview Google Sheets data structure (for debugging)
+  app.post("/api/locations/preview-sheet", async (req, res) => {
+    try {
+      const { spreadsheetUrl } = req.body;
+
+      if (!spreadsheetUrl) {
+        return res.status(400).json({ error: "Missing spreadsheetUrl" });
+      }
+
+      // Extract spreadsheet ID from URL
+      const spreadsheetIdMatch = spreadsheetUrl.match(/\/d\/([a-zA-Z0-9-_]+)/);
+      if (!spreadsheetIdMatch) {
+        return res.status(400).json({ error: "Invalid Google Sheets URL" });
+      }
+      const spreadsheetId = spreadsheetIdMatch[1];
+
+      // Import fetchSheetData function
+      const { fetchSheetData } = await import("./google-sheets");
+
+      // Fetch first 10 rows to preview structure
+      const sheetData = await fetchSheetData(spreadsheetId, "Sheet1!A1:F10");
+
+      res.json({
+        preview: sheetData,
+        headers: sheetData[0],
+        firstRow: sheetData[1],
+      });
+    } catch (error: any) {
+      console.error("Sheet preview error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Import master location list from Google Sheets
   app.post("/api/locations/import-master-list", async (req, res) => {
     try {
