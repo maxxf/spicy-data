@@ -66,6 +66,20 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+### October 20, 2025 - Transaction Deletion & Data Re-import
+- **New Deletion Capabilities**: Added transaction deletion methods to storage layer
+  - Methods: `deleteUberEatsTransactionsByDateRange()`, `deleteDoordashTransactionsByDateRange()`, `deleteGrubhubTransactionsByDateRange()`
+  - Implemented in both MemStorage and DbStorage classes with proper IStorage interface
+  - API Endpoint: `DELETE /api/transactions/:platform/:clientId?startDate=YYYY-MM-DD&endDate=YYYY-MM-DD`
+  - Platform-specific column handling: UberEats uses `date`, DoorDash uses `transaction_date`, Grubhub uses `order_date`
+  - Deletion scripts: `scripts/delete-all-week-9-29.ts`, `scripts/test-deletion.ts`
+- **Week 9/29 Data Re-import**: Successfully deleted and re-imported clean data for Sept 29 - Oct 5, 2025
+  - Deleted 19,874 DoorDash transactions from previous import
+  - Re-imported fresh data: 7,525 UberEats, 19,874 DoorDash, 1,498 Grubhub transactions
+  - Total week 9/29: 25,162 transactions, $841,133.51 sales (excl. tax), $24,192.07 marketing spend
+  - Import script: `scripts/import-week-9-29.ts`
+  - Verification script: `scripts/verify-import.ts`
+
 ### October 20, 2025 - Income Statement Page
 - **Implementation**: Created comprehensive financial breakdown page showing P&L metrics by platform
   - Endpoint: `GET /api/analytics/income-statement?clientId=<id>&startDate=<date>&endDate=<date>`
