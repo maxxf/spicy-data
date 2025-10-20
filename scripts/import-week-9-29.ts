@@ -359,11 +359,38 @@ async function main() {
     });
   }
 
-  console.log(`Inserting ${doordashTransactionsToInsert.length} DoorDash transactions in batches...`);
+  console.log(`Upserting ${doordashTransactionsToInsert.length} DoorDash transactions in batches...`);
   for (let i = 0; i < doordashTransactionsToInsert.length; i += chunkSize) {
     const chunk = doordashTransactionsToInsert.slice(i, i + chunkSize);
-    await db.insert(doordashTransactions).values(chunk);
-    console.log(`Inserted ${Math.min(i + chunkSize, doordashTransactionsToInsert.length)}/${doordashTransactionsToInsert.length}`);
+    await db.insert(doordashTransactions)
+      .values(chunk)
+      .onConflictDoUpdate({
+        target: [doordashTransactions.clientId, doordashTransactions.transactionId, doordashTransactions.transactionDate],
+        set: {
+          locationId: sql`excluded.location_id`,
+          orderNumber: sql`excluded.order_number`,
+          storeLocation: sql`excluded.store_location`,
+          channel: sql`excluded.channel`,
+          orderStatus: sql`excluded.order_status`,
+          salesExclTax: sql`excluded.sales_excl_tax`,
+          orderSubtotal: sql`excluded.order_subtotal`,
+          taxes: sql`excluded.taxes`,
+          deliveryFees: sql`excluded.delivery_fees`,
+          commission: sql`excluded.commission`,
+          errorCharges: sql`excluded.error_charges`,
+          offersOnItems: sql`excluded.offers_on_items`,
+          deliveryOfferRedemptions: sql`excluded.delivery_offer_redemptions`,
+          marketingCredits: sql`excluded.marketing_credits`,
+          thirdPartyContribution: sql`excluded.third_party_contribution`,
+          otherPayments: sql`excluded.other_payments`,
+          otherPaymentsDescription: sql`excluded.other_payments_description`,
+          marketingSpend: sql`excluded.marketing_spend`,
+          totalPayout: sql`excluded.total_payout`,
+          netPayment: sql`excluded.net_payment`,
+          orderSource: sql`excluded.order_source`,
+        }
+      });
+    console.log(`Upserted ${Math.min(i + chunkSize, doordashTransactionsToInsert.length)}/${doordashTransactionsToInsert.length}`);
   }
 
   // Import Grubhub data
@@ -421,11 +448,35 @@ async function main() {
     });
   }
 
-  console.log(`Inserting ${grubhubTransactionsToInsert.length} Grubhub transactions in batches...`);
+  console.log(`Upserting ${grubhubTransactionsToInsert.length} Grubhub transactions in batches...`);
   for (let i = 0; i < grubhubTransactionsToInsert.length; i += chunkSize) {
     const chunk = grubhubTransactionsToInsert.slice(i, i + chunkSize);
-    await db.insert(grubhubTransactions).values(chunk);
-    console.log(`Inserted ${Math.min(i + chunkSize, grubhubTransactionsToInsert.length)}/${grubhubTransactionsToInsert.length}`);
+    await db.insert(grubhubTransactions)
+      .values(chunk)
+      .onConflictDoUpdate({
+        target: [grubhubTransactions.clientId, grubhubTransactions.transactionId],
+        set: {
+          locationId: sql`excluded.location_id`,
+          orderId: sql`excluded.order_id`,
+          orderDate: sql`excluded.order_date`,
+          transactionType: sql`excluded.transaction_type`,
+          restaurant: sql`excluded.restaurant`,
+          orderChannel: sql`excluded.order_channel`,
+          fulfillmentType: sql`excluded.fulfillment_type`,
+          subtotal: sql`excluded.subtotal`,
+          saleAmount: sql`excluded.sale_amount`,
+          subtotalSalesTax: sql`excluded.subtotal_sales_tax`,
+          taxAmount: sql`excluded.tax_amount`,
+          commission: sql`excluded.commission`,
+          deliveryCharge: sql`excluded.delivery_charge`,
+          processingFee: sql`excluded.processing_fee`,
+          merchantFundedPromotion: sql`excluded.merchant_funded_promotion`,
+          merchantNetTotal: sql`excluded.merchant_net_total`,
+          transactionNote: sql`excluded.transaction_note`,
+          customerType: sql`excluded.customer_type`,
+        }
+      });
+    console.log(`Upserted ${Math.min(i + chunkSize, grubhubTransactionsToInsert.length)}/${grubhubTransactionsToInsert.length}`);
   }
 
   console.log("\n✅ Import complete for week 9/29!");

@@ -45,6 +45,10 @@ Preferred communication style: Simple, everyday language.
         - **Uber Eats**: Extracts code from `Store Name` (CSV) to match `uberEatsStoreLabel` (master sheet).
         - **Grubhub**: Exact match of `street_address` (CSV) to `address` (master sheet).
     - **Unmapped Locations**: Transactions failing to match are assigned to a special "Unmapped Locations" bucket per client; no new locations are auto-created. Hardcoded mappings handle specific DoorDash store name edge cases.
+    - **Duplicate Prevention**: All platforms use upsert logic (onConflictDoUpdate) with unique constraints. Re-uploading data for a week that already exists will UPDATE existing records, never create duplicates.
+        - **UberEats**: Unique on `(clientId, orderId, date)`
+        - **DoorDash**: Unique on `(clientId, transactionId, transactionDate)`
+        - **Grubhub**: Unique on `(clientId, transactionId)`
 - **Performance**: Batch optimization for high-volume imports using location caching and batch inserts with upsert logic for deduplication.
 - **Marketing Data Upload**: Supports platform and data type selection. Uses fuzzy location matching and deduplication for campaign records and location metrics. Creates/updates promotion or paid ad campaigns and their location-level metrics.
 
