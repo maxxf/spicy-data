@@ -957,6 +957,105 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Import master location list from Google Sheets
+  app.post("/api/locations/import-master-list", async (req, res) => {
+    try {
+      const { spreadsheetUrl, clientId } = req.body;
+
+      if (!spreadsheetUrl || !clientId) {
+        return res.status(400).json({ error: "Missing spreadsheetUrl or clientId" });
+      }
+
+      // Extract spreadsheet ID from URL
+      const spreadsheetIdMatch = spreadsheetUrl.match(/\/d\/([a-zA-Z0-9-_]+)/);
+      if (!spreadsheetIdMatch) {
+        return res.status(400).json({ error: "Invalid Google Sheets URL" });
+      }
+      const spreadsheetId = spreadsheetIdMatch[1];
+
+      // Import fetchSheetData function
+      const { fetchSheetData } = await import("./google-sheets");
+
+      // Fetch the data from the sheet
+      // Assuming the data is in the first sheet with headers in row 1
+      const sheetData = await fetchSheetData(spreadsheetId, "Sheet1!A:Z");
+
+      if (!sheetData || sheetData.length === 0) {
+        return res.status(400).json({ error: "No data found in spreadsheet" });
+      }
+
+      // First row should be headers
+      const headers = sheetData[0];
+      const rows = sheetData.slice(1);
+
+      let created = 0;
+      let updated = 0;
+      let skipped = 0;
+
+      for (const row of rows) {
+        // Skip empty rows
+        if (!row || row.length === 0 || !row[2]) {
+          skipped++;
+          continue;
+        }
+
+        // Column C (index 2) is the Store ID
+        const storeId = row[2]?.toString().trim();
+        if (!storeId) {
+          skipped++;
+          continue;
+        }
+
+        // Try to find a canonical name from the row
+        // Assuming Column A or B might have the location name
+        const canonicalName = row[0]?.toString().trim() || row[1]?.toString().trim() || storeId;
+
+        // Check if location with this Store ID already exists
+        const allLocations = await storage.getLocationsByClient(clientId);
+        const existingLocation = allLocations.find(loc => loc.storeId === storeId);
+
+        if (existingLocation) {
+          // Update existing location if needed
+          const updates: any = {};
+          if (canonicalName && canonicalName !== existingLocation.canonicalName) {
+            updates.canonicalName = canonicalName;
+          }
+          
+          if (Object.keys(updates).length > 0) {
+            await storage.updateLocation(existingLocation.id, updates);
+            updated++;
+          } else {
+            skipped++;
+          }
+        } else {
+          // Create new location with Store ID
+          await storage.createLocation({
+            clientId,
+            storeId,
+            canonicalName,
+            uberEatsName: null,
+            doordashName: null,
+            grubhubName: null,
+            isVerified: true,
+            locationTag: null,
+          });
+          created++;
+        }
+      }
+
+      res.json({
+        success: true,
+        created,
+        updated,
+        skipped,
+        total: rows.length,
+      });
+    } catch (error: any) {
+      console.error("Master list import error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   app.get("/api/analytics/weeks", async (req, res) => {
     try {
       const weeks = await storage.getAvailableWeeks();

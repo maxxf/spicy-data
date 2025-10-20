@@ -49,3 +49,14 @@ export async function getUncachableGoogleSheetClient() {
 
   return google.sheets({ version: 'v4', auth: oauth2Client });
 }
+
+export async function fetchSheetData(spreadsheetId: string, range: string) {
+  const sheets = await getUncachableGoogleSheetClient();
+  
+  const response = await sheets.spreadsheets.values.get({
+    spreadsheetId,
+    range,
+  });
+
+  return response.data.values || [];
+}
