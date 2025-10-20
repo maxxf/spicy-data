@@ -459,6 +459,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
 
           const locationId = locationMap.get(locationName) || null;
+          
+          // Parse financial fields
+          const subtotal = parseFloat(getColumnValue(row, "subtotal", "Subtotal", "Sale_Amount", "sale amount")) || 0;
+          const subtotalSalesTax = parseFloat(getColumnValue(row, "subtotal_sales_tax", "Subtotal_Sales_Tax", "tax amount", "Tax Amount")) || 0;
+          const saleAmount = subtotal + subtotalSalesTax; // Calculate total sale amount
 
           transactions.push({
             clientId,
@@ -470,8 +475,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
             restaurant: locationName,
             orderChannel: getColumnValue(row, "order_channel", "Order_Channel", "order channel") || null,
             fulfillmentType: getColumnValue(row, "fulfillment_type", "Fulfillment_Type", "fulfillment type") || null,
-            subtotal: parseFloat(getColumnValue(row, "subtotal", "Subtotal", "Sale_Amount", "sale amount")) || 0,
-            subtotalSalesTax: parseFloat(getColumnValue(row, "subtotal_sales_tax", "Subtotal_Sales_Tax", "tax amount", "Tax Amount")) || 0,
+            subtotal,
+            subtotalSalesTax,
+            saleAmount,
             commission: parseFloat(getColumnValue(row, "commission", "Commission")) || 0,
             deliveryCommission: parseFloat(getColumnValue(row, "delivery_commission", "Delivery_Commission", "delivery commission")) || 0,
             processingFee: parseFloat(getColumnValue(row, "processing_fee", "merchant_service_fee", "Processing_Fee", "processing fee")) || 0,

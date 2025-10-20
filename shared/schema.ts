@@ -117,6 +117,7 @@ export const grubhubTransactions = pgTable("grubhub_transactions", {
   // Financial details (from CSV columns)
   subtotal: real("subtotal").notNull().default(0),
   subtotalSalesTax: real("subtotal_sales_tax").notNull().default(0),
+  saleAmount: real("sale_amount").notNull().default(0), // subtotal + subtotalSalesTax
   commission: real("commission").notNull().default(0),
   deliveryCommission: real("delivery_commission").notNull().default(0),
   processingFee: real("processing_fee").notNull().default(0),
