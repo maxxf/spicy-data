@@ -365,7 +365,7 @@ async function main() {
     await db.insert(doordashTransactions)
       .values(chunk)
       .onConflictDoUpdate({
-        target: [doordashTransactions.clientId, doordashTransactions.transactionId, doordashTransactions.transactionDate],
+        target: [doordashTransactions.clientId, doordashTransactions.transactionId],
         set: {
           locationId: sql`excluded.location_id`,
           orderNumber: sql`excluded.order_number`,
