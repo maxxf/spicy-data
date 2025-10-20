@@ -25,11 +25,17 @@ import {
   type PlatformMetrics,
   type LocationMatchSuggestion,
   type AnalyticsFilters,
+  type User,
+  type UpsertUser,
 } from "@shared/schema";
 import { getUniqueWeeks } from "@shared/week-utils";
 import { randomUUID } from "crypto";
 
 export interface IStorage {
+  // User operations (required for Replit Auth)
+  getUser(id: string): Promise<User | undefined>;
+  upsertUser(user: UpsertUser): Promise<User>;
+  
   createClient(client: InsertClient): Promise<Client>;
   getClient(id: string): Promise<Client | undefined>;
   getAllClients(): Promise<Client[]>;
@@ -100,6 +106,7 @@ export interface IStorage {
 }
 
 export class MemStorage implements IStorage {
+  private users: Map<string, User>;
   private clients: Map<string, Client>;
   private locations: Map<string, Location>;
   private uberEatsTransactions: Map<string, UberEatsTransaction>;
@@ -111,6 +118,7 @@ export class MemStorage implements IStorage {
   private locationWeeklyFinancials: Map<string, LocationWeeklyFinancial>;
 
   constructor() {
+    this.users = new Map();
     this.clients = new Map();
     this.locations = new Map();
     this.uberEatsTransactions = new Map();
@@ -133,6 +141,28 @@ export class MemStorage implements IStorage {
     demoClients.forEach(client => {
       this.clients.set(client.id, client);
     });
+  }
+
+  // User operations (required for Replit Auth)
+  async getUser(id: string): Promise<User | undefined> {
+    return this.users.get(id);
+  }
+
+  async upsertUser(userData: UpsertUser): Promise<User> {
+    const existing = this.users.get(userData.id as string);
+    const user: User = {
+      id: userData.id || randomUUID(),
+      email: userData.email || null,
+      firstName: userData.firstName || null,
+      lastName: userData.lastName || null,
+      profileImageUrl: userData.profileImageUrl || null,
+      role: userData.role || "user",
+      clientId: userData.clientId || null,
+      createdAt: existing?.createdAt || new Date(),
+      updatedAt: new Date(),
+    };
+    this.users.set(user.id, user);
+    return user;
   }
 
   async createClient(insertClient: InsertClient): Promise<Client> {

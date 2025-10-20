@@ -1,6 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
+import { setupAuth, isAuthenticated, isSuperAdmin, isBrandAdmin, getCurrentUser } from "./replitAuth";
 import { insertPromotionSchema, insertPaidAdCampaignSchema, insertLocationSchema, insertLocationWeeklyFinancialSchema, type AnalyticsFilters } from "@shared/schema";
 import multer from "multer";
 import { parse } from "csv-parse/sync";
@@ -372,7 +373,23 @@ async function findOrCreateLocation(
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  app.get("/api/clients", async (req, res) => {
+  // Setup Replit Auth
+  await setupAuth(app);
+
+  // Auth routes
+  app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      res.json(user);
+    } catch (error) {
+      console.error("Error fetching user:", error);
+      res.status(500).json({ message: "Failed to fetch user" });
+    }
+  });
+
+  // Protected API routes (require authentication)
+  app.get("/api/clients", isAuthenticated, async (req, res) => {
     try {
       const clients = await storage.getAllClients();
       res.json(clients);
