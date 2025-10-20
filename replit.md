@@ -61,3 +61,27 @@ Preferred communication style: Simple, everyday language.
 - Custom fonts: FKGroteskNeue, Berkeley Mono.
 - Platform-specific brand colors (Uber Green, DoorDash Red, Grubhub Orange).
 - 8-color chart palette.
+
+## Recent Changes
+
+### October 20, 2025 - Test Locations (Corp Locations) Weekly Financial Report
+- **Implementation**: Built live-calculated financial report for 16 designated corp locations
+  - Endpoint: `GET /api/analytics/test-locations-report`
+  - Calculates metrics directly from transaction data (Uber Eats, DoorDash, Grubhub)
+  - No pre-computed tables required - always reflects latest transaction data
+- **Metrics Calculated**:
+  - Sales (excl. tax)
+  - Marketing Sales
+  - Marketing Spend
+  - Marketing % (marketing spend / marketing sales)
+  - ROAS (marketing sales / marketing spend)
+  - Payout $ (net payout)
+  - Payout % (payout / sales)
+  - Payout with COGS (payout - sales * 46%)
+- **Features**:
+  - Auto-aggregates by location and week (Monday-Sunday)
+  - Flexible week-range selection (4, 6, 8, 12 weeks, or all available)
+  - CSV export with formatted currency and percentages
+  - Accessible via Locations page → "Test Locations Report" tab
+- **Corp Locations** (16 stores):
+  - AZ900482, NV008, NV036, NV051, NV054, NV067, NV079, NV103, NV111, NV121, NV126, NV151, NV152, NV191, NV900467, NV900478
