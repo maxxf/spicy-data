@@ -5,6 +5,7 @@ import {
   uberEatsTransactions,
   clients,
   locations,
+  platformAdSpend,
 } from "../shared/schema";
 import { eq, and, gte, lte, sql } from "drizzle-orm";
 
@@ -80,6 +81,7 @@ async function main() {
   console.log(`Parsed ${ubereatsRows.length} UberEats rows`);
 
   const ubereatsMap = new Map<string, any>();
+  const adSpendByLocation = new Map<string, number>();
   let adSpendRows = 0;
   let completedOrders = 0;
   
@@ -91,9 +93,16 @@ async function main() {
     const orderStatus = rowData["Order Status"] || "";
     const otherPaymentsDesc = rowData["Other payments description"] || "";
     
-    // Skip ad spend rows (no Order ID, just tracking costs)
+    // Capture ad spend rows (no Order ID, just tracking costs)
     if (!orderId && otherPaymentsDesc === "Ad Spend") {
-      adSpendRows++;
+      const validDates = ["10/6/25", "10/7/25", "10/8/25", "10/9/25", "10/10/25", "10/11/25", "10/12/25"];
+      if (validDates.includes(date)) {
+        const locationId = await findLocation(storeName);
+        const adSpend = Math.abs(parseFloat(rowData["Other payments"] || "0") || 0);
+        const key = `${locationId}:${date}`;
+        adSpendByLocation.set(key, (adSpendByLocation.get(key) || 0) + adSpend);
+        adSpendRows++;
+      }
       continue;
     }
     
@@ -209,6 +218,33 @@ async function main() {
   }
 
   console.log(`✅ UberEats import complete!`);
+
+  // Insert ad spend data
+  console.log(`\nInserting ${adSpendByLocation.size} location-level ad spend records...`);
+  const adSpendRecords = Array.from(adSpendByLocation.entries()).map(([key, adSpend]) => {
+    const [locationId, date] = key.split(':');
+    return {
+      clientId: client.id,
+      locationId,
+      platform: 'ubereats',
+      date,
+      adSpend,
+    };
+  });
+
+  for (const record of adSpendRecords) {
+    await db.insert(platformAdSpend)
+      .values(record)
+      .onConflictDoUpdate({
+        target: [platformAdSpend.clientId, platformAdSpend.locationId, platformAdSpend.platform, platformAdSpend.date],
+        set: {
+          adSpend: sql`EXCLUDED.ad_spend`,
+        },
+      });
+  }
+
+  const totalAdSpend = Array.from(adSpendByLocation.values()).reduce((sum, v) => sum + v, 0);
+  console.log(`✅ Inserted $${totalAdSpend.toFixed(2)} in location-level ad spend`);
 
   // Summary
   const summary = await db.select().from(uberEatsTransactions)

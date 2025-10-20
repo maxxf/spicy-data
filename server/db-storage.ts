@@ -13,6 +13,7 @@ import {
   promotions,
   paidAdCampaigns,
   campaignLocationMetrics,
+  platformAdSpend,
   locationWeeklyFinancials,
   type Client,
   type InsertClient,
@@ -564,8 +565,8 @@ export class DbStorage implements IStorage {
       }
     }
 
-    // Fetch filtered transactions
-    const [uberTxns, doorTxns, grubTxns] = await Promise.all([
+    // Fetch filtered transactions and platform ad spend
+    const [uberTxns, doorTxns, grubTxns, uberAdSpend] = await Promise.all([
       uberConditions.length > 0
         ? this.db.select().from(uberEatsTransactions).where(and(...uberConditions))
         : this.db.select().from(uberEatsTransactions),
@@ -575,6 +576,13 @@ export class DbStorage implements IStorage {
       grubConditions.length > 0
         ? this.db.select().from(grubhubTransactions).where(and(...grubConditions))
         : this.db.select().from(grubhubTransactions),
+      // Fetch UberEats platform ad spend
+      filters?.clientId
+        ? this.db.select().from(platformAdSpend).where(and(
+            eq(platformAdSpend.clientId, filters.clientId),
+            eq(platformAdSpend.platform, 'ubereats')
+          ))
+        : this.db.select().from(platformAdSpend).where(eq(platformAdSpend.platform, 'ubereats')),
     ]);
 
     const calculatePlatformMetrics = (
@@ -590,6 +598,16 @@ export class DbStorage implements IStorage {
         
         // Use shared helper for consistent UberEats attribution
         const metrics = calculateUberEatsMetrics(filteredTxns as UberEatsTransaction[]);
+        
+        // Add platform-level ad spend (store-level ad spend not tied to orders)
+        const platformAdSpendAmount = uberAdSpend
+          .filter((ad: any) => dateFilter 
+            ? isUberEatsDateInRange(ad.date, dateFilter.weekStart, dateFilter.weekEnd)
+            : true)
+          .reduce((sum: number, ad: any) => sum + (ad.adSpend || 0), 0);
+        
+        const totalAdSpend = metrics.adSpend + platformAdSpendAmount;
+        
         return {
           platform,
           totalSales: metrics.totalSales,
@@ -599,14 +617,14 @@ export class DbStorage implements IStorage {
           ordersFromMarketing: metrics.ordersFromMarketing,
           organicOrders: metrics.totalOrders - metrics.ordersFromMarketing,
           aov: metrics.totalOrders > 0 ? metrics.totalSales / metrics.totalOrders : 0,
-          adSpend: metrics.adSpend,
+          adSpend: totalAdSpend,
           offerDiscountValue: metrics.offerDiscountValue,
-          totalMarketingInvestment: metrics.adSpend + metrics.offerDiscountValue,
+          totalMarketingInvestment: totalAdSpend + metrics.offerDiscountValue,
           marketingInvestmentPercent:
-            metrics.totalSales > 0 ? ((metrics.adSpend + metrics.offerDiscountValue) / metrics.totalSales) * 100 : 0,
+            metrics.totalSales > 0 ? ((totalAdSpend + metrics.offerDiscountValue) / metrics.totalSales) * 100 : 0,
           marketingRoas:
-            (metrics.adSpend + metrics.offerDiscountValue) > 0
-              ? metrics.marketingDrivenSales / (metrics.adSpend + metrics.offerDiscountValue)
+            (totalAdSpend + metrics.offerDiscountValue) > 0
+              ? metrics.marketingDrivenSales / (totalAdSpend + metrics.offerDiscountValue)
               : 0,
           netPayout: metrics.netPayout,
           netPayoutPercent: metrics.totalSales > 0 ? (metrics.netPayout / metrics.totalSales) * 100 : 0,

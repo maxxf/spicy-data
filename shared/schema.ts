@@ -219,6 +219,20 @@ export const campaignLocationMetrics = pgTable("campaign_location_metrics", {
   uploadedAt: timestamp("uploaded_at").defaultNow().notNull(),
 });
 
+// Platform ad spend - stores location-level ad spend not tied to specific orders
+export const platformAdSpend = pgTable("platform_ad_spend", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  clientId: varchar("client_id").notNull().references(() => clients.id),
+  locationId: varchar("location_id").references(() => locations.id),
+  platform: text("platform").notNull(), // 'ubereats', 'doordash', 'grubhub'
+  date: text("date").notNull(), // Format: M/D/YY (UberEats) or YYYY-MM-DD
+  adSpend: real("ad_spend").notNull().default(0), // Ad spend amount (absolute value)
+  uploadedAt: timestamp("uploaded_at").defaultNow().notNull(),
+}, (table) => ({
+  // Unique constraint to prevent duplicates
+  uniqueAdSpend: uniqueIndex("platform_ad_spend_unique").on(table.clientId, table.locationId, table.platform, table.date),
+}));
+
 // Location weekly financials - stores weekly financial summary per location
 export const locationWeeklyFinancials = pgTable("location_weekly_financials", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
