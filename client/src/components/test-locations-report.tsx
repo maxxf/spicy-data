@@ -3,9 +3,10 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Download } from "lucide-react";
+import { Download, AlertTriangle, Info } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 interface WeeklyMetric {
   weekStartDate: string;
@@ -45,6 +46,105 @@ export function TestLocationsReport({ clientId }: { clientId: string }) {
   });
 
   const displayWeeks = data?.weeks.slice(-selectedWeeks) || [];
+
+  const formatCurrency = (value: number) => {
+    return `$${value.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+  };
+
+  // Analyze data quality issues
+  const analyzeDataQuality = () => {
+    if (!data || data.locations.length === 0) return [];
+
+    interface DataQualityIssue {
+      type: 'warning' | 'info';
+      location: string;
+      week: string;
+      issue: string;
+    }
+
+    const issues: DataQualityIssue[] = [];
+
+    data.locations.forEach(location => {
+      // Check for missing weeks
+      const missingWeeks = data.weeks.filter((week, idx) => 
+        location.weeklyMetrics[idx] === null
+      );
+      
+      if (missingWeeks.length > 0 && missingWeeks.length < data.weeks.length) {
+        // Create a formatted list of missing weeks for the message
+        const weeksList = missingWeeks.map(w => 
+          new Date(w).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+        ).join(', ');
+        
+        issues.push({
+          type: 'info',
+          location: location.locationName,
+          week: missingWeeks[0], // Use first missing week for date display
+          issue: `Missing data for ${missingWeeks.length} week(s): ${weeksList}`
+        });
+      }
+
+      location.weeklyMetrics.forEach((metric, idx) => {
+        if (!metric) return;
+        
+        const week = data.weeks[idx];
+
+        // Zero sales but positive payout
+        if (metric.sales === 0 && metric.payout > 0) {
+          issues.push({
+            type: 'warning',
+            location: location.locationName,
+            week,
+            issue: `Zero sales but payout of ${formatCurrency(metric.payout)} (check for adjustments/refunds)`
+          });
+        }
+
+        // Unusually high ROAS (might indicate data issue)
+        if (metric.roas > 20 && metric.marketingSpend > 0) {
+          issues.push({
+            type: 'info',
+            location: location.locationName,
+            week,
+            issue: `Very high ROAS (${metric.roas.toFixed(1)}x) - verify marketing data is complete`
+          });
+        }
+
+        // Negative payout with COGS
+        if (metric.payoutWithCogs < 0) {
+          issues.push({
+            type: 'warning',
+            location: location.locationName,
+            week,
+            issue: `Negative payout after COGS (${formatCurrency(metric.payoutWithCogs)}) - location operating at a loss`
+          });
+        }
+
+        // Very low payout percentage
+        if (metric.sales > 0 && metric.payoutPercent < 30) {
+          issues.push({
+            type: 'warning',
+            location: location.locationName,
+            week,
+            issue: `Low payout percentage (${metric.payoutPercent.toFixed(0)}%) - high platform fees or adjustments`
+          });
+        }
+
+        // Marketing spend higher than marketing sales
+        if (metric.marketingSpend > metric.marketingSales && metric.marketingSpend > 0) {
+          issues.push({
+            type: 'warning',
+            location: location.locationName,
+            week,
+            issue: `Marketing spend (${formatCurrency(metric.marketingSpend)}) exceeds marketing sales (${formatCurrency(metric.marketingSales)})`
+          });
+        }
+      });
+    });
+
+    return issues;
+  };
+
+  const dataQualityIssues = data ? analyzeDataQuality() : [];
 
   const exportToCSV = () => {
     if (!data || data.locations.length === 0) {
@@ -117,10 +217,6 @@ export function TestLocationsReport({ clientId }: { clientId: string }) {
       title: "Export successful",
       description: "Test locations report downloaded as CSV",
     });
-  };
-
-  const formatCurrency = (value: number) => {
-    return `$${value.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
   };
 
   if (isLoading) {
@@ -223,6 +319,59 @@ export function TestLocationsReport({ clientId }: { clientId: string }) {
           </TableBody>
         </Table>
       </div>
+
+      {/* Data Quality Issues Section */}
+      {dataQualityIssues.length > 0 && (
+        <div className="mt-6 space-y-3">
+          <h3 className="text-sm font-semibold flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 text-yellow-600" />
+            Data Quality Issues to Review
+          </h3>
+          <div className="space-y-2">
+            {dataQualityIssues.map((issue, idx) => (
+              <Alert 
+                key={idx} 
+                variant={issue.type === 'warning' ? 'destructive' : 'default'}
+                className="py-2"
+              >
+                <div className="flex items-start gap-2">
+                  {issue.type === 'warning' ? (
+                    <AlertTriangle className="w-4 h-4 mt-0.5" />
+                  ) : (
+                    <Info className="w-4 h-4 mt-0.5" />
+                  )}
+                  <div className="flex-1">
+                    <AlertDescription className="text-sm">
+                      <span className="font-medium">{issue.location}</span>
+                      {' - '}
+                      <span className="text-xs text-muted-foreground">
+                        Week of {new Date(issue.week).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                      </span>
+                      {': '}
+                      {issue.issue}
+                    </AlertDescription>
+                  </div>
+                </div>
+              </Alert>
+            ))}
+          </div>
+          <p className="text-xs text-muted-foreground mt-2">
+            These alerts help identify potential data issues. Review your transaction data uploads and platform reports to ensure accuracy.
+          </p>
+        </div>
+      )}
+
+      {/* No issues message */}
+      {dataQualityIssues.length === 0 && data && data.locations.length > 0 && (
+        <div className="mt-6">
+          <Alert>
+            <Info className="w-4 h-4" />
+            <AlertDescription className="text-sm">
+              No significant data quality issues detected. All metrics appear consistent.
+            </AlertDescription>
+          </Alert>
+        </div>
+      )}
     </div>
   );
 }
