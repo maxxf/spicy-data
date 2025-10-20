@@ -175,6 +175,23 @@ Preferred communication style: Simple, everyday language.
   - Tagged with `locationTag: "unmapped_bucket"` for easy identification
   - NO auto-creation of new locations beyond the master list
   - Unmapped transactions can be reviewed and manually reassigned to correct locations
+
+**DoorDash Numeric-Only merchant_store_id Edge Cases:**
+  - **Locations Found in Week 10/6-10/12 CSV Data (7 total, 3 matched, 4 unmapped):**
+    1. **8** → "Sahara & Las Vegas" (75 txns) → ✅ Matched to NV008 Las Vegas Sahara via numeric matching
+    2. **336** → "Murrieta Hot Springs Rd" (146 txns) → ❌ Not in master location list (unmapped)
+    3. **380** → "University Dr" (60 txns) → ❌ Not in master location list (unmapped)
+    4. **444** → "Catclaw - Abilene" (171 txns) → ❌ Not in master location list (unmapped)
+    5. **451** → "Rancho Mirage" (117 txns) → ✅ Matched to CA100451 Rancho Mirage Bob Hope via store_name fallback
+    6. **467** → "Los Altos" (248 txns) → ✅ Matched to NV900467 Sparks Los Altos via store_name fallback
+    7. **486** → "Sunset and Sandhill" (82 txns) → ❌ Not in master location list (unmapped)
+  - **Summary:**
+    - **Successfully Matched**: 3/7 locations (440 transactions: 75 + 117 + 248)
+    - **Unmapped**: 4/7 locations (459 transactions: 146 + 60 + 171 + 82)
+  - **Matching Strategies Applied:**
+    - Numeric matching handles cases like "8" → "NV008" (leading zero removal)
+    - Store name fallback handles cases like "467" + "Los Altos" → "NV900467" (numeric portions differ)
+    - Unmapped locations (336, 380, 444, 486) are not in master location list, correctly sent to unmapped bucket for manual review
 - **Batch optimization for high-volume imports:**
   - Location caching: Collects unique locations upfront and batch creates/finds them to eliminate N+1 query problems
   - Batch insert: Processes transactions in chunks of 500 with upsert logic to prevent duplicates
