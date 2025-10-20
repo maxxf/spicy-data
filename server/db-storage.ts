@@ -590,8 +590,9 @@ export class DbStorage implements IStorage {
             totalOrders++;
             totalSales += t.saleAmount;
             const promoAmount = t.merchantFundedPromotion || 0;
-            offerDiscountValue += promoAmount;
-            if (promoAmount > 0) {
+            // Grubhub promos are stored as negative values, use absolute value for tracking
+            offerDiscountValue += Math.abs(promoAmount);
+            if (promoAmount !== 0) {
               marketingDrivenSales += t.saleAmount;
               ordersFromMarketing++;
             }
@@ -782,8 +783,10 @@ export class DbStorage implements IStorage {
               if (isPrepaidOrder) {
                 totalOrders++;
                 totalSales += t.saleAmount;
-                if (t.merchantFundedPromotion && t.merchantFundedPromotion > 0) {
-                  offerDiscountValue += t.merchantFundedPromotion;
+                const promoAmount = t.merchantFundedPromotion || 0;
+                // Grubhub promos are stored as negative values, use absolute value for tracking
+                if (promoAmount !== 0) {
+                  offerDiscountValue += Math.abs(promoAmount);
                   marketingDrivenSales += t.saleAmount;
                   ordersFromMarketing++;
                 }
