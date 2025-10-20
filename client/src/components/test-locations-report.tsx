@@ -33,7 +33,7 @@ interface TestLocationsReportData {
 
 export function TestLocationsReport({ clientId }: { clientId: string }) {
   const { toast } = useToast();
-  const [selectedWeeks, setSelectedWeeks] = useState<number>(6); // Show last 6 weeks
+  const [selectedWeeks, setSelectedWeeks] = useState<number>(12); // Show last 12 weeks
 
   const { data, isLoading } = useQuery<TestLocationsReportData>({
     queryKey: ["/api/analytics/test-locations-report", clientId],
@@ -46,6 +46,12 @@ export function TestLocationsReport({ clientId }: { clientId: string }) {
   });
 
   const displayWeeks = data?.weeks.slice(-selectedWeeks) || [];
+
+  // Helper to parse YYYY-MM-DD as local date (not UTC) to avoid timezone display issues
+  const parseLocalDate = (dateStr: string): Date => {
+    const [year, month, day] = dateStr.split('-').map(Number);
+    return new Date(year, month - 1, day);
+  };
 
   const formatCurrency = (value: number) => {
     return `$${value.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
@@ -73,7 +79,7 @@ export function TestLocationsReport({ clientId }: { clientId: string }) {
       if (missingWeeks.length > 0 && missingWeeks.length < data.weeks.length) {
         // Create a formatted list of missing weeks for the message
         const weeksList = missingWeeks.map(w => 
-          new Date(w).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+          parseLocalDate(w).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
         ).join(', ');
         
         issues.push({
@@ -274,7 +280,7 @@ export function TestLocationsReport({ clientId }: { clientId: string }) {
               <TableHead className="sticky left-[200px] bg-background z-10 min-w-[180px]">Metric</TableHead>
               {displayWeeks.map((week) => (
                 <TableHead key={week} className="text-center min-w-[120px]">
-                  {new Date(week).toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: '2-digit' })}
+                  {parseLocalDate(week).toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: '2-digit' })}
                 </TableHead>
               ))}
             </TableRow>
@@ -345,7 +351,7 @@ export function TestLocationsReport({ clientId }: { clientId: string }) {
                       <span className="font-medium">{issue.location}</span>
                       {' - '}
                       <span className="text-xs text-muted-foreground">
-                        Week of {new Date(issue.week).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                        Week of {parseLocalDate(issue.week).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                       </span>
                       {': '}
                       {issue.issue}
