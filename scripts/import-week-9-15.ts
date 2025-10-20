@@ -322,8 +322,8 @@ async function main() {
       otherPayments: marketingFees,
       otherPaymentsDescription: marketingFees !== 0 ? "Marketing fees" : null,
       marketingSpend: marketingFees,
-      totalPayout: parseFloat(row["Net Total"]),
-      netPayment: parseFloat(row["Net Total"]),
+      totalPayout: parseFloat(row["Estimated Payout"]),
+      netPayment: parseFloat(row["Estimated Payout"]),
       orderSource: "Marketplace",
     });
   }

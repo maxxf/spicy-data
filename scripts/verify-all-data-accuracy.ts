@@ -75,13 +75,8 @@ async function verifyUberEats(weekData: WeekData) {
     csvPayout += parseFloatSafe(row["Total payout"]);
   }
   
-  // Query database - UberEats uses M/D/YY format like "9/15/25"
-  // Convert YYYY-MM-DD to M/D/YY for querying
-  const startParts = weekData.startDate.split('-'); // ["2025", "09", "15"]
-  const endParts = weekData.endDate.split('-');     // ["2025", "09", "21"]
-  const startDateUE = `${parseInt(startParts[1])}/${parseInt(startParts[2])}/${startParts[0].slice(2)}`; // "9/15/25"
-  const endDateUE = `${parseInt(endParts[1])}/${parseInt(endParts[2])}/${endParts[0].slice(2)}`; // "9/21/25"
-  
+  // Query database - UberEats uses M/D/YY format, need to convert to dates for proper comparison
+  // across month boundaries
   const dbResults = await db.select({
     count: sql<number>`count(*)::int`,
     sales: sql<number>`sum(subtotal)::float`,
@@ -90,8 +85,8 @@ async function verifyUberEats(weekData: WeekData) {
   }).from(uberEatsTransactions)
     .where(and(
       eq(uberEatsTransactions.clientId, CAPRIOTTIS_ID),
-      gte(uberEatsTransactions.date, startDateUE),
-      lte(uberEatsTransactions.date, endDateUE)
+      sql`TO_DATE(date, 'MM/DD/YY') >= TO_DATE(${weekData.startDate}, 'YYYY-MM-DD')`,
+      sql`TO_DATE(date, 'MM/DD/YY') <= TO_DATE(${weekData.endDate}, 'YYYY-MM-DD')`
     ));
   
   const dbData = dbResults[0];
@@ -125,7 +120,10 @@ async function verifyDoorDash(weekData: WeekData) {
   const rows = parse(csv, { columns: true, skip_empty_lines: true, trim: true });
   
   // Determine if this is summary or detailed format
-  const isSummary = rows[0] && "Merchant Store ID" in rows[0];
+  // Detailed format has "DoorDash transaction ID" or "Timestamp local time"
+  // Summary format has "Merchant Store ID" but NOT "DoorDash transaction ID"
+  const isDetailed = rows[0] && ("DoorDash transaction ID" in rows[0] || "Timestamp local time" in rows[0]);
+  const isSummary = !isDetailed;
   
   let csvCount = 0;
   let csvSales = 0;
@@ -148,21 +146,33 @@ async function verifyDoorDash(weekData: WeekData) {
     }
   } else {
     console.log(`  Format: Detailed (transaction-level)`);
+    
+    // Check if this is the "simplified" format (has "Transaction type" instead of "Order status")
+    const hasOrderStatus = rows[0] && "Order status" in rows[0];
+    
     for (const row of rows) {
       const channel = row["Channel"] || "";
-      const orderStatus = row["Order status"] || "";
+      const transactionType = row["Transaction type"] || "";
       
-      // Only count Marketplace Completed orders for sales
-      if (channel === "Marketplace" && (orderStatus === "Delivered" || orderStatus === "Picked Up")) {
+      // For simplified format: count all Marketplace "Order" transactions
+      // For full detailed format: only count Delivered/Picked Up
+      let shouldCount = false;
+      if (hasOrderStatus) {
+        const orderStatus = row["Order status"] || "";
+        shouldCount = channel === "Marketplace" && (orderStatus === "Delivered" || orderStatus === "Picked Up");
+      } else {
+        // Simplified format: count all Marketplace orders (not adjustments/refunds)
+        shouldCount = channel === "Marketplace" && transactionType === "Order";
+      }
+      
+      if (shouldCount) {
         csvCount++;
         csvSales += parseFloatSafe(row["Subtotal"]);
         
-        const marketingFees = Math.abs(parseFloatSafe(row["Marketing fees | (including any applicable taxes)"]));
+        const marketingFees = Math.abs(parseFloatSafe(row["Marketing fees | (for historical reference only)"]));
         csvMarketing += marketingFees;
-      }
-      
-      // Payout includes all Marketplace transactions regardless of status
-      if (channel === "Marketplace") {
+        
+        // Payout from Net total
         csvPayout += parseFloatSafe(row["Net total"]);
       }
     }
