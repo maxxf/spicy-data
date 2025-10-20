@@ -1,6 +1,6 @@
 import { Pool, neonConfig } from "@neondatabase/serverless";
 import { drizzle } from "drizzle-orm/neon-serverless";
-import { eq, and, sql, desc, inArray } from "drizzle-orm";
+import { eq, and, sql, desc, inArray, gte, lte } from "drizzle-orm";
 import ws from "ws";
 
 neonConfig.webSocketConstructor = ws;
@@ -303,6 +303,19 @@ export class DbStorage implements IStorage {
       .where(eq(uberEatsTransactions.clientId, clientId));
   }
 
+  async deleteUberEatsTransactionsByDateRange(clientId: string, startDate: string, endDate: string): Promise<number> {
+    const result = await this.db
+      .delete(uberEatsTransactions)
+      .where(
+        and(
+          eq(uberEatsTransactions.clientId, clientId),
+          gte(uberEatsTransactions.orderDate, startDate),
+          lte(uberEatsTransactions.orderDate, endDate)
+        )
+      );
+    return result.rowCount || 0;
+  }
+
   async createDoordashTransaction(
     transaction: InsertDoordashTransaction
   ): Promise<DoordashTransaction> {
@@ -362,6 +375,19 @@ export class DbStorage implements IStorage {
       .where(eq(doordashTransactions.clientId, clientId));
   }
 
+  async deleteDoordashTransactionsByDateRange(clientId: string, startDate: string, endDate: string): Promise<number> {
+    const result = await this.db
+      .delete(doordashTransactions)
+      .where(
+        and(
+          eq(doordashTransactions.clientId, clientId),
+          gte(doordashTransactions.orderDate, startDate),
+          lte(doordashTransactions.orderDate, endDate)
+        )
+      );
+    return result.rowCount || 0;
+  }
+
   async createGrubhubTransaction(
     transaction: InsertGrubhubTransaction
   ): Promise<GrubhubTransaction> {
@@ -413,6 +439,19 @@ export class DbStorage implements IStorage {
       .select()
       .from(grubhubTransactions)
       .where(eq(grubhubTransactions.clientId, clientId));
+  }
+
+  async deleteGrubhubTransactionsByDateRange(clientId: string, startDate: string, endDate: string): Promise<number> {
+    const result = await this.db
+      .delete(grubhubTransactions)
+      .where(
+        and(
+          eq(grubhubTransactions.clientId, clientId),
+          gte(grubhubTransactions.orderDate, startDate),
+          lte(grubhubTransactions.orderDate, endDate)
+        )
+      );
+    return result.rowCount || 0;
   }
 
   async getDashboardOverview(filters?: AnalyticsFilters): Promise<DashboardOverview> {
