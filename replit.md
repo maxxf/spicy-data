@@ -83,5 +83,12 @@ Preferred communication style: Simple, everyday language.
   - Flexible week-range selection (4, 6, 8, 12 weeks, or all available)
   - CSV export with formatted currency and percentages
   - Accessible via Locations page → "Test Locations Report" tab
+  - **Data Quality Alerts**: Automatically detects and displays potential issues:
+    - Missing weeks (incomplete data uploads)
+    - Zero sales with positive payout (refunds/adjustments)
+    - Unusually high ROAS >20x (incomplete marketing data)
+    - Negative payout after 46% COGS (unprofitable locations)
+    - Low payout percentage <30% (high platform fees)
+    - Marketing spend exceeding marketing sales (ROAS <1)
 - **Corp Locations** (16 stores):
   - AZ900482, NV008, NV036, NV051, NV054, NV067, NV079, NV103, NV111, NV121, NV126, NV151, NV152, NV191, NV900467, NV900478
