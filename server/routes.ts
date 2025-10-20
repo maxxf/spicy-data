@@ -194,9 +194,25 @@ async function findOrCreateLocation(
 ): Promise<string> {
   const allLocations = await storage.getLocationsByClient(clientId);
   
-  // DoorDash: Match Merchant Store ID (e.g., "IA069") to doorDashStoreKey (Column E)
+  // DoorDash: Match Merchant Store ID (e.g., "IA069" or "8") to doorDashStoreKey (Column E)
   if (platform === "doordash" && platformKey) {
-    const locationByKey = allLocations.find(l => l.doorDashStoreKey === platformKey);
+    // Try exact match first
+    let locationByKey = allLocations.find(l => l.doorDashStoreKey === platformKey);
+    
+    // If no exact match and platformKey is numeric only, try matching the numeric suffix
+    // e.g., "8" should match "NV008", "467" should match "NV900467"
+    if (!locationByKey && /^\d+$/.test(platformKey)) {
+      locationByKey = allLocations.find(l => {
+        if (!l.doorDashStoreKey) return false;
+        // Extract numeric portion from doorDashStoreKey (e.g., "NV008" → "008", "NV900467" → "900467")
+        const keyMatch = l.doorDashStoreKey.match(/(\d+)$/);
+        if (!keyMatch) return false;
+        // Compare numeric portions (e.g., "008" vs "8", removing leading zeros)
+        const numericPortion = parseInt(keyMatch[1], 10).toString();
+        return numericPortion === platformKey;
+      });
+    }
+    
     if (locationByKey) {
       // Update DoorDash display name if not set
       if (!locationByKey.doordashName) {
@@ -466,7 +482,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         for (const row of rows) {
           const locationName = getColumnValue(row, "store_name", "Restaurant", "Store_Name", "store name");
-          const address = getColumnValue(row, "store_address", "Address", "Store_Address", "address") || undefined;
+          const address = getColumnValue(row, "street_address", "store_address", "Address", "Store_Address", "address") || undefined;
           if (locationName && locationName.trim() !== "") {
             uniqueLocations.set(locationName, { address });
           }
