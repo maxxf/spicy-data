@@ -325,9 +325,11 @@ export class DbStorage implements IStorage {
       await this.db.insert(doordashTransactions)
         .values(chunk)
         .onConflictDoUpdate({
-          target: [doordashTransactions.clientId, doordashTransactions.orderNumber, doordashTransactions.transactionDate],
+          target: [doordashTransactions.clientId, doordashTransactions.transactionId],
           set: {
             locationId: sql`EXCLUDED.location_id`,
+            orderNumber: sql`EXCLUDED.order_number`,
+            transactionDate: sql`EXCLUDED.transaction_date`,
             storeLocation: sql`EXCLUDED.store_location`,
             channel: sql`EXCLUDED.channel`,
             orderStatus: sql`EXCLUDED.order_status`,

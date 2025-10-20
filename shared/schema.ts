@@ -53,6 +53,7 @@ export const doordashTransactions = pgTable("doordash_transactions", {
   locationId: varchar("location_id").references(() => locations.id),
   
   // Order identification
+  transactionId: text("transaction_id").notNull(), // DoorDash transaction ID - unique per transaction
   orderNumber: text("order_number").notNull(),
   transactionDate: text("transaction_date").notNull(),
   storeLocation: text("store_location").notNull(),
@@ -93,8 +94,8 @@ export const doordashTransactions = pgTable("doordash_transactions", {
   
   uploadedAt: timestamp("uploaded_at").defaultNow().notNull(),
 }, (table) => ({
-  // Unique constraint to prevent duplicate transactions
-  uniqueTransaction: uniqueIndex("doordash_unique_transaction").on(table.clientId, table.orderNumber, table.transactionDate),
+  // Unique constraint to prevent duplicate transactions - using transactionId since multiple transactions can exist per order
+  uniqueTransaction: uniqueIndex("doordash_unique_transaction").on(table.clientId, table.transactionId),
 }));
 
 export const grubhubTransactions = pgTable("grubhub_transactions", {

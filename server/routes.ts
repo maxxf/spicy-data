@@ -319,7 +319,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const transactions: InsertDoordashTransaction[] = [];
         
         for (const row of rows) {
-          // Skip rows without order number
+          // Skip rows without transaction ID (unique identifier)
+          const transactionId = getColumnValue(row, "DoorDash transaction ID", "Transaction ID", "Transaction_ID", "transaction_id");
+          if (!transactionId || transactionId.trim() === "") {
+            continue;
+          }
+
           const orderNumber = getColumnValue(row, "DoorDash order ID", "Order Number", "Order_Number", "order_number");
           if (!orderNumber || orderNumber.trim() === "") {
             continue;
@@ -333,6 +338,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             locationId,
             
             // Order identification
+            transactionId: transactionId,
             orderNumber: orderNumber,
             transactionDate: getColumnValue(row, "Timestamp local date", "Transaction Date", "Transaction_Date", "transaction_date"),
             storeLocation: locationName,
