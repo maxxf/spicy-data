@@ -165,15 +165,16 @@ async function importWeek10_6() {
   // Import UberEats data
   console.log("\nImporting UberEats transactions...");
   const ubereatsCsv = readFileSync(
-    "attached_assets/6784c24a-0b8f-4c69-8a61-77e74bb89811-united_states_1760928022792.csv",
+    "attached_assets/abd32c28-5d15-462f-ac47-1e80348c0bd8-united_states (1)_1760993784475.csv",
     "utf-8"
   );
   const ubereatsRows = parse(ubereatsCsv, {
     columns: true,
     skip_empty_lines: true,
     trim: true,
-    from_line: 1,
+    from_line: 2,  // Skip first header row (descriptions), use second row (actual column names)
     relax_quotes: true,
+    bom: true,  // Handle BOM in UTF-8 files
   });
 
   console.log(`Parsed ${ubereatsRows.length} UberEats rows (item-level data)`);
