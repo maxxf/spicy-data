@@ -235,18 +235,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const rows = parseCSV(req.file.buffer, platform);
 
       if (platform === "ubereats") {
+        // Step 1: Collect unique locations and create them upfront
+        const locationMap = new Map<string, string>();
+        const uniqueLocations = new Map<string, string | undefined>(); // name -> storeId
+        
         for (const row of rows) {
-          const storeId = getColumnValue(row, "Store ID", "Store_ID", "store_id") || undefined;
           const locationName = getColumnValue(row, "Store Name", "Location", "Store_Name", "store_name");
+          const storeId = getColumnValue(row, "Store ID", "Store_ID", "store_id") || undefined;
+          if (locationName && locationName.trim() !== "") {
+            uniqueLocations.set(locationName, storeId);
+          }
+        }
+        
+        // Batch create/find all locations
+        for (const [locationName, storeId] of uniqueLocations) {
           const locationId = await findOrCreateLocation(clientId, locationName, "ubereats", storeId);
-
+          locationMap.set(locationName, locationId);
+        }
+        
+        // Step 2: Build transactions array using cached location IDs
+        const transactions: InsertUberEatsTransaction[] = [];
+        
+        for (const row of rows) {
           // Skip rows without order ID
           const orderId = getColumnValue(row, "Order ID", "Order_ID", "order_id");
           if (!orderId || orderId.trim() === "") {
             continue;
           }
 
-          await storage.createUberEatsTransaction({
+          const locationName = getColumnValue(row, "Store Name", "Location", "Store_Name", "store_name");
+          const locationId = locationMap.get(locationName) || null;
+
+          transactions.push({
             clientId,
             locationId,
             orderId,
@@ -264,9 +284,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
             customerRating: null,
           });
         }
+        
+        // Step 3: Insert all transactions in batch
+        await storage.createUberEatsTransactionsBatch(transactions);
+        res.json({ success: true, rowsProcessed: transactions.length });
+        return;
       } else if (platform === "doordash") {
-        // Import ALL transactions - analytics will filter by channel/status as needed
-        let processedCount = 0;
+        // Helper to safely parse negative values (discounts/offers are negative in CSV)
+        const parseNegativeFloat = (val: any) => {
+          if (!val) return 0;
+          const parsed = parseFloat(val);
+          return isNaN(parsed) ? 0 : parsed;
+        };
+
+        // Step 1: Collect unique locations and create them upfront
+        const locationMap = new Map<string, string>();
+        const uniqueLocations = new Map<string, string | undefined>(); // name -> storeId
+        
+        for (const row of rows) {
+          const locationName = getColumnValue(row, "Store name", "Store Name", "Store_Name", "store_name");
+          const storeId = getColumnValue(row, "Store ID", "Store_ID", "store_id") || undefined;
+          if (locationName && locationName.trim() !== "") {
+            uniqueLocations.set(locationName, storeId);
+          }
+        }
+        
+        // Batch create/find all locations
+        for (const [locationName, storeId] of uniqueLocations) {
+          const locationId = await findOrCreateLocation(clientId, locationName, "doordash", storeId);
+          locationMap.set(locationName, locationId);
+        }
+        
+        // Step 2: Build transactions array using cached location IDs
+        const transactions: InsertDoordashTransaction[] = [];
         
         for (const row of rows) {
           // Skip rows without order number
@@ -275,23 +325,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
             continue;
           }
 
-          const storeId = getColumnValue(row, "Store ID", "Store_ID", "store_id") || undefined;
           const locationName = getColumnValue(row, "Store name", "Store Name", "Store_Name", "store_name");
-          const locationId = await findOrCreateLocation(
-            clientId, 
-            locationName, 
-            "doordash",
-            storeId
-          );
+          const locationId = locationMap.get(locationName) || null;
 
-          // Helper to safely parse negative values (discounts/offers are negative in CSV)
-          const parseNegativeFloat = (val: any) => {
-            if (!val) return 0;
-            const parsed = parseFloat(val);
-            return isNaN(parsed) ? 0 : parsed;
-          };
-
-          await storage.createDoordashTransaction({
+          transactions.push({
             clientId,
             locationId,
             
@@ -359,11 +396,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
             // Source
             orderSource: getColumnValue(row, "Order Source", "Order_Source", "order_source") || null,
           });
-          
-          processedCount++;
         }
         
-        res.json({ success: true, rowsProcessed: processedCount });
+        // Step 3: Insert all transactions in batch
+        await storage.createDoordashTransactionsBatch(transactions);
+        res.json({ success: true, rowsProcessed: transactions.length });
         return;
       } else if (platform === "grubhub") {
         // Step 1: Collect unique locations and create them upfront

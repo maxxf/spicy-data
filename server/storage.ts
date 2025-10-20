@@ -45,9 +45,11 @@ export interface IStorage {
   findLocationByName(clientId: string, name: string, platform: "ubereats" | "doordash" | "grubhub"): Promise<Location | undefined>;
 
   createUberEatsTransaction(transaction: InsertUberEatsTransaction): Promise<UberEatsTransaction>;
+  createUberEatsTransactionsBatch(transactions: InsertUberEatsTransaction[]): Promise<void>;
   getUberEatsTransactionsByClient(clientId: string): Promise<UberEatsTransaction[]>;
   
   createDoordashTransaction(transaction: InsertDoordashTransaction): Promise<DoordashTransaction>;
+  createDoordashTransactionsBatch(transactions: InsertDoordashTransaction[]): Promise<void>;
   getDoordashTransactionsByClient(clientId: string): Promise<DoordashTransaction[]>;
 
   createGrubhubTransaction(transaction: InsertGrubhubTransaction): Promise<GrubhubTransaction>;
@@ -198,6 +200,18 @@ export class MemStorage implements IStorage {
     return transaction;
   }
 
+  async createUberEatsTransactionsBatch(transactions: InsertUberEatsTransaction[]): Promise<void> {
+    for (const insertTransaction of transactions) {
+      const id = randomUUID();
+      const transaction: UberEatsTransaction = {
+        ...insertTransaction,
+        id,
+        uploadedAt: new Date(),
+      };
+      this.uberEatsTransactions.set(id, transaction);
+    }
+  }
+
   async getUberEatsTransactionsByClient(clientId: string): Promise<UberEatsTransaction[]> {
     return Array.from(this.uberEatsTransactions.values()).filter(
       (t) => t.clientId === clientId
@@ -213,6 +227,18 @@ export class MemStorage implements IStorage {
     };
     this.doordashTransactions.set(id, transaction);
     return transaction;
+  }
+
+  async createDoordashTransactionsBatch(transactions: InsertDoordashTransaction[]): Promise<void> {
+    for (const insertTransaction of transactions) {
+      const id = randomUUID();
+      const transaction: DoordashTransaction = {
+        ...insertTransaction,
+        id,
+        uploadedAt: new Date(),
+      };
+      this.doordashTransactions.set(id, transaction);
+    }
   }
 
   async getDoordashTransactionsByClient(clientId: string): Promise<DoordashTransaction[]> {
