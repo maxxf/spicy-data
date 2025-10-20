@@ -131,6 +131,17 @@ Preferred communication style: Simple, everyday language.
 **Transaction Data Upload:**
 - CSV file upload with platform and client ID identification
 - Server-side parsing, column validation, location matching, and transaction record creation
+- **Store ID Extraction (Platform-Specific):**
+  - **Uber Eats**: Store IDs extracted from location name using regex `/\(([A-Z0-9]+)\)/`
+    - Example: "Capriotti's Sandwich Shop (NV152)" → Store ID: "NV152"
+    - Pattern matches alphanumeric codes in parentheses at end of location name
+  - **DoorDash**: Store IDs extracted from "Merchant Store ID" CSV column
+    - Field: `merchant_store_id` or `Merchant Store ID` or `Merchant_Store_ID`
+    - Contains alphanumeric Store IDs that map to master location list
+  - **Grubhub**: Store IDs extracted from "store_number" CSV column
+    - Field: `store_number` or `Store_Number` or `Store Number`
+    - Contains alphanumeric Store IDs matching master location list
+  - Store IDs enable cross-platform location consolidation using master Google Sheets list
 - **Batch optimization for high-volume imports:**
   - Location caching: Collects unique locations upfront and batch creates/finds them to eliminate N+1 query problems
   - Batch insert: Processes transactions in chunks of 500 with upsert logic to prevent duplicates
