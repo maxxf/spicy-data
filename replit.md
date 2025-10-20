@@ -1,4 +1,4 @@
-# Spice Digital Multi-Platform Delivery Analytics Dashboard
+# Spicy Data Multi-Platform Delivery Analytics Dashboard
 
 ## Overview
 This project is a multi-tenant data analytics dashboard designed for restaurant chains. Its primary purpose is to monitor and optimize performance across various third-party delivery platforms (Uber Eats, DoorDash, Grubhub). By processing CSV payment data, the dashboard provides crucial insights into sales performance, marketing ROI, location-specific analytics, and cross-platform location matching. The overarching vision is to deliver granular data that enhances profitability and market understanding for digital storefronts.

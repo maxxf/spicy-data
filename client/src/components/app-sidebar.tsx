@@ -53,11 +53,11 @@ export function AppSidebar() {
     <Sidebar data-testid="sidebar-main">
       <SidebarHeader className="p-6 border-b">
         <div className="flex items-center gap-3">
-          <div className="flex items-center justify-center w-10 h-10 rounded-md bg-primary text-primary-foreground">
-            <BarChart3 className="w-6 h-6" />
+          <div className="flex items-center justify-center w-10 h-10 rounded-md overflow-hidden">
+            <img src="/attached_assets/icon_red_inverted_1760995820524.png" alt="Spicy Data" className="w-full h-full object-cover" />
           </div>
           <div>
-            <h2 className="text-base font-semibold">Spice Digital</h2>
+            <h2 className="text-base font-semibold">Spicy Data</h2>
             <p className="text-xs text-muted-foreground">Analytics</p>
           </div>
         </div>
