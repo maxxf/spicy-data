@@ -1983,6 +1983,225 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Income Statement - Financial breakdown by platform
+  app.get("/api/analytics/income-statement", async (req, res) => {
+    try {
+      const { clientId, startDate, endDate } = req.query;
+      
+      if (!clientId) {
+        return res.status(400).json({ error: "clientId is required" });
+      }
+
+      const start = startDate as string | undefined;
+      const end = endDate as string | undefined;
+
+      // Fetch all transactions for the client
+      const [uberTxns, doorTxns, grubTxns] = await Promise.all([
+        storage.getUberEatsTransactionsByClient(clientId as string),
+        storage.getDoordashTransactionsByClient(clientId as string),
+        storage.getGrubhubTransactionsByClient(clientId as string),
+      ]);
+
+      // Filter by date range if provided
+      const filterByDate = (txns: any[], dateField: string) => {
+        if (!start && !end) return txns;
+        return txns.filter(t => {
+          const txnDate = t[dateField];
+          if (!txnDate) return false;
+          if (start && txnDate < start) return false;
+          if (end && txnDate > end) return false;
+          return true;
+        });
+      };
+
+      const filteredUber = filterByDate(uberTxns, 'date');
+      const filteredDoor = filterByDate(doorTxns, 'transactionDate');
+      const filteredGrub = filterByDate(grubTxns, 'orderDate');
+
+      // Helper to calculate metrics for a platform
+      interface PlatformMetrics {
+        transactions: number;
+        salesInclTax: number;
+        salesExclTax: number;
+        unfulfilledSales: number;
+        unfulfilledRefunds: number;
+        taxes: number;
+        taxesWithheld: number;
+        taxesBackup: number;
+        commissions: number;
+        restDeliveryCharge: number;
+        loyalty: number;
+        adSpend: number;
+        promoSpend: number;
+        ddMarketingFee: number;
+        merchantFundedDiscount: number;
+        thirdPartyFundedDiscount: number;
+        customerRefunds: number;
+        wonDisputes: number;
+        customerTip: number;
+        restaurantFees: number;
+        miscellaneous: number;
+        unaccounted: number;
+        netPayout: number;
+      }
+
+      const initMetrics = (): PlatformMetrics => ({
+        transactions: 0,
+        salesInclTax: 0,
+        salesExclTax: 0,
+        unfulfilledSales: 0,
+        unfulfilledRefunds: 0,
+        taxes: 0,
+        taxesWithheld: 0,
+        taxesBackup: 0,
+        commissions: 0,
+        restDeliveryCharge: 0,
+        loyalty: 0,
+        adSpend: 0,
+        promoSpend: 0,
+        ddMarketingFee: 0,
+        merchantFundedDiscount: 0,
+        thirdPartyFundedDiscount: 0,
+        customerRefunds: 0,
+        wonDisputes: 0,
+        customerTip: 0,
+        restaurantFees: 0,
+        miscellaneous: 0,
+        unaccounted: 0,
+        netPayout: 0,
+      });
+
+      // Calculate Uber Eats metrics
+      const uberMetrics = filteredUber.reduce((acc, t) => {
+        acc.transactions += 1;
+        acc.salesInclTax += t.subtotal || 0;
+        acc.salesExclTax += t.subtotal || 0; // Uber doesn't separate tax in payout report
+        acc.taxes += 0; // Taxes included in subtotal
+        acc.taxesWithheld += t.taxesWithheld || 0;
+        acc.taxesBackup += t.taxesBackup || 0;
+        acc.commissions += Math.abs(t.commission || 0);
+        acc.adSpend += t.marketingAmount || 0;
+        acc.promoSpend += Math.abs(t.marketingPromo || 0);
+        acc.customerRefunds += Math.abs(t.adjustments || 0);
+        acc.customerTip += t.driverTip || 0;
+        acc.miscellaneous += t.misc || 0;
+        acc.netPayout += t.netPayout || 0;
+        return acc;
+      }, initMetrics());
+
+      // Calculate DoorDash metrics
+      const doorMetrics = filteredDoor.reduce((acc, t) => {
+        const isMarketplace = !t.channel || t.channel === "Marketplace";
+        const isCompleted = !t.orderStatus || t.orderStatus === "Delivered" || t.orderStatus === "Picked Up";
+        
+        if (!isMarketplace) return acc;
+        
+        if (isCompleted) {
+          acc.transactions += 1;
+          const sales = t.salesExclTax || t.orderSubtotal || 0;
+          const tax = t.tax || 0;
+          acc.salesInclTax += sales + tax;
+          acc.salesExclTax += sales;
+          acc.taxes += tax;
+          acc.commissions += Math.abs(t.commission || 0);
+          acc.restDeliveryCharge += t.deliveryFee || 0;
+          acc.adSpend += Math.abs(t.otherPayments || 0);
+          acc.promoSpend += Math.abs(t.offersOnItems || 0) + 
+                          Math.abs(t.deliveryOfferRedemptions || 0);
+          acc.ddMarketingFee += Math.abs(t.marketingCredits || 0);
+          acc.merchantFundedDiscount += Math.abs(t.offersOnItems || 0);
+          acc.thirdPartyFundedDiscount += Math.abs(t.thirdPartyContribution || 0);
+          acc.customerRefunds += Math.abs(t.refunds || 0);
+          acc.customerTip += t.tip || 0;
+          acc.restaurantFees += Math.abs(t.otherFees || 0);
+        }
+        
+        // Net payout includes all statuses for reconciliation
+        acc.netPayout += t.totalPayout || t.netPayment || 0;
+        return acc;
+      }, initMetrics());
+
+      // Calculate Grubhub metrics
+      const grubMetrics = filteredGrub.reduce((acc, t) => {
+        const isPrepaidOrder = !t.transactionType || t.transactionType === "Prepaid Order";
+        
+        if (isPrepaidOrder) {
+          acc.transactions += 1;
+          const subtotal = t.subtotal || 0;
+          const tax = t.subtotalSalesTax || 0;
+          acc.salesInclTax += subtotal + tax;
+          acc.salesExclTax += subtotal;
+          acc.taxes += tax;
+          acc.commissions += Math.abs(t.commission || 0);
+          acc.restDeliveryCharge += t.deliveryCharge || 0;
+          acc.promoSpend += Math.abs(t.promotionCost || 0);
+          acc.customerRefunds += Math.abs(t.refundAdjustment || 0);
+          acc.customerTip += t.tip || 0;
+          acc.restaurantFees += Math.abs(t.otherFees || 0);
+        }
+        
+        // Net payout includes all transaction types
+        acc.netPayout += t.netSales || 0;
+        return acc;
+      }, initMetrics());
+
+      // Calculate totals
+      const totals = initMetrics();
+      const platforms = [uberMetrics, doorMetrics, grubMetrics];
+      
+      for (const platform of platforms) {
+        for (const key of Object.keys(totals) as Array<keyof PlatformMetrics>) {
+          totals[key] += platform[key];
+        }
+      }
+
+      // Calculate derived metrics
+      const calculateDerived = (metrics: PlatformMetrics) => {
+        const marketing = metrics.loyalty + metrics.adSpend + metrics.promoSpend + 
+                         metrics.ddMarketingFee + metrics.merchantFundedDiscount + 
+                         metrics.thirdPartyFundedDiscount;
+        const others = metrics.customerTip + metrics.restaurantFees + 
+                      metrics.miscellaneous + metrics.unaccounted;
+        const costOfGoodsSold = metrics.salesInclTax * 0.46;
+        const netMargin = metrics.netPayout - costOfGoodsSold;
+        
+        return {
+          marketing,
+          others,
+          costOfGoodsSold,
+          netMargin
+        };
+      };
+
+      const response = {
+        dateRange: { start, end },
+        platforms: {
+          uberEats: {
+            ...uberMetrics,
+            ...calculateDerived(uberMetrics)
+          },
+          doorDash: {
+            ...doorMetrics,
+            ...calculateDerived(doorMetrics)
+          },
+          grubhub: {
+            ...grubMetrics,
+            ...calculateDerived(grubMetrics)
+          }
+        },
+        totals: {
+          ...totals,
+          ...calculateDerived(totals)
+        }
+      };
+
+      res.json(response);
+    } catch (error: any) {
+      console.error("Income statement error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   app.get("/api/export/weekly-financials", async (req, res) => {
     try {
       const { clientId, aggregation = "by-location" } = req.query;
