@@ -41,6 +41,7 @@ export function getSession() {
     cookie: {
       httpOnly: true,
       secure: true,
+      sameSite: 'lax',
       maxAge: sessionTtl,
     },
   });
@@ -111,9 +112,24 @@ export async function setupAuth(app: Express) {
   });
 
   app.get("/api/callback", (req, res, next) => {
-    passport.authenticate(`replitauth:${req.hostname}`, {
-      successReturnToOrRedirect: "/",
-      failureRedirect: "/api/login",
+    passport.authenticate(`replitauth:${req.hostname}`, (err: any, user: any) => {
+      if (err || !user) {
+        return res.redirect("/api/login");
+      }
+      
+      // Regenerate session on login to prevent session fixation attacks
+      req.session.regenerate((regenerateErr) => {
+        if (regenerateErr) {
+          return next(regenerateErr);
+        }
+        
+        req.login(user, (loginErr) => {
+          if (loginErr) {
+            return next(loginErr);
+          }
+          res.redirect("/");
+        });
+      });
     })(req, res, next);
   });
 
@@ -152,7 +168,14 @@ export const isAuthenticated: RequestHandler = async (req, res, next) => {
     const config = await getOidcConfig();
     const tokenResponse = await client.refreshTokenGrant(config, refreshToken);
     updateUserSession(user, tokenResponse);
-    return next();
+    
+    // Persist session after token refresh
+    req.session.save((err) => {
+      if (err) {
+        return res.status(500).json({ message: "Session save failed" });
+      }
+      next();
+    });
   } catch (error) {
     res.status(401).json({ message: "Unauthorized" });
     return;

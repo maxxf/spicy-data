@@ -197,11 +197,14 @@ export class DbStorage implements IStorage {
   }
 
   async upsertUser(userData: UpsertUser): Promise<User> {
+    // Normalize email to lowercase for consistency
+    const normalizedEmail = userData.email?.toLowerCase() || null;
+    
     const [user] = await this.db
       .insert(users)
       .values({
         id: userData.id!,
-        email: userData.email || null,
+        email: normalizedEmail,
         firstName: userData.firstName || null,
         lastName: userData.lastName || null,
         profileImageUrl: userData.profileImageUrl || null,
