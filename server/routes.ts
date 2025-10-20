@@ -979,13 +979,60 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Fetch first 10 rows to preview structure
       const sheetData = await fetchSheetData(spreadsheetId, "Sheet1!A1:F10");
 
+      // Focus on Column C (index 2)
+      const columnCData = sheetData.map((row, idx) => ({
+        row: idx,
+        columnC: row[2] || null,
+        columnA: row[0] || null,
+        columnB: row[1] || null,
+      }));
+
       res.json({
         preview: sheetData,
         headers: sheetData[0],
         firstRow: sheetData[1],
+        columnCAnalysis: columnCData,
       });
     } catch (error: any) {
       console.error("Sheet preview error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Diagnostic endpoint to show CSV structure from each platform
+  app.get("/api/diagnostics/csv-structure", async (req, res) => {
+    try {
+      const { clientId } = req.query;
+
+      if (!clientId) {
+        return res.status(400).json({ error: "Missing clientId" });
+      }
+
+      // Get sample transactions from each platform
+      const uberSample = await storage.getUberEatsTransactionSample(clientId as string, 3);
+      const doorSample = await storage.getDoordashTransactionSample(clientId as string, 3);
+      const grubSample = await storage.getGrubhubTransactionSample(clientId as string, 3);
+
+      // Get sample locations with Store IDs
+      const locations = await storage.getLocationsByClient(clientId as string);
+      const locationsWithStoreId = locations.filter(l => l.storeId).slice(0, 5);
+
+      res.json({
+        masterLocations: locationsWithStoreId.map(l => ({
+          storeId: l.storeId,
+          canonicalName: l.canonicalName,
+          uberEatsName: l.uberEatsName,
+          doordashName: l.doordashName,
+          grubhubName: l.grubhubName,
+        })),
+        sampleTransactions: {
+          uberEats: uberSample,
+          doordash: doorSample,
+          grubhub: grubSample,
+        },
+      });
+    } catch (error: any) {
+      console.error("CSV structure diagnostic error:", error);
       res.status(500).json({ error: error.message });
     }
   });
