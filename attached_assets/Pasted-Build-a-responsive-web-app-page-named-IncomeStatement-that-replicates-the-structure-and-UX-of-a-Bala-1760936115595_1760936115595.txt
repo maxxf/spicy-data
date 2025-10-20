@@ -1,0 +1,284 @@
+Build a responsive web app page named IncomeStatement that replicates the structure and UX of a Balance > Income Statement dashboard for multi-location restaurant marketplaces.
+
+Tech stack:
+
+Frontend: React + TypeScript + Vite
+
+UI: Tailwind CSS + Headless UI + Heroicons
+
+State/data: React Query for data fetching + Zod for schema validation
+
+Charts: Recharts
+
+Tables: TanStack Table
+
+Routing: React Router
+
+Date range: react-day-picker
+
+Export: client-side CSV export using Papaparse
+
+Icons/badges: Heroicons, minimal custom badges
+
+Page layout:
+
+Global top nav with sections: Wizards, Base, Recover, Balance, TruROI, Re-engage, System & Config. Highlight Balance as active. Include a “Data Until: {date}” pill near the title.
+
+Page title: Balance || Income Statement
+
+Subheader controls row:
+
+Entity filters: Multiselect pills for All/Franchisees/Locations/Brands/Marketplaces with counts
+
+Date range picker: default to last 28 days, show applied range (e.g., 09-19-2025 to 10-16-2025)
+
+Reset button
+
+Sections (in order):
+
+Overview cards
+
+Variance: Transaction & Payout → value example: 0.06% ($399.99)
+
+Variance: Payout & Bank → if bank not connected, show “Loading…” with CTA button “Connect bank”
+
+Bookkeeping data: “Last Journal Entry: No pushes yet” and if no accounting software connected, show CTA “Connect”
+
+Channel Breakdown
+
+Left column: donut or stacked horizontal bar with legend and percentages:
+
+Marketing: 46.6% ($139K)
+
+Commissions: 52% ($155.2K)
+
+Net Refunds: 0.7% ($2K)
+
+Others: 0.8% ($2.4K)
+
+Right column: stacked area or stacked bar time series showing weekly percentages with labels like:
+
+18 Sep - 20 Sep
+
+21 Sep - 27 Sep
+
+28 Sep - 4 Oct
+
+5 Oct - 11 Oct
+
+12 Oct - 15 Oct
+
+Include a small note: “Refunds is the sum of Customer Refunds and Unfulfilled Refunds”
+
+Provide Download buttons: SVG, PNG, CSV for the chart data
+
+Include a Channel Margins (BETA) table with columns: Channel | Markup | Commission | Marketing | Net Margin
+
+Example rows:
+
+Grubhub: Markup 12%, Commission 12%, Marketing 16%, Net Margin -15.85%
+
+DoorDash: Markup 12%, Commission 19%, Marketing 13%, Net Margin -19.09%
+
+Uber Eats: Markup 12%, Commission 17%, Marketing 18%, Net Margin -23.44%
+
+This period’s payout summary
+
+Header row with “Export this data” button
+
+Accordion (default expanded) titled “Component”
+
+Big data table grouped by channel (Uber Eats, DoorDash, Grubhub, then Total). Each group has metrics with both absolute values and % of Sales Incl. Tax where applicable.
+
+Columns/metrics to include per channel:
+
+Number of Transactions
+
+Sales Incl. Tax (100%)
+
+Sales Excl. Tax
+
+Unfulfilled Sales
+
+Unfulfilled Refunds
+
+Taxes (paid to merchant)
+
+Taxes Withheld (withheld by 3P)
+
+Taxes Backup (tool tip note specific to Uber Eats)
+
+Commissions
+
+Rest. Delivery Charge (specific platforms)
+
+Marketing
+
+Loyalty
+
+Ad Spend
+
+Promo Spend
+
+DoorDash Marketing Fee (with tooltip note)
+
+Merchant Funded Discount (tooltip)
+
+3P Funded Discount (tooltip)
+
+Customer Refunds
+
+Won Disputes
+
+Others:
+
+Customer Tip
+
+Restaurant Fees
+
+Miscellaneous
+
+Unaccounted
+
+Net Payout
+
+Cost of Goods Sold
+
+Net Margin
+
+Show a “BETA” tag near Channel Margins and “AI Insights” stub at bottom, with an input placeholder “Type your question” but no backend wiring.
+
+Interactions and UX:
+
+All filters are client-state controlled with React Query keys; do not implement backend, but structure hooks to accept:
+
+dateRange: { start: string; end: string }
+
+franchiseeIds: string[]
+
+locationIds: string[]
+
+brandIds: string[]
+
+marketplaces: string[]
+
+Provide mock data generators that follow Zod schemas and feed components through React Query as if from an API. Make it easy to swap to real API later.
+
+Tooltips on glossary-heavy fields (Taxes Backup, DoorDash Marketing Fee, discounts) with short explanations.
+
+Percentages should be computed relative to Sales Incl. Tax when marked with % in the example; include both absolute value and percent display.
+
+Sticky subheader with filters and date range on scroll.
+
+Mobile responsive: stacks sections; tables become horizontally scrollable; charts reflow vertically.
+
+Data modeling:
+
+Define Zod schemas for:
+
+Channel enum: "UberEats" | "DoorDash" | "Grubhub"
+
+BreakdownItem { key, label, value: number, percent?: number }
+
+ChannelMarginRow { channel, markupPct, commissionPct, marketingPct, netMarginPct }
+
+TimeSeriesPoint { periodLabel, refundsPct, commissionsPct, marketingPct, othersPct }
+
+PayoutSummaryMetric { name, value: number, percentOfSalesInclTax?: number, infoTooltip?: string }
+
+ChannelPayoutSummary { channel, metrics: PayoutSummaryMetric[] }
+
+IncomeStatementResponse {
+dataUntil: string;
+dateRange: { start: string; end: string };
+counts: { franchisees: number; locations: number; brands: number; markets?: number };
+variance: {
+transactionsVsPayout: { pct: number; deltaAmount: number };
+payoutVsBank: { loading: boolean; connected: boolean };
+};
+bookkeeping: { lastJournalEntry: string | null; accountingConnected: boolean };
+channelBreakdown: { items: BreakdownItem[]; timeSeries: TimeSeriesPoint[] };
+channelMargins: ChannelMarginRow[];
+payoutSummary: ChannelPayoutSummary[];
+totals: ChannelPayoutSummary;
+}
+
+Provide a single hook useIncomeStatement(params) that returns the IncomeStatementResponse using mock data for now.
+
+Components:
+
+NavBar with section tabs and active highlight
+
+PageHeader with title and “Data Until” pill
+
+FilterBar with multiselect dropdowns and counts, date range picker, Reset button
+
+KPI cards for the two variances + bookkeeping card with CTAs
+
+ChannelBreakdownPanel: donut + stacked time series + download buttons
+
+ChannelMarginsTable: TanStack Table with sorting
+
+PayoutSummaryAccordion:
+
+ChannelGroupCard for each channel with metric grid/table
+
+Totals group at bottom
+
+AIInsightsPanel: stub with input box, no functionality
+
+Utilities:
+
+Currency/percent formatters respecting USD
+
+CSV export functions that export the currently filtered datasets:
+
+Channel breakdown items
+
+Channel margins
+
+Payout summary per channel and totals
+
+Simple permission-aware CTAs (e.g., Connect bank, Connect accounting) that currently only console.log on click
+
+Styling:
+
+Clean, modern, generous whitespace. Light theme.
+
+Use Tailwind for spacing/typography, keep colors subtle. Badges for “BETA” and “Loading…”.
+
+Ensure accessible labels and aria attributes for inputs and toggles.
+
+Deliverables:
+
+A working Vite + React + TS project with the page at route /balance/income-statement
+
+Mock data populated to match the example values shown in this spec so the UI renders realistically
+
+All components modular and typed
+
+Clear TODO comments where real API integration would occur
+
+Instructions in README on how to run and where to plug in real API calls
+
+Acceptance:
+
+I can change filters/date range and see charts/tables update from mocked data.
+
+Channel Margins and Payout Summary reflect the example structure and fields.
+
+Export CSV works for the main datasets.
+
+Responsive layout works on mobile and desktop.
+
+No backend required, but code is structured to swap in real endpoints later.
+
+Optional stretch:
+
+Persist filters to URL query params
+
+Save/load filter presets
+
+Add a simple “Connect bank/accounting” modal with placeholders
+
+End of prompt.

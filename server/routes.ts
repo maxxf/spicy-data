@@ -1717,7 +1717,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Test locations weekly financials report
+  // Test locations weekly financials report - calculated from transaction data
   app.get("/api/analytics/test-locations-report", async (req, res) => {
     try {
       const { clientId } = req.query;
@@ -1741,12 +1741,196 @@ export async function registerRoutes(app: Express): Promise<Server> {
         loc.storeId && testLocationStoreIds.some(testId => loc.storeId?.startsWith(testId))
       );
 
-      // Get weekly financials for all locations
-      const allFinancials = await storage.getLocationWeeklyFinancialsByClient(clientId as string);
-      
-      // Filter to only test location financials
+      console.log(`[Test Locations Report] Found ${testLocations.length} test locations out of ${allLocations.length} total locations`);
+
+      if (testLocations.length === 0) {
+        console.log('[Test Locations Report] No test locations found, returning empty data');
+        return res.json({ weeks: [], locations: [] });
+      }
+
       const testLocationIds = new Set(testLocations.map(l => l.id));
-      const testFinancials = allFinancials.filter(f => testLocationIds.has(f.locationId));
+      
+      // Fetch all transactions for the test locations
+      const [uberTxns, doorTxns, grubTxns] = await Promise.all([
+        storage.getUberEatsTransactionsByClient(clientId as string),
+        storage.getDoordashTransactionsByClient(clientId as string),
+        storage.getGrubhubTransactionsByClient(clientId as string),
+      ]);
+
+      // Filter to only test location transactions
+      const testUberTxns = uberTxns.filter(t => t.locationId && testLocationIds.has(t.locationId));
+      const testDoorTxns = doorTxns.filter(t => t.locationId && testLocationIds.has(t.locationId));
+      const testGrubTxns = grubTxns.filter(t => t.locationId && testLocationIds.has(t.locationId));
+
+      console.log(`[Test Locations Report] Transaction counts:`,{
+        totalUber: uberTxns.length,
+        testUber: testUberTxns.length,
+        totalDoor: doorTxns.length,
+        testDoor: testDoorTxns.length,
+        totalGrub: grubTxns.length,
+        testGrub: testGrubTxns.length,
+      });
+
+      // Helper to get Monday of week for a date string
+      const getMondayOfWeek = (dateStr: string): string => {
+        const date = new Date(dateStr);
+        const day = date.getDay();
+        const diff = date.getDate() - day + (day === 0 ? -6 : 1);
+        const monday = new Date(date.setDate(diff));
+        return monday.toISOString().split('T')[0];
+      };
+
+      // Helper to parse Uber Eats dates (M/D/YY format)
+      const parseUberDate = (dateStr: string): string => {
+        const [month, day, year] = dateStr.split('/');
+        const fullYear = parseInt(year) < 50 ? `20${year}` : `19${year}`;
+        return `${fullYear}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+      };
+
+      // Aggregate metrics by location and week
+      interface WeeklyMetrics {
+        sales: number;
+        marketingSales: number;
+        marketingSpend: number;
+        payout: number;
+        orders: number;
+        marketingOrders: number;
+      }
+
+      const metricsByLocationWeek = new Map<string, Map<string, WeeklyMetrics>>();
+
+      // Process DoorDash transactions
+      testDoorTxns.forEach(t => {
+        if (!t.locationId) return;
+        
+        const isMarketplace = !t.channel || t.channel === "Marketplace";
+        const isCompleted = !t.orderStatus || t.orderStatus === "Delivered" || t.orderStatus === "Picked Up";
+        
+        if (!isMarketplace || !isCompleted) return;
+        
+        const weekStart = getMondayOfWeek(t.transactionDate);
+        
+        if (!metricsByLocationWeek.has(t.locationId)) {
+          metricsByLocationWeek.set(t.locationId, new Map());
+        }
+        const locationWeeks = metricsByLocationWeek.get(t.locationId)!;
+        
+        if (!locationWeeks.has(weekStart)) {
+          locationWeeks.set(weekStart, {
+            sales: 0,
+            marketingSales: 0,
+            marketingSpend: 0,
+            payout: 0,
+            orders: 0,
+            marketingOrders: 0,
+          });
+        }
+        
+        const metrics = locationWeeks.get(weekStart)!;
+        const sales = t.salesExclTax || t.orderSubtotal || 0;
+        
+        metrics.sales += sales;
+        metrics.payout += t.totalPayout || t.netPayment || 0;
+        metrics.orders += 1;
+        
+        // Marketing attribution
+        const adSpend = t.otherPayments || 0;
+        const offersValue = Math.abs(t.offersOnItems || 0) + 
+                          Math.abs(t.deliveryOfferRedemptions || 0) +
+                          Math.abs(t.marketingCredits || 0) +
+                          Math.abs(t.thirdPartyContribution || 0);
+        
+        metrics.marketingSpend += adSpend + offersValue;
+        
+        if (offersValue > 0 || adSpend > 0) {
+          metrics.marketingSales += sales;
+          metrics.marketingOrders += 1;
+        }
+      });
+
+      // Process Uber Eats transactions
+      testUberTxns.forEach(t => {
+        if (!t.locationId) return;
+        
+        const weekStart = getMondayOfWeek(parseUberDate(t.date));
+        
+        if (!metricsByLocationWeek.has(t.locationId)) {
+          metricsByLocationWeek.set(t.locationId, new Map());
+        }
+        const locationWeeks = metricsByLocationWeek.get(t.locationId)!;
+        
+        if (!locationWeeks.has(weekStart)) {
+          locationWeeks.set(weekStart, {
+            sales: 0,
+            marketingSales: 0,
+            marketingSpend: 0,
+            payout: 0,
+            orders: 0,
+            marketingOrders: 0,
+          });
+        }
+        
+        const metrics = locationWeeks.get(weekStart)!;
+        const sales = t.subtotal || 0;
+        
+        metrics.sales += sales;
+        metrics.payout += t.netPayout || 0;
+        metrics.orders += 1;
+        
+        if (t.marketingPromo) {
+          const marketingAmt = t.marketingAmount || 0;
+          metrics.marketingSpend += marketingAmt;
+          metrics.marketingSales += sales;
+          metrics.marketingOrders += 1;
+        }
+      });
+
+      // Process Grubhub transactions
+      testGrubTxns.forEach(t => {
+        if (!t.locationId) return;
+        
+        const isPrepaidOrder = !t.transactionType || t.transactionType === "Prepaid Order";
+        if (!isPrepaidOrder) return;
+        
+        const weekStart = getMondayOfWeek(t.orderDate);
+        
+        if (!metricsByLocationWeek.has(t.locationId)) {
+          metricsByLocationWeek.set(t.locationId, new Map());
+        }
+        const locationWeeks = metricsByLocationWeek.get(t.locationId)!;
+        
+        if (!locationWeeks.has(weekStart)) {
+          locationWeeks.set(weekStart, {
+            sales: 0,
+            marketingSales: 0,
+            marketingSpend: 0,
+            payout: 0,
+            orders: 0,
+            marketingOrders: 0,
+          });
+        }
+        
+        const metrics = locationWeeks.get(weekStart)!;
+        const sales = t.saleAmount || 0;
+        
+        metrics.sales += sales;
+        metrics.payout += t.netSales || 0;
+        metrics.orders += 1;
+        
+        const promoAmount = t.promotionCost || 0;
+        if (promoAmount > 0) {
+          metrics.marketingSpend += promoAmount;
+          metrics.marketingSales += sales;
+          metrics.marketingOrders += 1;
+        }
+      });
+
+      // Get unique weeks
+      const weekSet = new Set<string>();
+      metricsByLocationWeek.forEach(locationWeeks => {
+        locationWeeks.forEach((_, week) => weekSet.add(week));
+      });
+      const weeks = Array.from(weekSet).sort();
 
       // Create location name lookup
       const locationNameMap = new Map(testLocations.map(loc => [
@@ -1754,40 +1938,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
         loc.storeId || loc.canonicalName
       ]));
 
-      // Get unique weeks
-      const weekSet = new Set<string>();
-      testFinancials.forEach(f => weekSet.add(f.weekStartDate));
-      const weeks = Array.from(weekSet).sort();
-
-      // Group financials by location
-      const byLocation = new Map<string, Map<string, LocationWeeklyFinancial>>();
-      testFinancials.forEach(f => {
-        if (!byLocation.has(f.locationId)) {
-          byLocation.set(f.locationId, new Map());
-        }
-        byLocation.get(f.locationId)!.set(f.weekStartDate, f);
-      });
-
       // Format response
       const response = {
         weeks,
-        locations: Array.from(byLocation.entries())
+        locations: Array.from(metricsByLocationWeek.entries())
           .map(([locationId, weeklyData]) => ({
             locationId,
             locationName: locationNameMap.get(locationId) || 'Unknown',
             weeklyMetrics: weeks.map(week => {
               const data = weeklyData.get(week);
-              return data ? {
+              if (!data) return null;
+              
+              const marketingPercent = data.marketingSales > 0 
+                ? (data.marketingSpend / data.marketingSales) * 100 
+                : 0;
+              const roas = data.marketingSpend > 0 
+                ? data.marketingSales / data.marketingSpend 
+                : 0;
+              const payoutPercent = data.sales > 0 
+                ? (data.payout / data.sales) * 100 
+                : 0;
+              const payoutWithCogs = data.payout - (data.sales * 0.46);
+              
+              return {
                 weekStartDate: week,
                 sales: data.sales,
                 marketingSales: data.marketingSales,
                 marketingSpend: data.marketingSpend,
-                marketingPercent: data.marketingPercent,
-                roas: data.roas,
+                marketingPercent,
+                roas,
                 payout: data.payout,
-                payoutPercent: data.payoutPercent,
-                payoutWithCogs: data.payoutWithCogs,
-              } : null;
+                payoutPercent,
+                payoutWithCogs,
+              };
             }),
           }))
           .sort((a, b) => a.locationName.localeCompare(b.locationName)),
@@ -1795,6 +1978,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json(response);
     } catch (error: any) {
+      console.error("Test locations report error:", error);
       res.status(500).json({ error: error.message });
     }
   });
