@@ -130,19 +130,19 @@ export function calculateDoorDashMetrics(txns: DoordashTransaction[]) {
         adSpend += Math.abs(t.otherPayments || 0);
       }
       
-      // Offer/Discount Value: Promotional discounts + credits (absolute values)
-      const offersValue = Math.abs(t.offersOnItems || 0) + 
-                        Math.abs(t.deliveryOfferRedemptions || 0) +
-                        Math.abs(t.marketingCredits || 0) +
-                        Math.abs(t.thirdPartyContribution || 0);
+      // Offer/Discount Value: Promotional discounts + credits (already stored as positive)
+      const offersValue = (t.offersOnItems || 0) + 
+                        (t.deliveryOfferRedemptions || 0) +
+                        (t.marketingCredits || 0) +
+                        (t.thirdPartyContribution || 0);
       offerDiscountValue += offersValue;
       
-      // Marketing Attribution: ONLY orders with promotional offers/credits
-      // Ad spend is a cost we pay, but doesn't mean it drove that specific sale
-      const hasMarketing = (t.offersOnItems < 0) || 
-                          (t.deliveryOfferRedemptions < 0) || 
-                          (t.marketingCredits !== 0) || 
-                          (t.thirdPartyContribution !== 0);
+      // Marketing Attribution: Orders with promotional offers/credits
+      // Note: Discounts are stored as positive values in DB
+      const hasMarketing = (t.offersOnItems > 0) || 
+                          (t.deliveryOfferRedemptions > 0) || 
+                          (t.marketingCredits > 0) || 
+                          (t.thirdPartyContribution > 0);
       
       if (hasMarketing) {
         marketingDrivenSales += sales;

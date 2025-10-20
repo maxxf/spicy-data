@@ -339,6 +339,13 @@ async function importWeek10_6() {
     const subtotal = parseFloat(row["Subtotal"] || "0") || 0;
     const taxes = parseFloat(row["Subtotal tax passed to merchant"] || "0") || 0;
     const marketingFees = Math.abs(parseFloat(row["Marketing fees | (including any applicable taxes)"] || "0") || 0);
+    
+    // Parse customer discounts (negative in CSV, store as positive in DB)
+    const merchantFundedDiscount = Math.abs(parseFloat(row["Customer discounts from marketing | (funded by you)"] || "0") || 0);
+    const doordashFundedDiscount = Math.abs(parseFloat(row["Customer discounts from marketing | (funded by DoorDash)"] || "0") || 0);
+    const thirdPartyDiscount = Math.abs(parseFloat(row["Customer discounts from marketing | (funded by a third-party)"] || "0") || 0);
+    const marketingCredit = Math.abs(parseFloat(row["DoorDash marketing credit"] || "0") || 0);
+    const thirdPartyContrib = Math.abs(parseFloat(row["Third-party contribution"] || "0") || 0);
 
     // Keep the last occurrence (most recent data)
     doordashMap.set(uniqueKey, {
@@ -362,10 +369,11 @@ async function importWeek10_6() {
       netPayment: parseFloat(row["Net total"] || "0") || 0,
       totalPayout: parseFloat(row["Net total"] || "0") || 0,
       orderSource: row["Channel"] || "",
-      offersOnItems: 0,
-      deliveryOfferRedemptions: 0,
-      marketingCredits: parseFloat(row["DoorDash marketing credit"] || "0") || 0,
-      thirdPartyContribution: parseFloat(row["Third-party contribution"] || "0") || 0,
+      // Customer discounts - use actual CSV columns
+      offersOnItems: merchantFundedDiscount,
+      deliveryOfferRedemptions: doordashFundedDiscount,
+      marketingCredits: marketingCredit,
+      thirdPartyContribution: thirdPartyDiscount + thirdPartyContrib,
     });
   }
 
@@ -396,6 +404,10 @@ async function importWeek10_6() {
           otherPaymentsDescription: sql`excluded.other_payments_description`,
           netPayment: sql`excluded.net_payment`,
           totalPayout: sql`excluded.total_payout`,
+          offersOnItems: sql`excluded.offers_on_items`,
+          deliveryOfferRedemptions: sql`excluded.delivery_offer_redemptions`,
+          marketingCredits: sql`excluded.marketing_credits`,
+          thirdPartyContribution: sql`excluded.third_party_contribution`,
         },
       });
     console.log(`Upserted ${Math.min(i + 100, doordashTransactionsToInsert.length)}/${doordashTransactionsToInsert.length}`);
