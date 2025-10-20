@@ -14,6 +14,7 @@ Preferred communication style: Simple, everyday language.
 - **Components**: Modular structure with shared components and dedicated pages (Dashboard, Campaigns, Upload, Locations, Admin, Income Statement), featuring sidebar navigation.
 - **Default Client**: Capriotti's (`83506705-b408-4f0a-a9b0-e5b585db3b7d`) is automatically selected across all pages.
 - **Filtering**: Comprehensive filtering by week, client, location, platform (Uber Eats, DoorDash, Grubhub), and location tags, with page-specific week selection.
+- **Dashboard Page**: Overview page with key metrics and Location Performance table displaying aggregated cross-platform metrics per location (Sales, Orders, AOV, Marketing Spend, ROAS, Payout $). Each location appears once with data consolidated across all platforms.
 - **Campaigns Page**: Displays combined and segmented metrics for promotions and paid advertising (ROAS, True Cost Per Order, Marketing AOV, Net Profit Per Order) with transparent cost breakdowns.
 - **Income Statement Page**: Provides a comprehensive financial breakdown by platform, including detailed P&L metrics (sales, commissions, marketing spend, taxes, refunds, net margin), with CSV export capability.
 
