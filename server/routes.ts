@@ -1135,9 +1135,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           continue;
         }
 
-        // Try to find a canonical name from the row
-        // Assuming Column A or B might have the location name
-        const canonicalName = row[0]?.toString().trim() || row[1]?.toString().trim() || storeId;
+        // Column C (Shop IDs Owned) is the canonical name
+        const canonicalName = storeId;
         
         // Column E (index 4) - Platform-specific matching key for DD & UE
         const platformMatchKey = row[4]?.toString().trim() || null;
@@ -1150,20 +1149,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const existingLocation = allLocations.find(loc => loc.storeId === storeId);
 
         if (existingLocation) {
-          // Update existing location if needed
+          // Always update canonical name, address, and platform keys from master sheet
           const updates: any = {};
-          if (canonicalName && canonicalName !== existingLocation.canonicalName) {
+          
+          // Always update canonical name to match Column C (Shop IDs Owned)
+          if (canonicalName !== existingLocation.canonicalName) {
             updates.canonicalName = canonicalName;
           }
+          
+          // Always update address if provided
           if (address && address !== existingLocation.address) {
             updates.address = address;
           }
+          
+          // Always update platform matching keys if provided
           if (platformMatchKey) {
-            // Column E is used for both DoorDash and Uber Eats matching
-            if (!existingLocation.doorDashStoreKey) {
+            if (platformMatchKey !== existingLocation.doorDashStoreKey) {
               updates.doorDashStoreKey = platformMatchKey;
             }
-            if (!existingLocation.uberEatsStoreLabel) {
+            if (platformMatchKey !== existingLocation.uberEatsStoreLabel) {
               updates.uberEatsStoreLabel = platformMatchKey;
             }
           }
