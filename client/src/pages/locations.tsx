@@ -49,9 +49,6 @@ export default function LocationsPage() {
     return params.toString() ? `?${params.toString()}` : "";
   };
 
-  const { data: locations, isLoading: locationsLoading } = useQuery<Location[]>({
-    queryKey: ["/api/locations"],
-  });
 
   const { data: suggestions, isLoading: suggestionsLoading } = useQuery<LocationMatchSuggestion[]>({
     queryKey: ["/api/locations/suggestions"],
@@ -96,45 +93,6 @@ export default function LocationsPage() {
       });
     },
   });
-
-  const locationManagementColumns = [
-    {
-      key: "canonicalName",
-      label: "Canonical Name",
-      sortable: true,
-    },
-    {
-      key: "uberEatsName",
-      label: "Uber Eats",
-      render: (value: string | null) => value || <span className="text-muted-foreground">—</span>,
-    },
-    {
-      key: "doordashName",
-      label: "DoorDash",
-      render: (value: string | null) => value || <span className="text-muted-foreground">—</span>,
-    },
-    {
-      key: "grubhubName",
-      label: "Grubhub",
-      render: (value: string | null) => value || <span className="text-muted-foreground">—</span>,
-    },
-    {
-      key: "isVerified",
-      label: "Status",
-      render: (value: boolean) =>
-        value ? (
-          <Badge variant="outline" className="bg-green-50 dark:bg-green-950/20 text-green-700 dark:text-green-400 border-green-200 dark:border-green-800 no-default-hover-elevate">
-            <CheckCircle2 className="w-3 h-3 mr-1" />
-            Verified
-          </Badge>
-        ) : (
-          <Badge variant="outline" className="bg-yellow-50 dark:bg-yellow-950/20 text-yellow-700 dark:text-yellow-400 border-yellow-200 dark:border-yellow-800 no-default-hover-elevate">
-            <AlertCircle className="w-3 h-3 mr-1" />
-            Unverified
-          </Badge>
-        ),
-    },
-  ];
 
   const metricsColumns = [
     {
@@ -299,7 +257,7 @@ export default function LocationsPage() {
     },
   ];
 
-  if (locationsLoading || suggestionsLoading) {
+  if (suggestionsLoading) {
     return (
       <div className="p-8 space-y-8">
         <Skeleton className="h-8 w-64" />
@@ -402,26 +360,6 @@ export default function LocationsPage() {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Location Management</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground mb-4">
-            Manage canonical location names and platform mappings
-          </p>
-          {locations && locations.length > 0 ? (
-            <DataTable
-              data={locations}
-              columns={locationManagementColumns}
-            />
-          ) : (
-            <div className="text-center py-12 text-muted-foreground">
-              No locations found. Upload data files to create locations.
-            </div>
-          )}
-        </CardContent>
-      </Card>
     </div>
   );
 }

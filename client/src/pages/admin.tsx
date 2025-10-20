@@ -1,14 +1,16 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { Database, Settings, Upload } from "lucide-react";
+import { Database, Settings, Upload, CheckCircle2, AlertCircle, MapPin } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import type { Client } from "@shared/schema";
+import { DataTable } from "@/components/data-table";
+import type { Client, Location } from "@shared/schema";
 
 export default function AdminPage() {
   const [selectedClient, setSelectedClient] = useState<string>("");
@@ -18,6 +20,10 @@ export default function AdminPage() {
 
   const { data: clients } = useQuery<Client[]>({
     queryKey: ["/api/clients"],
+  });
+
+  const { data: locations } = useQuery<Location[]>({
+    queryKey: ["/api/locations"],
   });
 
   const importMasterListMutation = useMutation({
@@ -68,6 +74,58 @@ export default function AdminPage() {
       clientId: selectedClient,
     });
   };
+
+  const locationManagementColumns = [
+    {
+      key: "storeId",
+      label: "Store ID",
+      sortable: true,
+      render: (value: string | null) => value || <span className="text-muted-foreground">—</span>,
+    },
+    {
+      key: "canonicalName",
+      label: "Canonical Name",
+      sortable: true,
+    },
+    {
+      key: "uberEatsName",
+      label: "Uber Eats",
+      render: (value: string | null) => value || <span className="text-muted-foreground">—</span>,
+    },
+    {
+      key: "doordashName",
+      label: "DoorDash",
+      render: (value: string | null) => value || <span className="text-muted-foreground">—</span>,
+    },
+    {
+      key: "grubhubName",
+      label: "Grubhub",
+      render: (value: string | null) => value || <span className="text-muted-foreground">—</span>,
+    },
+    {
+      key: "locationTag",
+      label: "Tag",
+      render: (value: string | null) => value ? (
+        <Badge variant="secondary" className="no-default-hover-elevate">{value}</Badge>
+      ) : <span className="text-muted-foreground">—</span>,
+    },
+    {
+      key: "isVerified",
+      label: "Status",
+      render: (value: boolean) =>
+        value ? (
+          <Badge variant="outline" className="bg-green-50 dark:bg-green-950/20 text-green-700 dark:text-green-400 border-green-200 dark:border-green-800 no-default-hover-elevate">
+            <CheckCircle2 className="w-3 h-3 mr-1" />
+            Verified
+          </Badge>
+        ) : (
+          <Badge variant="outline" className="bg-yellow-50 dark:bg-yellow-950/20 text-yellow-700 dark:text-yellow-400 border-yellow-200 dark:border-yellow-800 no-default-hover-elevate">
+            <AlertCircle className="w-3 h-3 mr-1" />
+            Unverified
+          </Badge>
+        ),
+    },
+  ];
 
   return (
     <div className="p-8 space-y-8" data-testid="page-admin">
@@ -152,6 +210,30 @@ export default function AdminPage() {
               </>
             )}
           </Button>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <MapPin className="w-5 h-5" />
+            Location Management
+          </CardTitle>
+          <CardDescription>
+            View all canonical locations and their platform mappings. Locations are automatically created during CSV uploads.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {locations && locations.length > 0 ? (
+            <DataTable
+              data={locations}
+              columns={locationManagementColumns}
+            />
+          ) : (
+            <div className="text-center py-12 text-muted-foreground">
+              No locations found. Upload transaction data or import master location list to create locations.
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
