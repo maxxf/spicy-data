@@ -69,17 +69,15 @@ export function calculateUberEatsMetrics(txns: UberEatsTransaction[]) {
       const sales = t.salesExclTax || t.subtotal || 0;
       totalSales += sales;
       
-      // Ad Spend: Sum ALL "Other payments" where description is not null
-      if (t.otherPaymentsDescription) {
-        adSpend += Math.abs(t.otherPayments || 0);
-      }
+      // Ad Spend: Sum ALL "Other payments" (this IS the ad spend)
+      adSpend += Math.abs(t.otherPayments || 0);
       
       // Offer/Discount Value: Sum absolute value of all promotional discounts
       const offersValue = Math.abs(t.offersOnItems || 0) + 
                         Math.abs(t.deliveryOfferRedemptions || 0);
       offerDiscountValue += offersValue;
       
-      // Marketing Attribution: Orders with promotional offers < 0
+      // Marketing Attribution: Orders with promotional offers < 0 (focus on marketing-driven sales/orders for ROAS)
       const hasMarketing = (t.offersOnItems < 0) || (t.deliveryOfferRedemptions < 0);
       
       if (hasMarketing) {
