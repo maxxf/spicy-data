@@ -70,6 +70,24 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+### October 20, 2025 - Week 10/6 Data Import & New CSV Formats
+- **Week 10/6-10/12 Import**: Successfully imported data for Oct 6-12, 2025
+  - Imported: 3,722 UberEats, 21,762 DoorDash, 1,636 Grubhub transactions
+  - Total sales: $921,396 across all platforms
+  - Import script: `scripts/import-week-10-6.ts`
+- **New CSV Formats Encountered**:
+  - **UberEats**: New detailed item-level format with different column names
+    - "Sales (excl. tax)", "Tax on Sales", "Marketing Adjustment" instead of previous format
+    - "Order Accept Time" instead of separate time field
+    - New columns: "Offers on items", "Delivery Offer Redemptions", "Marketplace Fee"
+  - **DoorDash**: New detailed financial format  
+    - "Store name" instead of "Merchant supplied name"
+    - "DoorDash transaction ID" instead of "Transaction ID"
+    - "Timestamp local date" instead of "Transaction date"
+    - "Final order status" instead of "Order status"
+    - "Marketing fees | (including any applicable taxes)" instead of "Marketing fees | (for historical reference only)"
+  - Grubhub format remains consistent across weeks
+
 ### October 20, 2025 - Data Quality & Unmapped Locations Investigation
 - **Data Accuracy Achievement**: ✅ Achieved <2% tolerance goal across all platforms
   - **UberEats**: 1.7-2.0% variance (within tolerance)
