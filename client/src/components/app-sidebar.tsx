@@ -20,19 +20,14 @@ const navigation = [
     icon: LayoutDashboard,
   },
   {
-    title: "Income Statement",
+    title: "Financials",
     url: "/income-statement",
     icon: FileText,
   },
   {
-    title: "Promos",
+    title: "Campaigns",
     url: "/campaigns",
     icon: Megaphone,
-  },
-  {
-    title: "Upload Data",
-    url: "/upload",
-    icon: Upload,
   },
   {
     title: "Locations",

@@ -7,7 +7,6 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { ThemeToggle } from "@/components/theme-toggle";
 import Dashboard from "@/pages/dashboard";
-import UploadPage from "@/pages/upload";
 import LocationsPage from "@/pages/locations";
 import PromosPage from "@/pages/campaigns";
 import AdminPage from "@/pages/admin";
@@ -18,7 +17,6 @@ function Router() {
   return (
     <Switch>
       <Route path="/" component={Dashboard} />
-      <Route path="/upload" component={UploadPage} />
       <Route path="/locations" component={LocationsPage} />
       <Route path="/campaigns" component={PromosPage} />
       <Route path="/income-statement" component={IncomeStatement} />
