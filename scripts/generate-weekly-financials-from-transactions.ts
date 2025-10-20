@@ -144,11 +144,11 @@ async function main() {
     
     const week = locationWeeks.get(weekStart)!;
     week.sales += txn.saleAmount;
-    week.payout += txn.netSales;
+    week.payout += txn.merchantNetTotal || 0;
     
-    if (txn.promotionCost > 0) {
+    if (txn.merchantFundedPromotion && txn.merchantFundedPromotion > 0) {
       week.marketingSales += txn.saleAmount;
-      week.marketingSpend += txn.promotionCost;
+      week.marketingSpend += txn.merchantFundedPromotion;
     }
   }
 

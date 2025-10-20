@@ -1914,10 +1914,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const sales = t.saleAmount || 0;
         
         metrics.sales += sales;
-        metrics.payout += t.netSales || 0;
+        metrics.payout += t.merchantNetTotal || 0;
         metrics.orders += 1;
         
-        const promoAmount = t.promotionCost || 0;
+        const promoAmount = t.merchantFundedPromotion || 0;
         if (promoAmount > 0) {
           metrics.marketingSpend += promoAmount;
           metrics.marketingSales += sales;

@@ -59,14 +59,14 @@ export default function LocationsPage() {
 
   const { data: consolidatedMetrics, isLoading: metricsLoading } = useQuery<ConsolidatedLocationMetrics[]>({
     queryKey: [
-      "/api/analytics/consolidated-locations",
+      "/api/analytics/locations/consolidated",
       selectedClientId || "all",
       selectedLocationId || "all",
       selectedPlatform || "all",
       selectedWeek ? `${selectedWeek.weekStart}:${selectedWeek.weekEnd}` : "all"
     ],
     queryFn: async () => {
-      const response = await fetch(`/api/analytics/consolidated-locations${buildQueryParams()}`);
+      const response = await fetch(`/api/analytics/locations/consolidated${buildQueryParams()}`);
       if (!response.ok) throw new Error("Failed to fetch location metrics");
       return response.json();
     },

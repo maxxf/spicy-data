@@ -544,13 +544,13 @@ export class DbStorage implements IStorage {
           const isPrepaidOrder = !t.transactionType || t.transactionType === "Prepaid Order";
           
           // Always include net payout for ALL transaction types
-          netPayout += t.netSales;
+          netPayout += t.merchantNetTotal || 0;
           
           // Only count Prepaid Orders for sales and order metrics
           if (isPrepaidOrder) {
             totalOrders++;
             totalSales += t.saleAmount;
-            const promoAmount = t.promotionCost || 0;
+            const promoAmount = t.merchantFundedPromotion || 0;
             offerDiscountValue += promoAmount;
             if (promoAmount > 0) {
               marketingDrivenSales += t.saleAmount;
@@ -737,14 +737,14 @@ export class DbStorage implements IStorage {
               const isPrepaidOrder = !t.transactionType || t.transactionType === "Prepaid Order";
               
               // Always include net payout for ALL transaction types
-              netPayout += t.netSales;
+              netPayout += t.merchantNetTotal || 0;
               
               // Only count Prepaid Orders for sales and order metrics
               if (isPrepaidOrder) {
                 totalOrders++;
                 totalSales += t.saleAmount;
-                if (t.promotionCost && t.promotionCost > 0) {
-                  offerDiscountValue += t.promotionCost;
+                if (t.merchantFundedPromotion && t.merchantFundedPromotion > 0) {
+                  offerDiscountValue += t.merchantFundedPromotion;
                   marketingDrivenSales += t.saleAmount;
                   ordersFromMarketing++;
                 }
