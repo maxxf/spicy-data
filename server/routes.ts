@@ -1102,8 +1102,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { fetchSheetData } = await import("./google-sheets");
 
       // Fetch the data from the sheet
-      // Assuming the data is in the first sheet with headers in row 1
-      const sheetData = await fetchSheetData(spreadsheetId, "Sheet1!A:Z");
+      // Try to get the gid from the URL to identify the specific sheet
+      const gidMatch = spreadsheetUrl.match(/gid=(\d+)/);
+      const range = "A:Z"; // Get all columns
+      
+      // If no specific sheet is specified, use the first sheet
+      const sheetData = await fetchSheetData(spreadsheetId, range);
 
       if (!sheetData || sheetData.length === 0) {
         return res.status(400).json({ error: "No data found in spreadsheet" });
