@@ -75,7 +75,7 @@ export function MetricCard({
               <span className="font-medium">
                 {Math.abs(change).toFixed(2)}%
               </span>
-              {changeLabel && <span className="text-muted-foreground ml-1">{changeLabel}</span>}
+              {changeLabel && <>{" "}<span className="text-muted-foreground">{changeLabel}</span></>}
             </div>
           )}
           {subtitle && !change && (
