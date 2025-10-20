@@ -235,13 +235,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const rows = parseCSV(req.file.buffer, platform);
 
       if (platform === "ubereats") {
+        // Helper to extract Store ID from Uber Eats location name (in parentheses)
+        const extractUberStoreId = (locationName: string): string | undefined => {
+          const match = locationName.match(/\(([A-Z0-9]+)\)/);
+          return match ? match[1] : undefined;
+        };
+
         // Step 1: Collect unique locations and create them upfront
         const locationMap = new Map<string, string>();
         const uniqueLocations = new Map<string, string | undefined>(); // name -> storeId
         
         for (const row of rows) {
           const locationName = getColumnValue(row, "Store Name", "Location", "Store_Name", "store_name");
-          const storeId = getColumnValue(row, "Store ID", "Store_ID", "store_id") || undefined;
+          const storeId = extractUberStoreId(locationName);
           if (locationName && locationName.trim() !== "") {
             uniqueLocations.set(locationName, storeId);
           }
@@ -315,7 +321,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         for (const row of rows) {
           const locationName = getColumnValue(row, "Store name", "Store Name", "Store_Name", "store_name");
-          const storeId = getColumnValue(row, "Store ID", "Store_ID", "store_id") || undefined;
+          const storeId = getColumnValue(row, "Merchant Store ID", "merchant_store_id", "Merchant_Store_ID") || undefined;
           if (locationName && locationName.trim() !== "") {
             uniqueLocations.set(locationName, storeId);
           }
@@ -423,18 +429,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } else if (platform === "grubhub") {
         // Step 1: Collect unique locations and create them upfront
         const locationMap = new Map<string, string>(); // key: locationName, value: locationId
-        const uniqueLocations = new Set<string>();
+        const uniqueLocations = new Map<string, string | undefined>(); // name -> storeId
         
         for (const row of rows) {
           const locationName = getColumnValue(row, "store_name", "Restaurant", "Store_Name", "store name");
+          const storeId = getColumnValue(row, "store_number", "Store_Number", "Store Number") || undefined;
           if (locationName && locationName.trim() !== "") {
-            uniqueLocations.add(locationName);
+            uniqueLocations.set(locationName, storeId);
           }
         }
         
         // Batch create/find all locations
-        for (const locationName of uniqueLocations) {
-          const storeId = undefined; // Grubhub doesn't have consistent store IDs in the data
+        for (const [locationName, storeId] of uniqueLocations) {
           const locationId = await findOrCreateLocation(clientId, locationName, "grubhub", storeId);
           locationMap.set(locationName, locationId);
         }
@@ -530,7 +536,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const startDate = row["Campaign Start Date"];
           const endDate = row["Campaign End Date"] === "None" ? null : row["Campaign End Date"];
           
-          const storeId = row["Store ID"] || row.Store_ID || row.store_id || null;
+          const storeId = row["Merchant Store ID"] || row.merchant_store_id || row.Merchant_Store_ID || null;
           const locationName = row["Store Name"] || row["Store name"] || "";
           const locationId = await findOrCreateLocation(clientId, locationName, "doordash", storeId);
           
