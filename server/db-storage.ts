@@ -328,28 +328,37 @@ export class DbStorage implements IStorage {
   ): Promise<void> {
     if (transactions.length === 0) return;
     
-    // Insert in chunks of 500, using upsert to prevent duplicates
+    // Insert in chunks of 500, using upsert to prevent duplicates based on workflowId
     const chunkSize = 500;
     for (let i = 0; i < transactions.length; i += chunkSize) {
       const chunk = transactions.slice(i, i + chunkSize);
       await this.db.insert(uberEatsTransactions)
         .values(chunk)
         .onConflictDoUpdate({
-          target: [uberEatsTransactions.clientId, uberEatsTransactions.orderId, uberEatsTransactions.date],
+          target: [uberEatsTransactions.clientId, uberEatsTransactions.workflowId],
           set: {
             locationId: sql`EXCLUDED.location_id`,
+            orderId: sql`EXCLUDED.order_id`,
+            orderStatus: sql`EXCLUDED.order_status`,
+            date: sql`EXCLUDED.date`,
             time: sql`EXCLUDED.time`,
             location: sql`EXCLUDED.location`,
+            salesExclTax: sql`EXCLUDED.sales_excl_tax`,
             subtotal: sql`EXCLUDED.subtotal`,
             tax: sql`EXCLUDED.tax`,
             deliveryFee: sql`EXCLUDED.delivery_fee`,
             serviceFee: sql`EXCLUDED.service_fee`,
+            offersOnItems: sql`EXCLUDED.offers_on_items`,
+            deliveryOfferRedemptions: sql`EXCLUDED.delivery_offer_redemptions`,
             marketingPromo: sql`EXCLUDED.marketing_promo`,
             marketingAmount: sql`EXCLUDED.marketing_amount`,
+            otherPayments: sql`EXCLUDED.other_payments`,
+            otherPaymentsDescription: sql`EXCLUDED.other_payments_description`,
             platformFee: sql`EXCLUDED.platform_fee`,
             netPayout: sql`EXCLUDED.net_payout`,
             customerRating: sql`EXCLUDED.customer_rating`,
-            uploadedAt: sql`EXCLUDED.uploaded_at`,
+            // Keep original uploadedAt on conflict (don't overwrite with new timestamp)
+            uploadedAt: sql`uber_eats_transactions.uploaded_at`,
           },
         });
     }

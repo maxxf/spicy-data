@@ -32,6 +32,7 @@ export const uberEatsTransactions = pgTable("uber_eats_transactions", {
   clientId: varchar("client_id").notNull().references(() => clients.id),
   locationId: varchar("location_id").references(() => locations.id),
   orderId: text("order_id").notNull(),
+  workflowId: text("workflow_id").notNull(), // Unique transaction identifier from Uber Eats
   orderStatus: text("order_status"), // e.g., "Completed", "Cancelled", "Unfulfilled", "Refund", "Refund Disputed"
   date: text("date").notNull(),
   time: text("time").notNull(),
@@ -64,8 +65,8 @@ export const uberEatsTransactions = pgTable("uber_eats_transactions", {
   customerRating: integer("customer_rating"),
   uploadedAt: timestamp("uploaded_at").defaultNow().notNull(),
 }, (table) => ({
-  // Unique constraint to prevent duplicate transactions
-  uniqueTransaction: uniqueIndex("uber_eats_unique_transaction").on(table.clientId, table.orderId, table.date),
+  // Unique constraint to prevent duplicate transactions - use workflowId as unique identifier
+  uniqueTransaction: uniqueIndex("uber_eats_unique_transaction").on(table.clientId, table.workflowId),
 }));
 
 export const doordashTransactions = pgTable("doordash_transactions", {

@@ -428,6 +428,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const transactions: InsertUberEatsTransaction[] = [];
         
         for (const row of rows) {
+          // Skip rows without workflow ID (unique transaction identifier)
+          const workflowId = getColumnValue(row, "Workflow ID", "Workflow_ID", "workflow_id");
+          if (!workflowId || workflowId.trim() === "") {
+            continue;
+          }
+
           // Skip rows without order ID
           const orderId = getColumnValue(row, "Order ID", "Order_ID", "order_id");
           if (!orderId || orderId.trim() === "") {
@@ -441,6 +447,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             clientId,
             locationId,
             orderId,
+            workflowId,
             date: getColumnValue(row, "Order Date", "Date", "Order_Date", "order_date"),
             time: getColumnValue(row, "Order Accept Time", "Time", "Order_Accept_Time", "order_accept_time"),
             location: locationName,
@@ -456,11 +463,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
         }
         
-        // Step 3: Deduplicate transactions by unique key (clientId, orderId, date) 
-        // since Uber Eats CSV can have multiple rows per order
+        // Step 3: Deduplicate transactions by workflowId (unique transaction identifier)
+        // since Uber Eats CSV can have multiple rows per workflow (item-level details)
         const uniqueTransactions = new Map<string, InsertUberEatsTransaction>();
         for (const txn of transactions) {
-          const key = `${txn.clientId}-${txn.orderId}-${txn.date}`;
+          const key = txn.workflowId;
           // Keep the last occurrence (most complete data row)
           uniqueTransactions.set(key, txn);
         }
