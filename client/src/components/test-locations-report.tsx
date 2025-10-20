@@ -136,7 +136,7 @@ export function TestLocationsReport({ clientId }: { clientId: string }) {
   if (!data || data.locations.length === 0) {
     return (
       <div className="text-center py-12 text-muted-foreground">
-        No test location data available. Make sure weekly financials have been uploaded.
+        No test location data available. Make sure transaction data has been uploaded for the corp locations.
       </div>
     );
   }
