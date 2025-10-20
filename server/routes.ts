@@ -104,16 +104,17 @@ function calculateStringSimilarity(str1: string, str2: string): number {
   return (longer.length - distance) / longer.length;
 }
 
-// Special function for Grubhub: Match by address (Column G) with normalization - NO AUTO-CREATION
+// Special function for Grubhub: Match by address (Column G) with store_number fallback - NO AUTO-CREATION
 async function findOrCreateLocationByAddress(
   clientId: string,
   locationName: string,
   platform: "grubhub",
-  address?: string
+  address?: string,
+  storeNumber?: string
 ): Promise<string> {
   const allLocations = await storage.getLocationsByClient(clientId);
   
-  // Match by normalized address to existing master locations (Column G)
+  // Strategy 1 (Primary): Match by normalized address to existing master locations (Column G)
   if (address) {
     const normalizedInputAddress = normalizeAddress(address);
     const locationByAddress = allLocations.find(l => 
@@ -130,9 +131,32 @@ async function findOrCreateLocationByAddress(
     }
   }
 
+  // Strategy 2 (Fallback): Match by store_number to storeId in master list (Column C)
+  // Note: Grubhub data sometimes has incorrect store_number, so this is lower confidence
+  if (storeNumber) {
+    // Trim and clean the store number (remove quotes, extra spaces)
+    const cleanStoreNumber = storeNumber.replace(/['"]/g, '').trim();
+    const locationByStoreNumber = allLocations.find(l => {
+      if (!l.storeId) return false;
+      // Extract the code portion from storeId (e.g., "NV008 Las Vegas Sahara" → "NV008")
+      const storeIdCode = l.storeId.split(' ')[0];
+      return storeIdCode === cleanStoreNumber;
+    });
+    if (locationByStoreNumber) {
+      // Update Grubhub name if not already set
+      if (!locationByStoreNumber.grubhubName) {
+        await storage.updateLocation(locationByStoreNumber.id, {
+          grubhubName: locationName
+        });
+      }
+      console.log(`[grubhub] Matched by store_number fallback: "${cleanStoreNumber}" → "${locationByStoreNumber.canonicalName}"`);
+      return locationByStoreNumber.id;
+    }
+  }
+
   // NO FUZZY MATCHING - NO AUTO-CREATION
   // If we didn't find a match, return the unmapped bucket
-  console.warn(`[grubhub] No master location match for: "${locationName}" (address: ${address || 'none'})`);
+  console.warn(`[grubhub] No master location match for: "${locationName}" (address: ${address || 'none'}, store_number: ${storeNumber || 'none'})`);
   return getUnmappedLocationBucket(clientId);
 }
 
@@ -478,19 +502,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } else if (platform === "grubhub") {
         // Step 1: Collect unique locations and create them upfront
         const locationMap = new Map<string, string>(); // key: locationName, value: locationId
-        const uniqueLocations = new Map<string, { address?: string }>(); // name -> {address}
+        const uniqueLocations = new Map<string, { address?: string; storeNumber?: string }>(); // name -> {address, storeNumber}
         
         for (const row of rows) {
           const locationName = getColumnValue(row, "store_name", "Restaurant", "Store_Name", "store name");
           const address = getColumnValue(row, "street_address", "store_address", "Address", "Store_Address", "address") || undefined;
+          const storeNumber = getColumnValue(row, "store_number", "Store_Number", "store number") || undefined;
           if (locationName && locationName.trim() !== "") {
-            uniqueLocations.set(locationName, { address });
+            uniqueLocations.set(locationName, { address, storeNumber });
           }
         }
         
-        // Batch create/find all locations using address for matching
-        for (const [locationName, { address }] of uniqueLocations) {
-          const locationId = await findOrCreateLocationByAddress(clientId, locationName, "grubhub", address);
+        // Batch create/find all locations using address (primary) and store_number (fallback) for matching
+        for (const [locationName, { address, storeNumber }] of uniqueLocations) {
+          const locationId = await findOrCreateLocationByAddress(clientId, locationName, "grubhub", address, storeNumber);
           locationMap.set(locationName, locationId);
         }
         
