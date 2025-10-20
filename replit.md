@@ -11,9 +11,10 @@ Preferred communication style: Simple, everyday language.
 ### Frontend
 - **Technology**: React 18+, TypeScript, Vite, Wouter for routing, TanStack Query for state management.
 - **UI/UX**: `shadcn/ui` (Radix UI) with Tailwind CSS, custom "New York" design system, data-dense layout, custom color palette (teal brand, light/dark modes), responsive for data visualization.
-- **Components**: Modular structure with shared components (e.g., MetricCard, DataTable, PlatformBadge), dedicated pages (Dashboard, Campaigns, Upload, Locations, Admin), sidebar navigation.
+- **Components**: Modular structure with shared components (e.g., MetricCard, DataTable, PlatformBadge), dedicated pages (Dashboard, Campaigns, Upload, Locations, Admin, Income Statement), sidebar navigation.
 - **Filtering**: Comprehensive filtering by week, client, location, platform (Uber Eats, DoorDash, Grubhub), and location tags. Week selection is page-specific.
 - **Campaigns Page**: Displays combined and segmented metrics for promotions and paid advertising, including ROAS, True Cost Per Order, Marketing AOV, and Net Profit Per Order, with transparent cost breakdowns.
+- **Income Statement Page**: Comprehensive financial breakdown by platform showing detailed P&L metrics including sales, commissions, marketing spend breakdown, taxes, refunds, and net margin calculations with CSV export capability.
 
 ### Backend
 - **Technology**: Express.js with TypeScript, RESTful API.
@@ -63,6 +64,32 @@ Preferred communication style: Simple, everyday language.
 - 8-color chart palette.
 
 ## Recent Changes
+
+### October 20, 2025 - Income Statement Page
+- **Implementation**: Created comprehensive financial breakdown page showing P&L metrics by platform
+  - Endpoint: `GET /api/analytics/income-statement?clientId=<id>&startDate=<date>&endDate=<date>`
+  - Aggregates transaction data across Uber Eats, DoorDash, and Grubhub
+  - Real-time calculation from transaction data (no pre-computed tables)
+- **Metrics Displayed** (28 line items):
+  - Revenue: Number of Transactions, Sales (Incl/Excl Tax), Unfulfilled Sales/Refunds
+  - Taxes: Taxes, Taxes Withheld, Taxes Backup (Uber Eats specific)
+  - Costs: Commissions, Restaurant Delivery Charge
+  - Marketing: Total Marketing, Loyalty, Ad Spend, Promo Spend, DoorDash Marketing Fee, Merchant Funded Discount, 3P Funded Discount
+  - Refunds: Customer Refunds, Won Disputes
+  - Other: Customer Tip, Restaurant Fees, Miscellaneous, Unaccounted
+  - Bottom Line: Net Payout, Cost of Goods Sold (46%), Net Margin
+- **Features**:
+  - Side-by-side comparison of all three platforms plus total column
+  - Percentage of Sales Incl. Tax shown for each metric
+  - Tooltips for complex metrics (Taxes Backup, DoorDash Marketing Fee, discounts)
+  - CSV export functionality with formatted data
+  - Hierarchical display with indented sub-metrics
+  - Highlighted rows for key metrics (Sales, Commissions, Marketing, Net Payout, Net Margin)
+  - Negative values displayed in red
+- **Platform-Specific Calculations**:
+  - Follows existing transaction filtering rules (Marketplace for DD, Prepaid for Grub, all for UE)
+  - Maps transaction fields to standardized metric categories
+  - Handles platform differences (e.g., Uber Eats tax handling, DoorDash marketing fees)
 
 ### October 20, 2025 - Test Locations (Corp Locations) Weekly Financial Report
 - **Implementation**: Built live-calculated financial report for 16 designated corp locations
