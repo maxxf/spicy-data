@@ -1,4 +1,4 @@
-import { LayoutDashboard, Upload, MapPin, BarChart3, Megaphone, Settings, FileText } from "lucide-react";
+import { LayoutDashboard, Upload, MapPin, BarChart3, Megaphone, Settings, FileText, LogOut, User } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import {
   Sidebar,
@@ -10,8 +10,12 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarHeader,
+  SidebarFooter,
 } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/hooks/useAuth";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
 
 const navigation = [
   {
@@ -43,6 +47,21 @@ const navigation = [
 
 export function AppSidebar() {
   const [location] = useLocation();
+  const { user } = useAuth();
+
+  const userInitials = user?.firstName && user?.lastName
+    ? `${user.firstName[0]}${user.lastName[0]}`
+    : user?.email?.[0]?.toUpperCase() || "U";
+
+  const displayName = user?.firstName && user?.lastName
+    ? `${user.firstName} ${user.lastName}`
+    : user?.email || "User";
+
+  const roleLabel = user?.role === "super_admin" 
+    ? "Super Admin" 
+    : user?.role === "brand_admin" 
+    ? "Brand Admin" 
+    : "User";
 
   return (
     <Sidebar data-testid="sidebar-main">
@@ -85,6 +104,28 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
+      <SidebarFooter className="p-4 border-t">
+        <div className="flex items-center gap-3 mb-3">
+          <Avatar className="w-8 h-8">
+            <AvatarImage src={user?.profileImageUrl || undefined} alt={displayName} />
+            <AvatarFallback>{userInitials}</AvatarFallback>
+          </Avatar>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium truncate" data-testid="text-user-name">{displayName}</p>
+            <p className="text-xs text-muted-foreground" data-testid="text-user-role">{roleLabel}</p>
+          </div>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          className="w-full"
+          onClick={() => window.location.href = "/api/logout"}
+          data-testid="button-logout"
+        >
+          <LogOut className="w-4 h-4" />
+          Sign Out
+        </Button>
+      </SidebarFooter>
     </Sidebar>
   );
 }
