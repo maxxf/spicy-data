@@ -604,11 +604,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const storeNumber = getColumnValue(row, "store_number", "Store_Number", "store number") || undefined;
           
           // Create unique key: use address if available, otherwise fall back to store_number
-          // This ensures rows with missing addresses still get individual matching attempts via store_number
+          // IMPORTANT: Skip rows with no address AND no store_number - they'll go to unmapped bucket
           const cleanStoreNumber = storeNumber?.replace(/['"]/g, '').trim() || '';
-          const addressKey = address ? normalizeAddress(address) : `store:${cleanStoreNumber || 'unknown'}`;
           
-          if (locationName && locationName.trim() !== "") {
+          // Only create addressKey if we have either address or store_number
+          const addressKey = address 
+            ? normalizeAddress(address) 
+            : cleanStoreNumber 
+            ? `store:${cleanStoreNumber}`
+            : null; // null means unmapped
+          
+          if (locationName && locationName.trim() !== "" && addressKey) {
             // Store the first occurrence of each unique address/store combo
             if (!uniqueLocations.has(addressKey)) {
               uniqueLocations.set(addressKey, { locationName, address, storeNumber });
@@ -639,8 +645,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const address = getColumnValue(row, "street_address", "store_address", "Address", "Store_Address", "address") || undefined;
           const storeNumber = getColumnValue(row, "store_number", "Store_Number", "store number") || undefined;
           const cleanStoreNumber = storeNumber?.replace(/['"]/g, '').trim() || '';
-          const addressKey = address ? normalizeAddress(address) : `store:${cleanStoreNumber || 'unknown'}`;
-          const locationId = locationMap.get(addressKey) || null;
+          
+          // Match the logic from Step 1: only create addressKey if we have address or store_number
+          const addressKey = address 
+            ? normalizeAddress(address) 
+            : cleanStoreNumber 
+            ? `store:${cleanStoreNumber}`
+            : null;
+          
+          // Get locationId from map, or null if no addressKey (goes to unmapped bucket)
+          const locationId = addressKey ? (locationMap.get(addressKey) || null) : null;
           
           // Parse financial fields
           const subtotal = parseFloat(getColumnValue(row, "subtotal", "Subtotal", "Sale_Amount", "sale amount")) || 0;
