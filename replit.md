@@ -79,6 +79,12 @@ Preferred communication style: Simple, everyday language.
   - Total week 9/29: 25,162 transactions, $841,133.51 sales (excl. tax), $24,192.07 marketing spend
   - Import script: `scripts/import-week-9-29.ts`
   - Verification script: `scripts/verify-import.ts`
+- **Week 9/15 Data Import**: Successfully imported data for Sept 15-21, 2025
+  - Cleared any existing data for this date range
+  - Imported fresh data: 3,729 UberEats, 140 DoorDash (summary), 1,544 Grubhub transactions
+  - Total week 9/15: 5,413 transactions, $834,575.36 sales (excl. tax), $39,017.61 marketing spend
+  - Import script: `scripts/import-week-9-15.ts`
+  - Verification script: `scripts/verify-week-9-15.ts`
 
 ### October 20, 2025 - Income Statement Page
 - **Implementation**: Created comprehensive financial breakdown page showing P&L metrics by platform
