@@ -234,6 +234,45 @@ async function findOrCreateLocation(
 ): Promise<string> {
   const allLocations = await storage.getLocationsByClient(clientId);
   
+  // DoorDash: Check edge case store name mappings first
+  if (platform === "doordash") {
+    // Hardcoded edge cases for DoorDash store names that don't follow standard patterns
+    const doordashEdgeCases: Record<string, string> = {
+      "lewes": "DE027",
+      "lewes, de": "DE027",
+      "whitesburg": "AL100520",
+      "whitesburg dr (medical district)": "AL100520",
+      "chicago river west": "IL110507",
+      "catclaw": "TX100444",
+      "catclaw - abilene": "TX100444",
+      "elkton": "MD013",
+      "elkton, md": "MD013",
+      "marlton": "NJ100518",
+      "marlton, nj": "NJ100518",
+    };
+    
+    const normalizedName = locationName.toLowerCase().trim();
+    const edgeCaseStoreId = doordashEdgeCases[normalizedName];
+    
+    if (edgeCaseStoreId) {
+      const locationByEdgeCase = allLocations.find(l => 
+        l.storeId === edgeCaseStoreId || 
+        l.storeId?.startsWith(edgeCaseStoreId + " ")
+      );
+      
+      if (locationByEdgeCase) {
+        console.log(`[doordash] Matched by edge case mapping: "${locationName}" → "${locationByEdgeCase.canonicalName}"`);
+        // Update DoorDash display name if not set
+        if (!locationByEdgeCase.doordashName) {
+          await storage.updateLocation(locationByEdgeCase.id, {
+            doordashName: locationName
+          });
+        }
+        return locationByEdgeCase.id;
+      }
+    }
+  }
+  
   // DoorDash: Match Merchant Store ID (e.g., "IA069" or "8") to doorDashStoreKey (Column E)
   if (platform === "doordash" && platformKey) {
     // Try exact match first
