@@ -93,10 +93,7 @@ async function analyzeDoorDashSummary(filePath: string, weekLabel: string) {
     const storeName = row["Store Name"] || "";
     const storeId = row["Merchant Store ID"] || "";
     
-    const location = allLocations.find(l => 
-      l.doordashStoreKey === storeId ||
-      (l.doordashStoreKey && storeId && l.doordashStoreKey.includes(storeId.split('-')[0]))
-    );
+    const location = allLocations.find(l => l.doorDashStoreKey === storeId);
     
     if (location) {
       matchedStores++;

@@ -146,26 +146,17 @@ async function verifyDoorDash(weekData: WeekData) {
     }
   } else {
     console.log(`  Format: Detailed (transaction-level)`);
+    console.log(`  Note: Counting ALL Marketplace transactions (matches import logic)`);
     
     // Check if this is the "simplified" format (has "Transaction type" instead of "Order status")
     const hasOrderStatus = rows[0] && "Order status" in rows[0];
     
     for (const row of rows) {
       const channel = row["Channel"] || "";
-      const transactionType = row["Transaction type"] || "";
       
-      // For simplified format: count all Marketplace "Order" transactions
-      // For full detailed format: only count Delivered/Picked Up
-      let shouldCount = false;
-      if (hasOrderStatus) {
-        const orderStatus = row["Order status"] || "";
-        shouldCount = channel === "Marketplace" && (orderStatus === "Delivered" || orderStatus === "Picked Up");
-      } else {
-        // Simplified format: count all Marketplace orders (not adjustments/refunds)
-        shouldCount = channel === "Marketplace" && transactionType === "Order";
-      }
-      
-      if (shouldCount) {
+      // Count ALL Marketplace transactions to match import logic
+      // This includes orders, adjustments, refunds, etc.
+      if (channel === "Marketplace") {
         csvCount++;
         csvSales += parseFloatSafe(row["Subtotal"]);
         
