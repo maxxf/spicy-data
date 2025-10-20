@@ -1,4 +1,4 @@
-import { LayoutDashboard, Upload, MapPin, BarChart3, Megaphone, Settings } from "lucide-react";
+import { LayoutDashboard, Upload, MapPin, BarChart3, Megaphone, Settings, FileText } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import {
   Sidebar,
@@ -18,6 +18,11 @@ const navigation = [
     title: "Overview",
     url: "/",
     icon: LayoutDashboard,
+  },
+  {
+    title: "Income Statement",
+    url: "/income-statement",
+    icon: FileText,
   },
   {
     title: "Promos",
