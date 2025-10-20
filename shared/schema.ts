@@ -29,6 +29,7 @@ export const uberEatsTransactions = pgTable("uber_eats_transactions", {
   clientId: varchar("client_id").notNull().references(() => clients.id),
   locationId: varchar("location_id").references(() => locations.id),
   orderId: text("order_id").notNull(),
+  orderStatus: text("order_status"), // e.g., "Completed", "Cancelled", "Unfulfilled", "Refund", "Refund Disputed"
   date: text("date").notNull(),
   time: text("time").notNull(),
   location: text("location").notNull(),
