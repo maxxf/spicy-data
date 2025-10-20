@@ -146,10 +146,13 @@ Preferred communication style: Simple, everyday language.
   - **Column G**: Address for Grubhub matching
 
 **Platform Matching Logic:**
-  - **DoorDash**: "Merchant Store ID" from CSV → Column E (doorDashStoreKey) ✅
-    - CSV Field: `merchant_store_id` (e.g., "IA069")
-    - Matches to: doorDashStoreKey field (Column E from master sheet)
-    - Direct exact match ensures accurate consolidation
+  - **DoorDash**: "Merchant Store ID" from CSV → Column E (doorDashStoreKey) with dual-strategy fallback ✅
+    - CSV Field: `merchant_store_id` (e.g., "IA069", "8", "467")
+    - **Strategy 1 (Primary)**: Exact match to doorDashStoreKey field (Column E from master sheet)
+    - **Strategy 2 (Numeric IDs only)**: If merchant_store_id is numeric-only (e.g., "8", "467"):
+      - First try matching with leading zeros removed (e.g., "8" → "NV008", "121" → "NV121")
+      - Then fallback to store_name matching if numeric match fails (e.g., "467" + "Los Altos" → "NV900467 Sparks Los Altos")
+    - This handles cases where DoorDash CSVs have incomplete store IDs (numeric-only instead of alphanumeric)
     - No match → transaction goes to "Unmapped Locations" bucket
     
   - **Uber Eats**: Extract code from "Store Name" → Column E (uberEatsStoreLabel) ✅

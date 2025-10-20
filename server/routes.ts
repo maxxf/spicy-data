@@ -143,8 +143,8 @@ async function findOrCreateLocationByAddress(
       return storeIdCode === cleanStoreNumber;
     });
     
-    // If no exact match and store number is numeric only, try matching the numeric suffix
-    // e.g., "467" should match "NV900467", "8" should match "NV008"
+    // If no exact match and store number is numeric only, try matching with leading zeros removed
+    // e.g., "121" should match "NV121", "8" should match "NV008"
     if (!locationByStoreNumber && /^\d+$/.test(cleanStoreNumber)) {
       locationByStoreNumber = allLocations.find(l => {
         if (!l.storeId) return false;
@@ -153,9 +153,8 @@ async function findOrCreateLocationByAddress(
         const numericMatch = storeIdCode.match(/(\d+)$/);
         if (!numericMatch) return false;
         const numericPortion = numericMatch[1];
-        // Check if numeric portion ends with the search number or equals it when leading zeros removed
-        return numericPortion.endsWith(cleanStoreNumber) || 
-               parseInt(numericPortion, 10).toString() === cleanStoreNumber;
+        // Compare with leading zeros removed (e.g., "008" → "8", "121" → "121")
+        return parseInt(numericPortion, 10).toString() === cleanStoreNumber;
       });
     }
     
@@ -240,18 +239,40 @@ async function findOrCreateLocation(
     // Try exact match first
     let locationByKey = allLocations.find(l => l.doorDashStoreKey === platformKey);
     
-    // If no exact match and platformKey is numeric only, try matching the numeric suffix
-    // e.g., "8" should match "NV008", "467" should match "NV900467"
+    // If no exact match and platformKey is numeric-only, try two fallback strategies:
     if (!locationByKey && /^\d+$/.test(platformKey)) {
+      // Strategy 1: Match numeric portion with leading zeros removed (e.g., "8" → "NV008")
       locationByKey = allLocations.find(l => {
         if (!l.doorDashStoreKey) return false;
-        // Extract numeric portion from doorDashStoreKey (e.g., "NV008" → "008", "NV900467" → "900467")
+        // Extract numeric portion from doorDashStoreKey (e.g., "NV008" → "008")
         const keyMatch = l.doorDashStoreKey.match(/(\d+)$/);
         if (!keyMatch) return false;
-        // Compare numeric portions (e.g., "008" vs "8", removing leading zeros)
+        // Compare with leading zeros removed (e.g., "008" vs "8")
         const numericPortion = parseInt(keyMatch[1], 10).toString();
         return numericPortion === platformKey;
       });
+      
+      // Strategy 2: If numeric matching failed, try matching by store name
+      // (handles cases like "467" → "NV900467" where numeric portions don't match)
+      if (!locationByKey) {
+        const normalizedLocationName = locationName.toLowerCase().trim();
+        locationByKey = allLocations.find(l => {
+          if (!l.canonicalName && !l.storeId) return false;
+          // Try matching against the descriptive part of storeId (e.g., "NV008 Las Vegas Sahara" → "las vegas sahara")
+          const nameToMatch = l.storeId || l.canonicalName;
+          const parts = nameToMatch.split(' ');
+          // Skip the first part (the code like "NV008") and check if remaining parts match
+          const descriptivePart = parts.slice(1).join(' ').toLowerCase().trim();
+          
+          // Check if store name appears in the descriptive part
+          return descriptivePart.includes(normalizedLocationName) || 
+                 normalizedLocationName.includes(descriptivePart);
+        });
+        
+        if (locationByKey) {
+          console.log(`[doordash] Matched by store_name fallback (numeric ID ${platformKey}): "${locationName}" → "${locationByKey.canonicalName}"`);
+        }
+      }
     }
     
     if (locationByKey) {
