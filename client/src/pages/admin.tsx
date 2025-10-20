@@ -13,7 +13,7 @@ import { DataTable } from "@/components/data-table";
 import type { Client, Location } from "@shared/schema";
 
 export default function AdminPage() {
-  const [selectedClient, setSelectedClient] = useState<string>("");
+  const [selectedClient, setSelectedClient] = useState<string>("83506705-b408-4f0a-a9b0-e5b585db3b7d");
   const [masterListUrl, setMasterListUrl] = useState<string>("https://docs.google.com/spreadsheets/d/1H-qG7iMx52CTC7HDwsHwTV8YdS60syK6V9V-RKQc5GA/edit?gid=1978235356#gid=1978235356");
   const { toast } = useToast();
   const queryClient = useQueryClient();

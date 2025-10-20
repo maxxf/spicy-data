@@ -19,7 +19,7 @@ export default function UploadPage() {
     doordash: null,
     grubhub: null,
   });
-  const [selectedClient, setSelectedClient] = useState<string>("");
+  const [selectedClient, setSelectedClient] = useState<string>("83506705-b408-4f0a-a9b0-e5b585db3b7d");
   const [marketingFile, setMarketingFile] = useState<File | null>(null);
   const [marketingDataType, setMarketingDataType] = useState<MarketingDataType | "">("");
   const { toast } = useToast();

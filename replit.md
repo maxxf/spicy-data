@@ -12,6 +12,7 @@ Preferred communication style: Simple, everyday language.
 - **Technology**: React 18+, TypeScript, Vite, Wouter for routing, TanStack Query for state management.
 - **UI/UX**: `shadcn/ui` (Radix UI) with Tailwind CSS, custom "New York" design system, data-dense layout, custom color palette (teal brand, light/dark modes), responsive for data visualization.
 - **Components**: Modular structure with shared components (e.g., MetricCard, DataTable, PlatformBadge), dedicated pages (Dashboard, Campaigns, Upload, Locations, Admin, Income Statement), sidebar navigation.
+- **Default Client**: Capriotti's (ID: `83506705-b408-4f0a-a9b0-e5b585db3b7d`) is automatically selected as the default client across all pages (Dashboard, Campaigns, Locations, Upload, Admin, Income Statement).
 - **Filtering**: Comprehensive filtering by week, client, location, platform (Uber Eats, DoorDash, Grubhub), and location tags. Week selection is page-specific.
 - **Campaigns Page**: Displays combined and segmented metrics for promotions and paid advertising, including ROAS, True Cost Per Order, Marketing AOV, and Net Profit Per Order, with transparent cost breakdowns.
 - **Income Statement Page**: Comprehensive financial breakdown by platform showing detailed P&L metrics including sales, commissions, marketing spend breakdown, taxes, refunds, and net margin calculations with CSV export capability.

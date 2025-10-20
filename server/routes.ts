@@ -1151,6 +1151,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Delete transactions by date range (for data cleanup/reimport)
+  app.delete("/api/transactions", async (req, res) => {
+    try {
+      const { clientId, startDate, endDate } = req.query;
+
+      if (!clientId || !startDate || !endDate) {
+        return res.status(400).json({ error: "Missing required fields: clientId, startDate, endDate" });
+      }
+
+      const uberDeleted = await storage.deleteUberEatsTransactionsByDateRange(
+        clientId as string,
+        startDate as string,
+        endDate as string
+      );
+
+      const doorDeleted = await storage.deleteDoordashTransactionsByDateRange(
+        clientId as string,
+        startDate as string,
+        endDate as string
+      );
+
+      const grubDeleted = await storage.deleteGrubhubTransactionsByDateRange(
+        clientId as string,
+        startDate as string,
+        endDate as string
+      );
+
+      const financialsDeleted = await storage.deleteLocationWeeklyFinancialsByClient(clientId as string);
+
+      const totalDeleted = uberDeleted + doorDeleted + grubDeleted;
+
+      res.json({
+        success: true,
+        deleted: {
+          uberEats: uberDeleted,
+          doorDash: doorDeleted,
+          grubhub: grubDeleted,
+          financials: financialsDeleted,
+          total: totalDeleted
+        }
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Preview Google Sheets data structure (for debugging)
   app.post("/api/locations/preview-sheet", async (req, res) => {
     try {

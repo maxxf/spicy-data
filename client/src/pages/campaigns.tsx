@@ -21,7 +21,7 @@ const statusColors = {
 };
 
 export default function PromosPage() {
-  const [selectedClientId, setSelectedClientId] = useState<string | null>("capriottis");
+  const [selectedClientId, setSelectedClientId] = useState<string | null>("83506705-b408-4f0a-a9b0-e5b585db3b7d");
   const [selectedLocationId, setSelectedLocationId] = useState<string | null>(null);
   const [selectedPlatform, setSelectedPlatform] = useState<string | null>(null);
   const [selectedStatus, setSelectedStatus] = useState<string>("all");

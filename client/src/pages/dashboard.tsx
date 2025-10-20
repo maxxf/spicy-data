@@ -37,7 +37,7 @@ interface ClientPerformance {
 }
 
 export default function Dashboard() {
-  const [selectedClientId, setSelectedClientId] = useState<string | null>("capriottis");
+  const [selectedClientId, setSelectedClientId] = useState<string | null>("83506705-b408-4f0a-a9b0-e5b585db3b7d");
   const [selectedLocationId, setSelectedLocationId] = useState<string | null>(null);
   const [selectedPlatform, setSelectedPlatform] = useState<string | null>(null);
   const [selectedWeek, setSelectedWeek] = useState<{ weekStart: string; weekEnd: string } | null>(null);

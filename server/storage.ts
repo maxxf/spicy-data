@@ -47,14 +47,17 @@ export interface IStorage {
   createUberEatsTransaction(transaction: InsertUberEatsTransaction): Promise<UberEatsTransaction>;
   createUberEatsTransactionsBatch(transactions: InsertUberEatsTransaction[]): Promise<void>;
   getUberEatsTransactionsByClient(clientId: string): Promise<UberEatsTransaction[]>;
+  deleteUberEatsTransactionsByDateRange(clientId: string, startDate: string, endDate: string): Promise<number>;
   
   createDoordashTransaction(transaction: InsertDoordashTransaction): Promise<DoordashTransaction>;
   createDoordashTransactionsBatch(transactions: InsertDoordashTransaction[]): Promise<void>;
   getDoordashTransactionsByClient(clientId: string): Promise<DoordashTransaction[]>;
+  deleteDoordashTransactionsByDateRange(clientId: string, startDate: string, endDate: string): Promise<number>;
 
   createGrubhubTransaction(transaction: InsertGrubhubTransaction): Promise<GrubhubTransaction>;
   createGrubhubTransactionsBatch(transactions: InsertGrubhubTransaction[]): Promise<void>;
   getGrubhubTransactionsByClient(clientId: string): Promise<GrubhubTransaction[]>;
+  deleteGrubhubTransactionsByDateRange(clientId: string, startDate: string, endDate: string): Promise<number>;
 
   getDashboardOverview(filters?: AnalyticsFilters): Promise<DashboardOverview>;
   getLocationMetrics(filters?: AnalyticsFilters): Promise<LocationMetrics[]>;
@@ -218,6 +221,25 @@ export class MemStorage implements IStorage {
     );
   }
 
+  async deleteUberEatsTransactionsByDateRange(clientId: string, startDate: string, endDate: string): Promise<number> {
+    const transactions = Array.from(this.uberEatsTransactions.values());
+    let count = 0;
+    for (const t of transactions) {
+      if (t.clientId === clientId) {
+        const dateStr = typeof t.orderDate === 'string' 
+          ? t.orderDate.split('T')[0]
+          : t.orderDate instanceof Date && !isNaN(t.orderDate.getTime())
+          ? t.orderDate.toISOString().split('T')[0]
+          : '';
+        if (dateStr >= startDate && dateStr <= endDate) {
+          this.uberEatsTransactions.delete(t.id);
+          count++;
+        }
+      }
+    }
+    return count;
+  }
+
   async createDoordashTransaction(insertTransaction: InsertDoordashTransaction): Promise<DoordashTransaction> {
     const id = randomUUID();
     const transaction: DoordashTransaction = {
@@ -247,6 +269,25 @@ export class MemStorage implements IStorage {
     );
   }
 
+  async deleteDoordashTransactionsByDateRange(clientId: string, startDate: string, endDate: string): Promise<number> {
+    const transactions = Array.from(this.doordashTransactions.values());
+    let count = 0;
+    for (const t of transactions) {
+      if (t.clientId === clientId) {
+        const dateStr = typeof t.orderDate === 'string' 
+          ? t.orderDate.split('T')[0]
+          : t.orderDate instanceof Date && !isNaN(t.orderDate.getTime())
+          ? t.orderDate.toISOString().split('T')[0]
+          : '';
+        if (dateStr >= startDate && dateStr <= endDate) {
+          this.doordashTransactions.delete(t.id);
+          count++;
+        }
+      }
+    }
+    return count;
+  }
+
   async createGrubhubTransaction(insertTransaction: InsertGrubhubTransaction): Promise<GrubhubTransaction> {
     const id = randomUUID();
     const transaction: GrubhubTransaction = {
@@ -274,6 +315,25 @@ export class MemStorage implements IStorage {
     return Array.from(this.grubhubTransactions.values()).filter(
       (t) => t.clientId === clientId
     );
+  }
+
+  async deleteGrubhubTransactionsByDateRange(clientId: string, startDate: string, endDate: string): Promise<number> {
+    const transactions = Array.from(this.grubhubTransactions.values());
+    let count = 0;
+    for (const t of transactions) {
+      if (t.clientId === clientId) {
+        const dateStr = typeof t.orderDate === 'string' 
+          ? t.orderDate.split('T')[0]
+          : t.orderDate instanceof Date && !isNaN(t.orderDate.getTime())
+          ? t.orderDate.toISOString().split('T')[0]
+          : '';
+        if (dateStr >= startDate && dateStr <= endDate) {
+          this.grubhubTransactions.delete(t.id);
+          count++;
+        }
+      }
+    }
+    return count;
   }
 
   async getDashboardOverview(filters?: AnalyticsFilters): Promise<DashboardOverview> {
