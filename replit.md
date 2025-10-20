@@ -66,16 +66,18 @@ Preferred communication style: Simple, everyday language.
 - Platform-specific parsing logic for Uber Eats, DoorDash, and Grubhub
 - String similarity matching for location reconciliation
 - Transaction validation and data normalization
-- **DoorDash Attribution Methodology (Updated)**:
-  - Order Filtering: Only Marketplace channel + Completed status counted for sales/order metrics
-  - Sales Calculation: Uses "Sales (excl. tax)" as primary metric
-  - Marketing Investment: Ad Spend (from "Other payments") + Offer Value (promotional discounts + credits)
-  - Marketing Attribution: Orders with promotional offers, delivery offers, marketing credits, or third-party contributions
-  - Net Payout: Sums ALL order statuses (including refunds, cancellations)
-- **Grubhub Sales Calculation**:
-  - `saleAmount` = `subtotal` + `subtotalSalesTax` (calculated during CSV import)
-  - Includes all transaction types: Prepaid Orders, Order Adjustments, Cancellations
-  - Analytics use `saleAmount` field for total sales metrics
+- **Platform-Specific Transaction Status Handling**:
+  - **Uber Eats**: No orderStatus field exists in CSV data → All transactions counted (CSV exports only include completed orders)
+  - **DoorDash**: Filters to Marketplace channel + Completed status (Delivered or Picked Up) for sales/order metrics
+    - Sales Calculation: Uses "Sales (excl. tax)" as primary metric
+    - Marketing Investment: Ad Spend (from "Other payments") + Offer Value (promotional discounts + credits)
+    - Marketing Attribution: Orders with promotional offers, delivery offers, marketing credits, or third-party contributions
+    - Net Payout: Sums ALL order statuses (including refunds, cancellations) for Marketplace channel only
+  - **Grubhub**: Filters by transaction_type field for sales/order metrics vs net payout
+    - **Sales/Orders**: Only counts `transaction_type = "Prepaid Order"` (completed orders) 
+    - **Net Payout**: Includes ALL transaction types (Prepaid Order, Order Adjustment, Cancellation) for finance reconciliation
+    - `saleAmount` = `subtotal` + `subtotalSalesTax` (calculated during CSV import)
+    - This filtering prevents adjustments (-$516) and cancellations (-$376) from inflating sales metrics while maintaining accurate net payout totals
 
 **API Endpoints:**
 - `/api/clients`: Client management
