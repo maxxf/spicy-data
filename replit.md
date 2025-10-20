@@ -147,22 +147,31 @@ Preferred communication style: Simple, everyday language.
 
 **Platform Matching Logic:**
   - **DoorDash**: "Merchant Store ID" from CSV → Column E (doorDashStoreKey) ✅
-    - CSV Field: `merchant_store_id` or `Merchant Store ID` or `Merchant_Store_ID`
+    - CSV Field: `merchant_store_id` (e.g., "IA069")
     - Matches to: doorDashStoreKey field (Column E from master sheet)
     - Direct exact match ensures accurate consolidation
+    - No match → transaction goes to "Unmapped Locations" bucket
     
-  - **Uber Eats**: "Store Name" from CSV → Column E (uberEatsStoreLabel) ✅
+  - **Uber Eats**: Extract code from "Store Name" → Column E (uberEatsStoreLabel) ✅
     - CSV Field: `Store Name` (e.g., "Capriotti's Sandwich Shop (IA069)")
+    - Extraction: Regex extracts code from parentheses → "IA069"
     - Matches to: uberEatsStoreLabel field (Column E from master sheet)
     - NOTE: CSV "Store ID" column is auxiliary data, NOT used for matching
-    - Direct exact match by Store Name ensures accurate consolidation
+    - Direct exact match by extracted code ensures accurate consolidation
+    - No match → transaction goes to "Unmapped Locations" bucket
     
-  - **Grubhub**: "street_address" from CSV → Column G (address) with fuzzy matching
+  - **Grubhub**: "street_address" from CSV → Column G (address) exact match only
     - CSV Field: `store_address` or `Address` or `Store_Address`
     - Matches to: address field (Column G from master sheet)
-    - Priority 1: Exact address match (case-insensitive)
-    - Priority 2: Fuzzy name matching (0.8 threshold) as fallback
-    - Grubhub lacks reliable Store IDs, so address is the primary join key
+    - Exact address match (case-insensitive) - NO fuzzy matching
+    - No match → transaction goes to "Unmapped Locations" bucket
+    
+**Unmapped Location Bucket:**
+  - System creates one special "Unmapped Locations" location per client
+  - All transactions that fail to match the master location list go here
+  - Tagged with `locationTag: "unmapped_bucket"` for easy identification
+  - NO auto-creation of new locations beyond the master list
+  - Unmapped transactions can be reviewed and manually reassigned to correct locations
 - **Batch optimization for high-volume imports:**
   - Location caching: Collects unique locations upfront and batch creates/finds them to eliminate N+1 query problems
   - Batch insert: Processes transactions in chunks of 500 with upsert logic to prevent duplicates

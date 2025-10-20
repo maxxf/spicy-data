@@ -104,18 +104,20 @@ function calculateStringSimilarity(str1: string, str2: string): number {
   return (longer.length - distance) / longer.length;
 }
 
-// Special function for Grubhub: Match by address instead of Store ID
+// Special function for Grubhub: Match by address (Column G) with normalization - NO AUTO-CREATION
 async function findOrCreateLocationByAddress(
   clientId: string,
   locationName: string,
   platform: "grubhub",
   address?: string
 ): Promise<string> {
-  // Priority 1: Match by address to existing master locations
+  const allLocations = await storage.getLocationsByClient(clientId);
+  
+  // Match by normalized address to existing master locations (Column G)
   if (address) {
-    const allLocations = await storage.getLocationsByClient(clientId);
+    const normalizedInputAddress = normalizeAddress(address);
     const locationByAddress = allLocations.find(l => 
-      l.address && l.address.toLowerCase().trim() === address.toLowerCase().trim()
+      l.address && normalizeAddress(l.address) === normalizedInputAddress
     );
     if (locationByAddress) {
       // Update Grubhub name if not already set
@@ -128,46 +130,60 @@ async function findOrCreateLocationByAddress(
     }
   }
 
-  // Priority 2: Fuzzy match on canonical name
+  // NO FUZZY MATCHING - NO AUTO-CREATION
+  // If we didn't find a match, return the unmapped bucket
+  console.warn(`[grubhub] No master location match for: "${locationName}" (address: ${address || 'none'})`);
+  return getUnmappedLocationBucket(clientId);
+}
+
+// Helper: Extract code from parentheses (e.g., "Capriotti's (IA069)" or "(az-104)" → "IA069" or "az-104")
+function extractCodeFromParentheses(text: string): string | null {
+  const match = text.match(/\(([A-Za-z0-9|-]+)\)/);
+  return match ? match[1].trim() : null;
+}
+
+// Helper: Normalize address for matching (handle "St." vs "Street", whitespace, etc.)
+function normalizeAddress(address: string): string {
+  return address
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, ' ') // Collapse multiple spaces
+    .replace(/\bstreet\b/g, 'st')
+    .replace(/\bavenue\b/g, 'ave')
+    .replace(/\broad\b/g, 'rd')
+    .replace(/\bboulevard\b/g, 'blvd')
+    .replace(/\bdrive\b/g, 'dr')
+    .replace(/\blane\b/g, 'ln')
+    .replace(/[.,]/g, ''); // Remove punctuation
+}
+
+// Helper: Get or create the "Unmapped Locations" bucket for a client
+async function getUnmappedLocationBucket(clientId: string): Promise<string> {
   const allLocations = await storage.getLocationsByClient(clientId);
+  const unmappedBucket = allLocations.find(l => 
+    l.canonicalName === "Unmapped Locations" && l.locationTag === "unmapped_bucket"
+  );
   
-  let bestMatch: { location: any; score: number } | null = null;
-  for (const loc of allLocations) {
-    const canonicalSimilarity = calculateStringSimilarity(locationName, loc.canonicalName);
-    const grubhubSimilarity = loc.grubhubName 
-      ? calculateStringSimilarity(locationName, loc.grubhubName) 
-      : 0;
-    
-    const score = Math.max(canonicalSimilarity, grubhubSimilarity);
-    
-    if (score >= 0.8 && (!bestMatch || score > bestMatch.score)) {
-      bestMatch = { location: loc, score };
-    }
+  if (unmappedBucket) {
+    return unmappedBucket.id;
   }
-
-  if (bestMatch) {
-    const updates: any = { grubhubName: locationName };
-    if (address && !bestMatch.location.address) {
-      updates.address = address;
-    }
-    await storage.updateLocation(bestMatch.location.id, updates);
-    return bestMatch.location.id;
-  }
-
-  // Create new location without Store ID (Grubhub doesn't have reliable IDs)
-  const newLocation = await storage.createLocation({
+  
+  // Create unmapped bucket if it doesn't exist
+  const newBucket = await storage.createLocation({
     clientId,
     storeId: null,
-    canonicalName: locationName,
-    address: address || null,
+    canonicalName: "Unmapped Locations",
+    address: null,
+    doorDashStoreKey: null,
+    uberEatsStoreLabel: null,
     uberEatsName: null,
     doordashName: null,
-    grubhubName: locationName,
-    isVerified: false, // Not verified since no Store ID
-    locationTag: null,
+    grubhubName: null,
+    isVerified: true,
+    locationTag: "unmapped_bucket",
   });
-
-  return newLocation.id;
+  
+  return newBucket.id;
 }
 
 async function findOrCreateLocation(
@@ -178,7 +194,7 @@ async function findOrCreateLocation(
 ): Promise<string> {
   const allLocations = await storage.getLocationsByClient(clientId);
   
-  // DoorDash: Match by doorDashStoreKey (Column E)
+  // DoorDash: Match Merchant Store ID (e.g., "IA069") to doorDashStoreKey (Column E)
   if (platform === "doordash" && platformKey) {
     const locationByKey = allLocations.find(l => l.doorDashStoreKey === platformKey);
     if (locationByKey) {
@@ -192,64 +208,28 @@ async function findOrCreateLocation(
     }
   }
   
-  // Uber Eats: Match locationName to uberEatsStoreLabel (Column E)
-  // locationName is like "Capriotti's Sandwich Shop (IA069)"
+  // Uber Eats: Extract code from Store Name (e.g., "Capriotti's (IA069)" → "IA069")
+  // then match to uberEatsStoreLabel (Column E)
   if (platform === "ubereats") {
-    const locationByLabel = allLocations.find(l => l.uberEatsStoreLabel === locationName);
-    if (locationByLabel) {
-      // Update Uber Eats display name if not set
-      if (!locationByLabel.uberEatsName) {
-        await storage.updateLocation(locationByLabel.id, {
-          uberEatsName: locationName
-        });
+    const extractedCode = extractCodeFromParentheses(locationName);
+    if (extractedCode) {
+      const locationByCode = allLocations.find(l => l.uberEatsStoreLabel === extractedCode);
+      if (locationByCode) {
+        // Update Uber Eats display name if not set
+        if (!locationByCode.uberEatsName) {
+          await storage.updateLocation(locationByCode.id, {
+            uberEatsName: locationName
+          });
+        }
+        return locationByCode.id;
       }
-      return locationByLabel.id;
     }
   }
 
-  // Fallback: Fuzzy matching for locations without Column E data
-  let bestMatch: { location: any; score: number } | null = null;
-  for (const loc of allLocations) {
-    const canonicalSimilarity = calculateStringSimilarity(locationName, loc.canonicalName);
-    
-    let platformSimilarity = 0;
-    if (platform === "ubereats" && loc.uberEatsName) {
-      platformSimilarity = calculateStringSimilarity(locationName, loc.uberEatsName);
-    } else if (platform === "doordash" && loc.doordashName) {
-      platformSimilarity = calculateStringSimilarity(locationName, loc.doordashName);
-    }
-
-    const score = Math.max(canonicalSimilarity, platformSimilarity);
-    
-    if (score >= 0.8 && (!bestMatch || score > bestMatch.score)) {
-      bestMatch = { location: loc, score };
-    }
-  }
-
-  if (bestMatch) {
-    const updates: any = {};
-    if (platform === "ubereats") updates.uberEatsName = locationName;
-    if (platform === "doordash") updates.doordashName = locationName;
-    
-    await storage.updateLocation(bestMatch.location.id, updates);
-    return bestMatch.location.id;
-  }
-
-  // Create new unmatched location (will need manual verification)
-  const newLocation = await storage.createLocation({
-    clientId,
-    storeId: null, // No Column C match
-    canonicalName: locationName,
-    doorDashStoreKey: platform === "doordash" ? platformKey || null : null,
-    uberEatsStoreLabel: platform === "ubereats" ? locationName : null,
-    uberEatsName: platform === "ubereats" ? locationName : null,
-    doordashName: platform === "doordash" ? locationName : null,
-    grubhubName: null,
-    isVerified: false, // Not verified since no Column C/E match
-    locationTag: null,
-  });
-
-  return newLocation.id;
+  // NO FUZZY MATCHING - NO AUTO-CREATION
+  // If we didn't find a match, return the unmapped bucket
+  console.warn(`[${platform}] No master location match for: "${locationName}" (key: ${platformKey || 'none'})`);
+  return getUnmappedLocationBucket(clientId);
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
