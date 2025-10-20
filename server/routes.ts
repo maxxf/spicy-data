@@ -136,12 +136,29 @@ async function findOrCreateLocationByAddress(
   if (storeNumber) {
     // Trim and clean the store number (remove quotes, extra spaces)
     const cleanStoreNumber = storeNumber.replace(/['"]/g, '').trim();
-    const locationByStoreNumber = allLocations.find(l => {
+    let locationByStoreNumber = allLocations.find(l => {
       if (!l.storeId) return false;
       // Extract the code portion from storeId (e.g., "NV008 Las Vegas Sahara" → "NV008")
       const storeIdCode = l.storeId.split(' ')[0];
       return storeIdCode === cleanStoreNumber;
     });
+    
+    // If no exact match and store number is numeric only, try matching the numeric suffix
+    // e.g., "467" should match "NV900467", "8" should match "NV008"
+    if (!locationByStoreNumber && /^\d+$/.test(cleanStoreNumber)) {
+      locationByStoreNumber = allLocations.find(l => {
+        if (!l.storeId) return false;
+        const storeIdCode = l.storeId.split(' ')[0];
+        // Extract numeric portion from storeIdCode
+        const numericMatch = storeIdCode.match(/(\d+)$/);
+        if (!numericMatch) return false;
+        const numericPortion = numericMatch[1];
+        // Check if numeric portion ends with the search number or equals it when leading zeros removed
+        return numericPortion.endsWith(cleanStoreNumber) || 
+               parseInt(numericPortion, 10).toString() === cleanStoreNumber;
+      });
+    }
+    
     if (locationByStoreNumber) {
       // Update Grubhub name if not already set
       if (!locationByStoreNumber.grubhubName) {
