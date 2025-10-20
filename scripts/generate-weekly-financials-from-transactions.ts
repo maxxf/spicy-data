@@ -1,8 +1,21 @@
 import { storage } from "../server/storage";
 
+// Helper to parse dates from different formats (MM/DD/YY or YYYY-MM-DD)
+function parseDate(dateStr: string): Date {
+  // Check if it's in MM/DD/YY format (Uber Eats)
+  if (/^\d{1,2}\/\d{1,2}\/\d{2}$/.test(dateStr)) {
+    const [month, day, year] = dateStr.split('/');
+    // Assume 20xx for 2-digit years
+    const fullYear = `20${year}`;
+    return new Date(`${fullYear}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`);
+  }
+  // Otherwise assume ISO format (YYYY-MM-DD)
+  return new Date(dateStr);
+}
+
 // Helper to get Monday of the week containing a date
 function getWeekStart(dateStr: string): string {
-  const date = new Date(dateStr);
+  const date = parseDate(dateStr);
   const day = date.getDay();
   const diff = date.getDate() - day + (day === 0 ? -6 : 1); // Adjust for Sunday
   const monday = new Date(date.setDate(diff));
@@ -50,7 +63,7 @@ async function main() {
 
   // Process Uber Eats transactions
   for (const txn of uberTxns) {
-    if (!txn.locationId) continue;
+    if (!txn.locationId || !txn.date || txn.date.trim() === '') continue;
     
     const weekStart = getWeekStart(txn.date);
     const key = `${txn.locationId}|${weekStart}`;
@@ -81,7 +94,7 @@ async function main() {
 
   // Process DoorDash transactions
   for (const txn of doorTxns) {
-    if (!txn.locationId) continue;
+    if (!txn.locationId || !txn.transactionDate || txn.transactionDate.trim() === '') continue;
     
     const weekStart = getWeekStart(txn.transactionDate);
     
@@ -111,7 +124,7 @@ async function main() {
 
   // Process Grubhub transactions
   for (const txn of grubTxns) {
-    if (!txn.locationId) continue;
+    if (!txn.locationId || !txn.orderDate || txn.orderDate.trim() === '') continue;
     
     const weekStart = getWeekStart(txn.orderDate);
     
