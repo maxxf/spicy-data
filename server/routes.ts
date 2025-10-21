@@ -580,6 +580,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const locationName = getColumnValue(row, "Store name", "Store Name", "Store_Name", "store_name");
           const locationId = locationMap.get(locationName) || null;
 
+          // Parse all financial columns
+          const subtotal = parseNegativeFloat(getColumnValue(row, "Subtotal", "Order Subtotal", "Order_Subtotal", "order_subtotal"));
+          const taxes = parseNegativeFloat(getColumnValue(row, "Subtotal tax passed to merchant", "Subtotal Tax Passed by DoorDash to Merchant", "Taxes", "taxes"));
+          const commission = parseNegativeFloat(getColumnValue(row, "Commission", "commission"));
+          const totalTips = parseNegativeFloat(getColumnValue(row, "Total Tips", "total_tips"));
+          const marketingFees = parseNegativeFloat(getColumnValue(row, "Marketing fees | (including any applicable taxes)", "Marketing Fees | (Including any applicable taxes)", "other_payments"));
+          const paymentProcessingFee = parseNegativeFloat(getColumnValue(row, "Payment Processing Fee", "payment_processing_fee"));
+          const deliveryOrderFee = parseNegativeFloat(getColumnValue(row, "Delivery Order Fee", "delivery_order_fee"));
+          const pickupOrderFee = parseNegativeFloat(getColumnValue(row, "Pickup Order Fee", "pickup_order_fee"));
+          const errorCharge = parseNegativeFloat(getColumnValue(row, "Error Charge", "Error charges", "Error Charges", "error_charges"));
+
+          // Calculate net payout: Subtotal + Tax + Tips - Commission - Marketing Fees - Processing Fees - Order Fees + Error Charges
+          const calculatedNetPayout = subtotal + taxes + totalTips - commission - marketingFees - paymentProcessingFee - deliveryOrderFee - pickupOrderFee + errorCharge;
+          
+          // Debug first transaction
+          if (transactions.length === 0) {
+            console.log('[DoorDash Calc Debug] First transaction:');
+            console.log('  Subtotal:', subtotal);
+            console.log('  Taxes:', taxes);
+            console.log('  Total Tips:', totalTips);
+            console.log('  Commission:', commission);
+            console.log('  Marketing Fees:', marketingFees);
+            console.log('  Payment Processing Fee:', paymentProcessingFee);
+            console.log('  Delivery Order Fee:', deliveryOrderFee);
+            console.log('  Pickup Order Fee:', pickupOrderFee);
+            console.log('  Error Charge:', errorCharge);
+            console.log('  Calculated Net Payout:', calculatedNetPayout);
+          }
+
           transactions.push({
             clientId,
             locationId,
@@ -596,55 +625,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
             
             // Sales metrics
             salesExclTax: parseNegativeFloat(getColumnValue(row, "Subtotal", "Sales (excl. tax)", "sales_excl_tax", "salesExclTax")),
-            orderSubtotal: parseNegativeFloat(getColumnValue(row, "Subtotal", "Order Subtotal", "Order_Subtotal", "order_subtotal")),
-            taxes: parseNegativeFloat(getColumnValue(row, "Subtotal tax passed to merchant", "Taxes", "taxes")),
+            orderSubtotal: subtotal,
+            taxes: taxes,
             
             // Fees and charges
             deliveryFees: parseNegativeFloat(getColumnValue(row, "Delivery Fees", "Delivery_Fees", "delivery_fees")),
-            commission: parseNegativeFloat(getColumnValue(row, "Commission", "commission")),
-            errorCharges: parseNegativeFloat(getColumnValue(row, "Error charges", "Error Charges", "Error_Charges", "error_charges")),
+            commission: commission,
+            errorCharges: errorCharge,
             
             // Marketing/promotional fields (typically negative for discounts)
             offersOnItems: parseNegativeFloat(getColumnValue(
               row,
               "Customer discounts from marketing | (funded by you)",
+              "Customer Discounts from Marketing | (Funded by You)",
               "Offers on items (incl. tax)",
               "offers_on_items"
             )),
             deliveryOfferRedemptions: parseNegativeFloat(getColumnValue(
               row,
               "Customer discounts from marketing | (funded by DoorDash)",
+              "Customer Discounts from Marketing | (Funded by DoorDash)",
               "Delivery Offer Redemptions (incl. tax)",
               "delivery_offer_redemptions"
             )),
             marketingCredits: parseNegativeFloat(getColumnValue(
               row,
               "DoorDash marketing credit",
+              "DoorDash Marketing Credit",
               "Marketing Credits",
               "marketing_credits"
             )),
             thirdPartyContribution: parseNegativeFloat(getColumnValue(
               row,
               "Customer discounts from marketing | (funded by a third-party)",
+              "Customer Discounts from Marketing | (Funded by a Third-party)",
               "Third-party Contribution",
               "third_party_contribution"
             )),
             
             // Other payments (ad spend, credits, etc.)
-            otherPayments: Math.abs(parseNegativeFloat(getColumnValue(
-              row,
-              "Marketing fees | (including any applicable taxes)",
-              "Other payments",
-              "other_payments"
-            ))),
+            otherPayments: Math.abs(marketingFees),
             otherPaymentsDescription: getColumnValue(row, "Description", "Other payments description", "other_payments_description") || null,
             
             // Legacy marketing field
             marketingSpend: parseNegativeFloat(getColumnValue(row, "Marketing Spend", "Marketing_Spend", "marketing_spend")),
             
-            // Payout (includes all statuses)
-            totalPayout: parseNegativeFloat(getColumnValue(row, "Net total", "Total payout", "total_payout", "Total_Payout")),
-            netPayment: parseNegativeFloat(getColumnValue(row, "Net total", "Net Payment", "Net_Payment", "net_payment")),
+            // Payout (calculated from transaction columns)
+            totalPayout: calculatedNetPayout,
+            netPayment: calculatedNetPayout,
             
             // Source
             orderSource: getColumnValue(row, "Order Source", "Order_Source", "order_source") || null,
