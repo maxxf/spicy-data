@@ -463,10 +463,12 @@ export class MemStorage implements IStorage {
         
         // 1. Order Filtering: ONLY count Marketplace + Completed orders for sales metrics
         const isMarketplace = !t.channel || t.channel === "Marketplace";
-        const isCompleted = !t.orderStatus || t.orderStatus === "Completed";
+        const isCompleted = t.orderStatus === "Completed";
         
-        // 2. Net Payout: Sum ALL order statuses (including refunds, cancellations)
-        netPayout += t.totalPayout || t.netPayment || 0;
+        // 2. Net Payout: Sum Marketplace orders only (all statuses)
+        if (isMarketplace) {
+          netPayout += t.totalPayout || t.netPayment || 0;
+        }
         
         // Only count Marketplace + Completed for sales and order metrics
         if (isMarketplace && isCompleted) {
@@ -477,15 +479,17 @@ export class MemStorage implements IStorage {
           totalSales += sales;
           
           // 4. Marketing Investment Components
-          // Ad Spend = absolute value of all "Other payments" 
-          const adSpendAmount = Math.abs(t.otherPayments || 0);
-          adSpend += adSpendAmount;
+          // Ad Spend: Sum absolute value of ALL "Other payments" where description is not null
+          if (t.otherPaymentsDescription) {
+            adSpend += Math.abs(t.otherPayments || 0);
+          }
           
-          // Offer/Discount Value = abs(promotional discounts) + credits
+          // Offer/Discount Value: abs(promotional discounts) + credits
+          // Note: offers/deliveryOfferRedemptions are NEGATIVE, credits are POSITIVE
           const offersValue = Math.abs(t.offersOnItems || 0) + 
                             Math.abs(t.deliveryOfferRedemptions || 0) +
-                            Math.abs(t.marketingCredits || 0) +
-                            Math.abs(t.thirdPartyContribution || 0);
+                            (t.marketingCredits || 0) +
+                            (t.thirdPartyContribution || 0);
           offerDiscountValue += offersValue;
           
           // 5. Marketing Attribution: Order has marketing if any promotional activity
@@ -515,7 +519,7 @@ export class MemStorage implements IStorage {
       if (platform === "doordash") {
         // Only count completed marketplace orders
         const isMarketplace = !t.channel || t.channel === "Marketplace";
-        const isCompleted = !t.orderStatus || t.orderStatus === "Completed";
+        const isCompleted = t.orderStatus === "Completed";
         if (!isMarketplace || !isCompleted) return false;
         
         return (t.offersOnItems < 0) || 

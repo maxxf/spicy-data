@@ -59,35 +59,21 @@ export function calculateUberEatsMetrics(txns: UberEatsTransaction[]) {
   let ordersFromMarketing = 0;
 
   txns.forEach((t) => {
-    // Order Filtering: ONLY count "Completed" orders for sales metrics
-    const isCompleted = t.orderStatus === "Completed";
+    // Uber Eats: Count all transactions (no status filtering needed)
+    totalOrders++;
     
-    // Net Payout: Sum ALL order statuses (Completed, Refund, Cancelled, etc.)
+    // Sales Calculation: Use subtotal as primary metric for Uber Eats
+    const sales = t.subtotal || 0;
+    totalSales += sales;
+    
+    // Net Payout: Sum all payouts
     netPayout += t.netPayout || 0;
     
-    // Only count Completed orders for sales and order metrics
-    if (isCompleted) {
-      totalOrders++;
-      
-      // Sales Calculation: Use "Sales (excl. tax)" as primary metric
-      const sales = t.salesExclTax || t.subtotal || 0;
-      totalSales += sales;
-      
-      // Ad Spend: Sum ALL "Other payments" (this IS the ad spend)
-      adSpend += Math.abs(t.otherPayments || 0);
-      
-      // Offer/Discount Value: Sum absolute value of all promotional discounts
-      const offersValue = Math.abs(t.offersOnItems || 0) + 
-                        Math.abs(t.deliveryOfferRedemptions || 0);
-      offerDiscountValue += offersValue;
-      
-      // Marketing Attribution: Orders with promotional offers < 0 (focus on marketing-driven sales/orders for ROAS)
-      const hasMarketing = (t.offersOnItems < 0) || (t.deliveryOfferRedemptions < 0);
-      
-      if (hasMarketing) {
-        marketingDrivenSales += sales;
-        ordersFromMarketing++;
-      }
+    // Marketing: Check for marketing promo flag and amount
+    if (t.marketingPromo) {
+      offerDiscountValue += t.marketingAmount || 0;
+      marketingDrivenSales += sales;
+      ordersFromMarketing++;
     }
   });
 
