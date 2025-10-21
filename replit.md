@@ -71,6 +71,15 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes (October 21, 2025)
 
+### Week 10/6-10/12 Data Upload Completed
+- **Successfully uploaded**: 27,080 transactions for week 10/6-10/12
+  - Uber Eats: 3,716 transactions (from 5,025 CSV rows, after deduplication)
+  - DoorDash: 21,762 transactions (Transaction Report CSV format)
+  - Grubhub: 1,602 transactions
+- **Upload Method**: Created reusable `upload-week-1006.ts` script following API upload endpoint pattern
+- **Data Integrity**: Upsert logic prevents duplicates; unmapped locations assigned to client-specific bucket
+- **Total Database**: Now contains 133,556 transactions across three weeks (10/6-10/19)
+
 ### Week-over-Week Comparison Implementation
 - **Real Calculations**: Replaced hardcoded placeholder percentages with actual calculated week-over-week changes
   - Backend fetches both current and previous week data (7 days prior)
@@ -103,12 +112,14 @@ Preferred communication style: Simple, everyday language.
 
 ## Production Status
 
-### Current State (October 2025)
+### Current State (October 21, 2025)
 Dashboard is **production-ready** and fully verified with real Capriotti's data:
-- **Transaction Volume**: 16,903 transactions across 161 locations (152 unique locations + unmapped bucket)
-- **Platform Breakdown**: Uber Eats (3,727 orders), DoorDash (11,727 orders), Grubhub (1,449 orders)
-- **Total Sales**: $1,291,578.35 across all weeks
-- **Corporate Locations**: 16 locations identified for weekly P&L reporting (5,154 transactions)
+- **Transaction Volume**: 133,556 total transactions across 161 locations (152 unique locations + unmapped bucket)
+- **Platform Breakdown**: Uber Eats (15,528 transactions), DoorDash (111,765 transactions), Grubhub (6,263 transactions)
+- **Data Coverage**: Three weeks of data spanning 10/6/25 - 10/19/25
+  - Week 10/6-10/12: 27,080 transactions (Uber: 3,716, DoorDash: 21,762, Grubhub: 1,602)
+  - Week 10/13-10/19: Included in totals above
+- **Corporate Locations**: 16 locations identified for weekly P&L reporting
 
 ### Verified Features
 1. **Authentication**: Complete OIDC login/logout flow with session management, role-based access control, and security hardening (session regeneration, CSRF protection)
