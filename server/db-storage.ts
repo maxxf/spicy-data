@@ -74,7 +74,17 @@ export function calculateUberEatsMetrics(txns: UberEatsTransaction[]) {
   let ordersFromMarketing = 0;
 
   txns.forEach((t) => {
-    // Uber Eats: Count all completed transactions
+    // Ad Spend: Process FIRST (includes rows with NULL order_status)
+    // Check "Other payments" for advertising charges (positive values only)
+    // otherPayments can be positive (ad spend) or negative (ad credits)
+    if (t.otherPaymentsDescription && (t.otherPayments || 0) > 0) {
+      if (isUberEatsAdRelatedDescription(t.otherPaymentsDescription)) {
+        adSpend += t.otherPayments;
+      }
+    }
+    
+    // Uber Eats: Only count completed orders for sales/order metrics
+    // Note: Ad spend rows have NULL order_status and are excluded from order counts
     if (t.orderStatus !== 'Completed') {
       return;
     }
@@ -87,14 +97,6 @@ export function calculateUberEatsMetrics(txns: UberEatsTransaction[]) {
     
     // Net Payout: Sum all payouts
     netPayout += t.netPayout || 0;
-    
-    // Ad Spend: Check "Other payments" for advertising charges (positive values only)
-    // otherPayments can be positive (ad spend) or negative (ad credits)
-    if (t.otherPaymentsDescription && (t.otherPayments || 0) > 0) {
-      if (isUberEatsAdRelatedDescription(t.otherPaymentsDescription)) {
-        adSpend += t.otherPayments;
-      }
-    }
     
     // Offer/Discount Value: Sum absolute values of promotional discounts and fees
     // Note: offersOnItems and deliveryOfferRedemptions are stored as NEGATIVE values
