@@ -622,104 +622,182 @@ export class DbStorage implements IStorage {
   }
 
   async getDashboardOverview(filters?: AnalyticsFilters): Promise<DashboardOverview> {
-    // Build query conditions for each platform
-    const uberConditions = [];
-    const doorConditions = [];
-    const grubConditions = [];
+    // Build platform breakdown using SQL aggregation
+    const platformBreakdown = [];
+    const platforms: Array<"ubereats" | "doordash" | "grubhub"> = filters?.platform 
+      ? [filters.platform]
+      : ["ubereats", "doordash", "grubhub"];
 
-    if (filters?.clientId) {
-      uberConditions.push(eq(uberEatsTransactions.clientId, filters.clientId));
-      doorConditions.push(eq(doordashTransactions.clientId, filters.clientId));
-      grubConditions.push(eq(grubhubTransactions.clientId, filters.clientId));
-    }
+    for (const platform of platforms) {
+      if (platform === "doordash") {
+        // DoorDash SQL aggregation
+        const conditions = [];
+        if (filters?.clientId) {
+          conditions.push(eq(doordashTransactions.clientId, filters.clientId));
+        }
+        if (filters?.weekStart && filters?.weekEnd) {
+          conditions.push(
+            and(
+              sql`${doordashTransactions.transactionDate} != ''`,
+              sql`CAST(${doordashTransactions.transactionDate} AS DATE) >= ${filters.weekStart}`,
+              sql`CAST(${doordashTransactions.transactionDate} AS DATE) <= ${filters.weekEnd}`
+            )!
+          );
+        }
+        if (filters?.locationTag) {
+          const taggedLocations = await this.db
+            .select({ id: locations.id })
+            .from(locations)
+            .where(eq(locations.locationTag, filters.locationTag));
+          const locationIds = taggedLocations.map(l => l.id);
+          if (locationIds.length > 0) {
+            conditions.push(inArray(doordashTransactions.locationId, locationIds));
+          } else {
+            continue; // Skip this platform if no matching locations
+          }
+        }
 
-    // Add date range filtering
-    if (filters?.weekStart && filters?.weekEnd) {
-      doorConditions.push(
-        and(
-          sql`${doordashTransactions.transactionDate} != ''`,
-          sql`CAST(${doordashTransactions.transactionDate} AS DATE) >= ${filters.weekStart}`,
-          sql`CAST(${doordashTransactions.transactionDate} AS DATE) <= ${filters.weekEnd}`
-        )!
-      );
-      grubConditions.push(
-        and(
-          sql`${grubhubTransactions.orderDate} >= ${filters.weekStart}`,
-          sql`${grubhubTransactions.orderDate} <= ${filters.weekEnd}`
-        )!
-      );
-      // UberEats dates are in different format (M/D/YY), handled differently
-    }
-
-    if (filters?.locationTag) {
-      const taggedLocations = await this.db
-        .select({ id: locations.id })
-        .from(locations)
-        .where(eq(locations.locationTag, filters.locationTag));
-      const locationIds = taggedLocations.map(l => l.id);
-      
-      if (locationIds.length > 0) {
-        uberConditions.push(inArray(uberEatsTransactions.locationId, locationIds));
-        doorConditions.push(inArray(doordashTransactions.locationId, locationIds));
-        grubConditions.push(inArray(grubhubTransactions.locationId, locationIds));
-      } else {
-        // No locations match the tag - return empty data
-        return {
-          totalSales: 0,
-          totalOrders: 0,
-          averageAov: 0,
-          totalMarketingInvestment: 0,
-          blendedRoas: 0,
-          netPayoutPercent: 0,
-          platformBreakdown: [],
-        };
-      }
-    }
-
-    // Fetch filtered transactions and platform ad spend
-    const [uberTxns, doorTxns, grubTxns, uberAdSpend] = await Promise.all([
-      uberConditions.length > 0
-        ? this.db.select().from(uberEatsTransactions).where(and(...uberConditions))
-        : this.db.select().from(uberEatsTransactions),
-      doorConditions.length > 0
-        ? this.db.select().from(doordashTransactions).where(and(...doorConditions))
-        : this.db.select().from(doordashTransactions),
-      grubConditions.length > 0
-        ? this.db.select().from(grubhubTransactions).where(and(...grubConditions))
-        : this.db.select().from(grubhubTransactions),
-      // Fetch UberEats platform ad spend
-      filters?.clientId
-        ? this.db.select().from(platformAdSpend).where(and(
-            eq(platformAdSpend.clientId, filters.clientId),
-            eq(platformAdSpend.platform, 'ubereats')
-          ))
-        : this.db.select().from(platformAdSpend).where(eq(platformAdSpend.platform, 'ubereats')),
-    ]);
-
-    const calculatePlatformMetrics = (
-      txns: any[],
-      platform: "ubereats" | "doordash" | "grubhub",
-      dateFilter?: { weekStart: string; weekEnd: string }
-    ) => {
-      if (platform === "ubereats") {
-        // Filter by date for UberEats if needed
-        const filteredTxns = dateFilter 
-          ? txns.filter((t: any) => isUberEatsDateInRange(t.date, dateFilter.weekStart, dateFilter.weekEnd))
-          : txns;
+        let query = this.db
+          .select({
+            totalOrders: sql<number>`
+              COUNT(CASE 
+                WHEN (${doordashTransactions.channel} = 'Marketplace' OR ${doordashTransactions.channel} IS NULL)
+                  AND ${doordashTransactions.transactionType} = 'Order'
+                THEN 1 
+              END)::int
+            `,
+            totalSales: sql<number>`
+              COALESCE(SUM(CASE 
+                WHEN (${doordashTransactions.channel} = 'Marketplace' OR ${doordashTransactions.channel} IS NULL)
+                  AND ${doordashTransactions.transactionType} = 'Order'
+                THEN COALESCE(${doordashTransactions.salesExclTax}, ${doordashTransactions.orderSubtotal}, 0)
+              END), 0)
+            `,
+            marketingDrivenSales: sql<number>`
+              COALESCE(SUM(CASE 
+                WHEN (${doordashTransactions.channel} = 'Marketplace' OR ${doordashTransactions.channel} IS NULL)
+                  AND ${doordashTransactions.transactionType} = 'Order'
+                  AND COALESCE(${doordashTransactions.otherPayments}, 0) > 0
+                THEN COALESCE(${doordashTransactions.salesExclTax}, ${doordashTransactions.orderSubtotal}, 0)
+              END), 0)
+            `,
+            ordersFromMarketing: sql<number>`
+              COUNT(CASE 
+                WHEN (${doordashTransactions.channel} = 'Marketplace' OR ${doordashTransactions.channel} IS NULL)
+                  AND ${doordashTransactions.transactionType} = 'Order'
+                  AND COALESCE(${doordashTransactions.otherPayments}, 0) > 0
+                THEN 1 
+              END)::int
+            `,
+            adSpend: sql<number>`
+              COALESCE(SUM(CASE 
+                WHEN (${doordashTransactions.channel} = 'Marketplace' OR ${doordashTransactions.channel} IS NULL)
+                  AND ${doordashTransactions.transactionType} = 'Order'
+                THEN ABS(COALESCE(${doordashTransactions.otherPayments}, 0))
+              END), 0)
+            `,
+            offerDiscountValue: sql<number>`
+              COALESCE(SUM(CASE 
+                WHEN (${doordashTransactions.channel} = 'Marketplace' OR ${doordashTransactions.channel} IS NULL)
+                  AND ${doordashTransactions.transactionType} = 'Order'
+                THEN ABS(COALESCE(${doordashTransactions.offersOnItems}, 0)) + 
+                     ABS(COALESCE(${doordashTransactions.deliveryOfferRedemptions}, 0)) +
+                     COALESCE(${doordashTransactions.marketingCredits}, 0) +
+                     COALESCE(${doordashTransactions.thirdPartyContribution}, 0)
+              END), 0)
+            `,
+            netPayout: sql<number>`
+              COALESCE(SUM(CASE 
+                WHEN (${doordashTransactions.channel} = 'Marketplace' OR ${doordashTransactions.channel} IS NULL)
+                THEN COALESCE(${doordashTransactions.totalPayout}, ${doordashTransactions.netPayment}, 0)
+              END), 0)
+            `,
+          })
+          .from(doordashTransactions);
         
-        // Use shared helper for consistent UberEats attribution
+        if (conditions.length > 0) {
+          query = query.where(and(...conditions));
+        }
+        
+        const result = await query;
+
+        const metrics = result[0];
+        const totalOrders = metrics.totalOrders || 0;
+        const totalSales = metrics.totalSales || 0;
+        const marketingDrivenSales = metrics.marketingDrivenSales || 0;
+        const ordersFromMarketing = metrics.ordersFromMarketing || 0;
+        const adSpend = metrics.adSpend || 0;
+        const offerDiscountValue = metrics.offerDiscountValue || 0;
+        const netPayout = metrics.netPayout || 0;
+        const totalMarketingInvestment = adSpend + offerDiscountValue;
+
+        platformBreakdown.push({
+          platform,
+          totalSales,
+          marketingDrivenSales,
+          organicSales: totalSales - marketingDrivenSales,
+          totalOrders,
+          ordersFromMarketing,
+          organicOrders: totalOrders - ordersFromMarketing,
+          aov: totalOrders > 0 ? totalSales / totalOrders : 0,
+          adSpend,
+          offerDiscountValue,
+          totalMarketingInvestment,
+          marketingInvestmentPercent: totalSales > 0 ? (totalMarketingInvestment / totalSales) * 100 : 0,
+          marketingRoas: totalMarketingInvestment > 0 ? marketingDrivenSales / totalMarketingInvestment : 0,
+          netPayout,
+          netPayoutPercent: totalSales > 0 ? (netPayout / totalSales) * 100 : 0,
+        });
+      } else if (platform === "ubereats") {
+        // For UberEats, we still need JavaScript date filtering due to M/D/YY format
+        // But we can at least do SQL aggregation after fetching
+        const conditions = [];
+        if (filters?.clientId) {
+          conditions.push(eq(uberEatsTransactions.clientId, filters.clientId));
+        }
+        if (filters?.locationTag) {
+          const taggedLocations = await this.db
+            .select({ id: locations.id })
+            .from(locations)
+            .where(eq(locations.locationTag, filters.locationTag));
+          const locationIds = taggedLocations.map(l => l.id);
+          if (locationIds.length > 0) {
+            conditions.push(inArray(uberEatsTransactions.locationId, locationIds));
+          } else {
+            continue;
+          }
+        }
+
+        const uberTxns = conditions.length > 0
+          ? await this.db.select().from(uberEatsTransactions).where(and(...conditions))
+          : await this.db.select().from(uberEatsTransactions);
+
+        // Filter by date for UberEats if needed
+        const filteredTxns = filters?.weekStart && filters?.weekEnd
+          ? uberTxns.filter((t: any) => isUberEatsDateInRange(t.date, filters.weekStart, filters.weekEnd))
+          : uberTxns;
+        
         const metrics = calculateUberEatsMetrics(filteredTxns as UberEatsTransaction[]);
         
-        // Add platform-level ad spend (store-level ad spend not tied to orders)
+        // Add platform-level ad spend
+        const adSpendConditions = [];
+        if (filters?.clientId) {
+          adSpendConditions.push(eq(platformAdSpend.clientId, filters.clientId));
+        }
+        adSpendConditions.push(eq(platformAdSpend.platform, 'ubereats'));
+
+        const uberAdSpend = await this.db.select().from(platformAdSpend).where(and(...adSpendConditions));
+        
         const platformAdSpendAmount = uberAdSpend
-          .filter((ad: any) => dateFilter 
-            ? isUberEatsDateInRange(ad.date, dateFilter.weekStart, dateFilter.weekEnd)
+          .filter((ad: any) => filters?.weekStart && filters?.weekEnd
+            ? isUberEatsDateInRange(ad.date, filters.weekStart, filters.weekEnd)
             : true)
           .reduce((sum: number, ad: any) => sum + (ad.adSpend || 0), 0);
         
         const totalAdSpend = metrics.adSpend + platformAdSpendAmount;
-        
-        return {
+        const totalMarketingInvestment = totalAdSpend + metrics.offerDiscountValue;
+
+        platformBreakdown.push({
           platform,
           totalSales: metrics.totalSales,
           marketingDrivenSales: metrics.marketingDrivenSales,
@@ -730,114 +808,103 @@ export class DbStorage implements IStorage {
           aov: metrics.totalOrders > 0 ? metrics.totalSales / metrics.totalOrders : 0,
           adSpend: totalAdSpend,
           offerDiscountValue: metrics.offerDiscountValue,
-          totalMarketingInvestment: totalAdSpend + metrics.offerDiscountValue,
-          marketingInvestmentPercent:
-            metrics.totalSales > 0 ? ((totalAdSpend + metrics.offerDiscountValue) / metrics.totalSales) * 100 : 0,
-          marketingRoas:
-            (totalAdSpend + metrics.offerDiscountValue) > 0
-              ? metrics.marketingDrivenSales / (totalAdSpend + metrics.offerDiscountValue)
-              : 0,
+          totalMarketingInvestment,
+          marketingInvestmentPercent: metrics.totalSales > 0 ? (totalMarketingInvestment / metrics.totalSales) * 100 : 0,
+          marketingRoas: totalMarketingInvestment > 0 ? metrics.marketingDrivenSales / totalMarketingInvestment : 0,
           netPayout: metrics.netPayout,
           netPayoutPercent: metrics.totalSales > 0 ? (metrics.netPayout / metrics.totalSales) * 100 : 0,
-        };
-      }
-
-      if (platform === "doordash") {
-        // Use shared helper for consistent DoorDash attribution
-        const metrics = calculateDoorDashMetrics(txns as DoordashTransaction[]);
-        return {
-          platform,
-          totalSales: metrics.totalSales,
-          marketingDrivenSales: metrics.marketingDrivenSales,
-          organicSales: metrics.totalSales - metrics.marketingDrivenSales,
-          totalOrders: metrics.totalOrders,
-          ordersFromMarketing: metrics.ordersFromMarketing,
-          organicOrders: metrics.totalOrders - metrics.ordersFromMarketing,
-          aov: metrics.totalOrders > 0 ? metrics.totalSales / metrics.totalOrders : 0,
-          adSpend: metrics.adSpend,
-          offerDiscountValue: metrics.offerDiscountValue,
-          totalMarketingInvestment: metrics.adSpend + metrics.offerDiscountValue,
-          marketingInvestmentPercent:
-            metrics.totalSales > 0 ? ((metrics.adSpend + metrics.offerDiscountValue) / metrics.totalSales) * 100 : 0,
-          marketingRoas:
-            (metrics.adSpend + metrics.offerDiscountValue) > 0
-              ? metrics.marketingDrivenSales / (metrics.adSpend + metrics.offerDiscountValue)
-              : 0,
-          netPayout: metrics.netPayout,
-          netPayoutPercent: metrics.totalSales > 0 ? (metrics.netPayout / metrics.totalSales) * 100 : 0,
-        };
-      }
-
-      // Grubhub: inline calculation
-      let totalOrders = 0;
-      let totalSales = 0;
-      let marketingDrivenSales = 0;
-      let adSpend = 0;
-      let offerDiscountValue = 0;
-      let netPayout = 0;
-      let ordersFromMarketing = 0;
-
-      txns.forEach((t) => {
-        if (platform === "grubhub") {
-          // Grubhub Platform-Specific Status Handling:
-          // - Sales/Orders: Only count "Prepaid Order" transaction types (completed orders)
-          // - Net Payout: Include ALL transaction types (Prepaid Order, Order Adjustment, Cancellation) for finance reconciliation
-          const isPrepaidOrder = t.transactionType === "Prepaid Order";
-          
-          // Always include net payout for ALL transaction types
-          netPayout += t.merchantNetTotal || 0;
-          
-          // Only count Prepaid Orders for sales and order metrics
-          if (isPrepaidOrder) {
-            totalOrders++;
-            totalSales += t.saleAmount;
-            const promoAmount = t.merchantFundedPromotion || 0;
-            // Grubhub promos are stored as negative values, use absolute value for tracking
-            offerDiscountValue += Math.abs(promoAmount);
-            if (promoAmount !== 0) {
-              marketingDrivenSales += t.saleAmount;
-              ordersFromMarketing++;
-            }
+        });
+      } else if (platform === "grubhub") {
+        // Grubhub SQL aggregation
+        const conditions = [];
+        if (filters?.clientId) {
+          conditions.push(eq(grubhubTransactions.clientId, filters.clientId));
+        }
+        if (filters?.weekStart && filters?.weekEnd) {
+          conditions.push(
+            and(
+              sql`${grubhubTransactions.orderDate} >= ${filters.weekStart}`,
+              sql`${grubhubTransactions.orderDate} <= ${filters.weekEnd}`
+            )!
+          );
+        }
+        if (filters?.locationTag) {
+          const taggedLocations = await this.db
+            .select({ id: locations.id })
+            .from(locations)
+            .where(eq(locations.locationTag, filters.locationTag));
+          const locationIds = taggedLocations.map(l => l.id);
+          if (locationIds.length > 0) {
+            conditions.push(inArray(grubhubTransactions.locationId, locationIds));
+          } else {
+            continue;
           }
         }
-      });
 
-      const organicSales = totalSales - marketingDrivenSales;
-      const organicOrders = totalOrders - ordersFromMarketing;
-      const totalMarketingInvestment = adSpend + offerDiscountValue;
+        let grubQuery = this.db
+          .select({
+            totalOrders: sql<number>`
+              COUNT(CASE WHEN ${grubhubTransactions.transactionType} = 'Prepaid Order' THEN 1 END)::int
+            `,
+            totalSales: sql<number>`
+              COALESCE(SUM(CASE WHEN ${grubhubTransactions.transactionType} = 'Prepaid Order' THEN ${grubhubTransactions.saleAmount} END), 0)
+            `,
+            marketingDrivenSales: sql<number>`
+              COALESCE(SUM(CASE 
+                WHEN ${grubhubTransactions.transactionType} = 'Prepaid Order' 
+                  AND COALESCE(${grubhubTransactions.merchantFundedPromotion}, 0) != 0
+                THEN ${grubhubTransactions.saleAmount}
+              END), 0)
+            `,
+            ordersFromMarketing: sql<number>`
+              COUNT(CASE 
+                WHEN ${grubhubTransactions.transactionType} = 'Prepaid Order' 
+                  AND COALESCE(${grubhubTransactions.merchantFundedPromotion}, 0) != 0
+                THEN 1 
+              END)::int
+            `,
+            offerDiscountValue: sql<number>`
+              COALESCE(SUM(CASE 
+                WHEN ${grubhubTransactions.transactionType} = 'Prepaid Order'
+                THEN ABS(COALESCE(${grubhubTransactions.merchantFundedPromotion}, 0))
+              END), 0)
+            `,
+            netPayout: sql<number>`COALESCE(SUM(${grubhubTransactions.merchantNetTotal}), 0)`,
+          })
+          .from(grubhubTransactions);
+        
+        if (conditions.length > 0) {
+          grubQuery = grubQuery.where(and(...conditions));
+        }
+        
+        const result = await grubQuery;
 
-      return {
-        platform,
-        totalSales,
-        marketingDrivenSales,
-        organicSales,
-        totalOrders,
-        ordersFromMarketing,
-        organicOrders,
-        aov: totalOrders > 0 ? totalSales / totalOrders : 0,
-        adSpend,
-        offerDiscountValue,
-        totalMarketingInvestment,
-        marketingInvestmentPercent: totalSales > 0 ? (totalMarketingInvestment / totalSales) * 100 : 0,
-        marketingRoas: totalMarketingInvestment > 0 ? marketingDrivenSales / totalMarketingInvestment : 0,
-        netPayout,
-        netPayoutPercent: totalSales > 0 ? (netPayout / totalSales) * 100 : 0,
-      };
-    };
+        const metrics = result[0];
+        const totalOrders = metrics.totalOrders || 0;
+        const totalSales = metrics.totalSales || 0;
+        const marketingDrivenSales = metrics.marketingDrivenSales || 0;
+        const ordersFromMarketing = metrics.ordersFromMarketing || 0;
+        const offerDiscountValue = metrics.offerDiscountValue || 0;
+        const netPayout = metrics.netPayout || 0;
 
-    const dateFilter = filters?.weekStart && filters?.weekEnd 
-      ? { weekStart: filters.weekStart, weekEnd: filters.weekEnd }
-      : undefined;
-
-    let platformBreakdown = [
-      calculatePlatformMetrics(uberTxns, "ubereats", dateFilter),
-      calculatePlatformMetrics(doorTxns, "doordash", dateFilter),
-      calculatePlatformMetrics(grubTxns, "grubhub", dateFilter),
-    ];
-
-    // Filter by platform if specified
-    if (filters?.platform) {
-      platformBreakdown = platformBreakdown.filter(p => p.platform === filters.platform);
+        platformBreakdown.push({
+          platform,
+          totalSales,
+          marketingDrivenSales,
+          organicSales: totalSales - marketingDrivenSales,
+          totalOrders,
+          ordersFromMarketing,
+          organicOrders: totalOrders - ordersFromMarketing,
+          aov: totalOrders > 0 ? totalSales / totalOrders : 0,
+          adSpend: 0, // Grubhub doesn't have ad spend
+          offerDiscountValue,
+          totalMarketingInvestment: offerDiscountValue,
+          marketingInvestmentPercent: totalSales > 0 ? (offerDiscountValue / totalSales) * 100 : 0,
+          marketingRoas: offerDiscountValue > 0 ? marketingDrivenSales / offerDiscountValue : 0,
+          netPayout,
+          netPayoutPercent: totalSales > 0 ? (netPayout / totalSales) * 100 : 0,
+        });
+      }
     }
 
     const totalSales = platformBreakdown.reduce((sum, p) => sum + p.totalSales, 0);
