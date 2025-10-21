@@ -400,26 +400,6 @@ export default function LocationsPage() {
             </div>
           )}
 
-          {suggestions && suggestions.length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <AlertCircle className="w-5 h-5 text-yellow-600" />
-                  Unmatched Locations
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground mb-4">
-                  Review and link locations found in uploaded files to existing canonical locations
-                </p>
-                <DataTable
-                  data={suggestions}
-                  columns={suggestionColumns}
-                />
-              </CardContent>
-            </Card>
-          )}
-
           <Card>
             <CardHeader className="flex flex-row items-center justify-between gap-4 space-y-0 pb-4">
               <CardTitle>Weekly Performance by Location</CardTitle>
