@@ -429,6 +429,7 @@ export type DashboardOverview = {
     totalMarketingInvestment: number | null;
     blendedRoas: number | null;
     netPayout: number | null;
+    trueCpo: number | null;
   };
 };
 

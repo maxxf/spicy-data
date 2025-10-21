@@ -1688,6 +1688,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const currentNetPayout = overview.totalSales * (overview.netPayoutPercent / 100);
         const previousNetPayout = previousOverview.totalSales * (previousOverview.netPayoutPercent / 100);
         
+        // Calculate marketing orders for True CPO
+        const currentMarketingOrders = overview.platformBreakdown.reduce((sum, p) => sum + p.ordersFromMarketing, 0);
+        const previousMarketingOrders = previousOverview.platformBreakdown.reduce((sum, p) => sum + p.ordersFromMarketing, 0);
+        
+        // Calculate True CPO (Cost Per Order for marketing-driven orders)
+        const currentTrueCpo = currentMarketingOrders > 0 ? overview.totalMarketingInvestment / currentMarketingOrders : 0;
+        const previousTrueCpo = previousMarketingOrders > 0 ? previousOverview.totalMarketingInvestment / previousMarketingOrders : 0;
+        
         // Add comparison data with percentage changes (null if previous is 0 or missing)
         overview.comparison = {
           totalSales: calculatePercentageChange(overview.totalSales, previousOverview.totalSales),
@@ -1696,6 +1704,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           totalMarketingInvestment: calculatePercentageChange(overview.totalMarketingInvestment, previousOverview.totalMarketingInvestment),
           blendedRoas: calculatePercentageChange(overview.blendedRoas, previousOverview.blendedRoas),
           netPayout: calculatePercentageChange(currentNetPayout, previousNetPayout),
+          trueCpo: calculatePercentageChange(currentTrueCpo, previousTrueCpo),
         };
       }
       
