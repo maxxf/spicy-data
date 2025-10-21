@@ -112,6 +112,7 @@ export const doordashTransactions = pgTable("doordash_transactions", {
   // Order status and channel (for filtering per new methodology)
   channel: text("channel"), // e.g., "Marketplace", "Caviar", etc.
   orderStatus: text("order_status"), // e.g., "Completed", "Cancelled", "Refund", etc.
+  transactionType: text("transaction_type"), // e.g., "Customer Delivery", "Customer Pickup", "Refund", etc.
   
   // Sales metrics (updated methodology)
   salesExclTax: real("sales_excl_tax").notNull().default(0), // Primary sales metric per new methodology

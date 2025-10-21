@@ -594,20 +594,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Calculate net payout: Subtotal + Tax + Tips - Commission - Marketing Fees - Processing Fees - Order Fees + Error Charges
           const calculatedNetPayout = subtotal + taxes + totalTips - commission - marketingFees - paymentProcessingFee - deliveryOrderFee - pickupOrderFee + errorCharge;
           
-          // Debug first transaction
-          if (transactions.length === 0) {
-            console.log('[DoorDash Calc Debug] First transaction:');
-            console.log('  Subtotal:', subtotal);
-            console.log('  Taxes:', taxes);
-            console.log('  Total Tips:', totalTips);
-            console.log('  Commission:', commission);
-            console.log('  Marketing Fees:', marketingFees);
-            console.log('  Payment Processing Fee:', paymentProcessingFee);
-            console.log('  Delivery Order Fee:', deliveryOrderFee);
-            console.log('  Pickup Order Fee:', pickupOrderFee);
-            console.log('  Error Charge:', errorCharge);
-            console.log('  Calculated Net Payout:', calculatedNetPayout);
-          }
 
           transactions.push({
             clientId,
@@ -616,12 +602,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
             // Order identification
             transactionId: transactionId,
             orderNumber: orderNumber,
-            transactionDate: getColumnValue(row, "Timestamp local date", "Transaction Date", "Transaction_Date", "transaction_date"),
+            transactionDate: getColumnValue(row, "Timestamp local time", "Timestamp local date", "Transaction Date", "Transaction_Date", "transaction_date"),
             storeLocation: locationName,
             
             // Status and channel filtering fields
             channel: getColumnValue(row, "Channel", "channel") || null,
             orderStatus: getColumnValue(row, "Final order status", "Order Status", "Order_Status", "order_status") || null,
+            transactionType: getColumnValue(row, "Transaction type", "Transaction Type", "Transaction_Type", "transaction_type")?.trim() || null,
             
             // Sales metrics
             salesExclTax: parseNegativeFloat(getColumnValue(row, "Subtotal", "Sales (excl. tax)", "sales_excl_tax", "salesExclTax")),

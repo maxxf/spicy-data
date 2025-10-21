@@ -102,12 +102,20 @@ export function calculateDoorDashMetrics(txns: DoordashTransaction[]) {
 
   txns.forEach((t) => {
     const isMarketplace = !t.channel || t.channel === "Marketplace";
-    const isCompleted = t.orderStatus === "Delivered" || t.orderStatus === "Picked Up";
+    
+    // Completion inference: prefer transactionType when available, fall back to orderStatus
+    // "Order" transaction type = completed customer orders (from Transaction Report CSV)
+    // "Delivered"/"Picked Up" status = completed orders (from Store Statement CSV)
+    const isCompleted = 
+      t.transactionType === "Order" || 
+      t.orderStatus === "Delivered" || 
+      t.orderStatus === "Picked Up";
     
     if (totalOrders === 0 && isMarketplace && isCompleted) {
       console.log('[DoorDash Metrics] First valid transaction:', {
         channel: t.channel,
         status: t.orderStatus,
+        type: t.transactionType,
         sales: t.salesExclTax || t.orderSubtotal,
         payout: t.totalPayout
       });
@@ -118,7 +126,7 @@ export function calculateDoorDashMetrics(txns: DoordashTransaction[]) {
       netPayout += t.totalPayout || t.netPayment || 0;
     }
     
-    // Only count Marketplace + (Delivered or Picked Up) for sales and order metrics
+    // Only count Marketplace + completed orders for sales and order metrics
     if (isMarketplace && isCompleted) {
       totalOrders++;
       const sales = t.salesExclTax || t.orderSubtotal || 0;
@@ -449,6 +457,7 @@ export class DbStorage implements IStorage {
             storeLocation: sql`EXCLUDED.store_location`,
             channel: sql`EXCLUDED.channel`,
             orderStatus: sql`EXCLUDED.order_status`,
+            transactionType: sql`EXCLUDED.transaction_type`,
             salesExclTax: sql`EXCLUDED.sales_excl_tax`,
             orderSubtotal: sql`EXCLUDED.order_subtotal`,
             taxes: sql`EXCLUDED.taxes`,

@@ -280,6 +280,11 @@ async function uploadDoorDash(filePath: string, clientId: string) {
   
   const transactions: any[] = [];
   
+  // Debug: Log first row column names
+  if (rows.length > 0) {
+    console.log("  [DEBUG] First row columns:", Object.keys(rows[0]).slice(0, 10));
+  }
+  
   for (const row of rows) {
     const transactionId = getColumnValue(row, "DoorDash transaction ID", "Transaction_ID", "transaction_id");
     if (!transactionId || transactionId.trim() === "") continue;

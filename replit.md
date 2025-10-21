@@ -83,6 +83,19 @@ Preferred communication style: Simple, everyday language.
 - **Attribution Logic**: Updated to check for non-zero values (offers are negative, credits are positive)
 - **Verified Accuracy**: Oct 13-19 week shows $1,969.89 from marketing_credits only (correct)
 
+### DoorDash Transaction Report Completion Inference
+- **Problem**: DoorDash Transaction Report CSV (required for Marketplace/Storefront filtering) lacks "Final order status" column, causing all transactions to be excluded from analytics (0 sales/0 orders despite having data)
+- **Root Cause**: Analytics required `orderStatus === "Delivered" || "Picked Up"` but Transaction Report format doesn't provide this field
+- **Solution**: Implemented derived completion logic using `transactionType` field from CSV
+  - Added `transactionType` field to DoorDash schema and upload parsing
+  - Created completion inference: `transactionType === "Order" || orderStatus === "Delivered" || "Picked Up"`
+  - "Order" type = completed customer orders (from Transaction Report CSV)
+  - "Error Charge" / "Adjustment" types = excluded from sales/order metrics (refunds, adjustments)
+  - Backward compatible with Store Statement CSV format (uses `orderStatus` when available)
+- **Impact**: Week 9/22 now correctly shows 12,135 Marketplace orders with $380,996.84 sales (previously showed 0/0)
+- **Data Integrity**: Only counts validated completed orders; excludes error charges, adjustments, and Storefront channel
+- **Verified**: Tested with 23,048 transactions across all transaction types; metrics align with expected business logic
+
 ## Production Status
 
 ### Current State (October 2025)
