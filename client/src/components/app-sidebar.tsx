@@ -40,6 +40,11 @@ const navigation = [
     icon: MapPin,
   },
   {
+    title: "Upload",
+    url: "/upload",
+    icon: Upload,
+  },
+  {
     title: "Admin",
     url: "/admin",
     icon: Settings,
