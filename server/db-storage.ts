@@ -102,9 +102,13 @@ export function calculateUberEatsMetrics(txns: UberEatsTransaction[]) {
     
     // Marketing Attribution: Uber Eats uses two distinct signals
     // 1. Promotional offers: offers_on_items < 0 (promotions/offers spend & attribution)
-    // 2. Ad-driven orders: Other Payments Description = "Ad Spend" (ad-driven attribution)
-    const isAdDriven = t.otherPaymentsDescription && 
-                      t.otherPaymentsDescription.toLowerCase().includes('ad spend');
+    // 2. Ad-driven orders: Other Payments Description matches ad-related patterns
+    const isAdDriven = t.otherPaymentsDescription && (t.otherPayments || 0) > 0 ? (() => {
+      const desc = t.otherPaymentsDescription.toLowerCase().trim();
+      const adPattern = /\b(ad|ads|advertising|paid\s*promotion|ad\s*spend|ad\s*fee|ad\s*campaign)\b/i;
+      const adjustmentPattern = /\b(adjust|added|upgrade)\b/i;
+      return adPattern.test(desc) && !adjustmentPattern.test(desc);
+    })() : false;
     const hasPromotionalOffer = (t.offersOnItems < 0) || (t.deliveryOfferRedemptions < 0);
     
     const hasMarketing = isAdDriven || hasPromotionalOffer;
