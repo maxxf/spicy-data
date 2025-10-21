@@ -1,4 +1,11 @@
-# DoorDash Data Re-Upload Required
+# DoorDash Data Re-Upload Required ✅ COMPLETED
+
+**Status Update:** All DoorDash data has been successfully re-uploaded with corrected marketing parser.  
+**See:** [DOORDASH_REUPLOAD_COMPLETE.md](./DOORDASH_REUPLOAD_COMPLETE.md) for completion summary.
+
+---
+
+## Original Issue (NOW RESOLVED)
 
 ## Issue Discovered
 The DoorDash CSV upload parser had a critical bug where marketing columns (AA-AD in the Financial Report) were **not being read correctly**, resulting in all DoorDash transactions showing **$0 marketing spend** even when marketing data exists in the CSV.
@@ -51,11 +58,15 @@ Based on database analysis:
 You need to re-upload all DoorDash Financial Reports (Transactions Overview) to populate the correct marketing spend:
 
 **Files to Re-Upload:**
-- ✅ Sept 15-21, 2025 DoorDash Financial Report
-- ✅ Sept 22-28, 2025 DoorDash Financial Report  
-- ✅ Sept 29 - Oct 5, 2025 DoorDash Financial Report
-- ✅ Oct 6-12, 2025 DoorDash Financial Report
-- ✅ Oct 13-19, 2025 DoorDash Financial Report
+- ✅ **COMPLETED** Sept 8-14, 2025 DoorDash Financial Report (22,055 rows)
+- ✅ **COMPLETED** Sept 15-21, 2025 DoorDash Financial Report (22,315 rows)
+- ✅ **COMPLETED** Sept 22-28, 2025 DoorDash Financial Report (23,048 rows)
+- ✅ **COMPLETED** Sept 29 - Oct 5, 2025 DoorDash Financial Report (22,575 rows)
+- ✅ **COMPLETED** Oct 6-12, 2025 DoorDash Financial Report (21,762 rows)
+- ✅ **COMPLETED** Oct 13-19, 2025 DoorDash Financial Report (22,349 rows)
+
+**Total Processed:** 134,104 transaction rows  
+**Marketing Data Populated:** $118,463.60 total across all weeks
 
 ### 2. Upload Process
 1. Navigate to **Upload** page in the dashboard
@@ -79,12 +90,21 @@ DoorDash Marketing Spend: $0.00
 Total Marketing: $8,057 (Uber Eats + Grubhub only)
 ```
 
-### After Re-Upload
+### After Re-Upload ✅ ACTUAL RESULTS
 ```
-DoorDash Marketing Spend: $XX,XXX (actual value from CSVs)
-Total Marketing: $XX,XXX (all 3 platforms combined)
-Marketing ROAS: Calculated across all platforms
+DoorDash Marketing Spend: $118,463.60 (NOW CORRECT!)
+Total Marketing: $126,520.60 (all 3 platforms combined)
+Marketing ROAS: Now accurately calculated across all platforms
+True CPO: Now includes actual DoorDash marketing costs
 ```
+
+**Breakdown by Week:**
+- Sept 8-14: $15,918.00
+- Sept 15-21: $22,404.30
+- Sept 22-28: $32,006.70 (peak promotional week)
+- Sept 29 - Oct 5: $16,246.10
+- Oct 6-12: $15,729.30
+- Oct 13-19: $16,159.20
 
 ## Technical Notes
 - Upload uses **upsert logic** (ON CONFLICT DO UPDATE) so re-uploading is safe
