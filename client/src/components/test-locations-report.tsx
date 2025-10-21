@@ -31,7 +31,7 @@ interface TestLocationsReportData {
   locations: LocationReport[];
 }
 
-export function TestLocationsReport({ clientId }: { clientId: string }) {
+export function TestLocationsReport({ clientId, isActive }: { clientId: string; isActive?: boolean }) {
   const { toast } = useToast();
   const [selectedWeeks, setSelectedWeeks] = useState<number>(12); // Show last 12 weeks
 
@@ -44,7 +44,7 @@ export function TestLocationsReport({ clientId }: { clientId: string }) {
       if (!response.ok) throw new Error("Failed to fetch test locations report");
       return response.json();
     },
-    enabled: !!clientId,
+    enabled: !!clientId && (isActive !== false),
   });
 
   const displayWeeks = data?.weeks.slice(-selectedWeeks) || [];

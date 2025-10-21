@@ -70,6 +70,7 @@ export default function LocationsPage() {
       if (!response.ok) throw new Error("Failed to fetch location metrics");
       return response.json();
     },
+    enabled: activeTab === "overview",
   });
 
   const matchMutation = useMutation({
@@ -442,7 +443,7 @@ export default function LocationsPage() {
             </CardHeader>
             <CardContent>
               {selectedClientId ? (
-                <TestLocationsReport clientId={selectedClientId} />
+                <TestLocationsReport clientId={selectedClientId} isActive={activeTab === "test-locations"} />
               ) : (
                 <div className="text-center py-12 text-muted-foreground">
                   Please select a client to view test locations report
