@@ -2062,7 +2062,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (!t.locationId) return;
         
         const isMarketplace = !t.channel || t.channel === "Marketplace";
-        const isCompleted = t.orderStatus === "Completed";
+        const isCompleted = t.transactionType === "Order";
         
         if (!isMarketplace || !isCompleted) return;
         
@@ -2092,8 +2092,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         metrics.orders += 1;
         
         // Marketing Investment: Ad Spend + Offer/Discount Value
-        // Ad Spend: Sum absolute value of ALL "Other payments" where description is not null
-        const adSpend = t.otherPaymentsDescription ? Math.abs(t.otherPayments || 0) : 0;
+        // Ad Spend: Sum of other_payments (from "Marketing fees" column)
+        const adSpend = (t.otherPayments || 0) > 0 ? t.otherPayments : 0;
         
         // Offer/Discount Value: Sum abs of promotional discounts + credits
         // offers_on_items and delivery_offer_redemptions are NEGATIVE, credits are POSITIVE
@@ -2104,11 +2104,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         metrics.marketingSpend += adSpend + offersValue;
         
-        // Marketing Attribution: Orders with offers < 0 OR delivery redemptions < 0 OR credits > 0
-        const hasMarketing = (t.offersOnItems < 0) || 
-                            (t.deliveryOfferRedemptions < 0) || 
-                            (t.marketingCredits > 0) || 
-                            (t.thirdPartyContribution > 0);
+        // Marketing Attribution: Consistent with DoorDash metrics calculation
+        const hasMarketing = (t.otherPayments || 0) > 0;
         
         if (hasMarketing) {
           metrics.marketingSales += sales;
@@ -2119,6 +2116,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Process Uber Eats transactions
       testUberTxns.forEach(t => {
         if (!t.locationId) return;
+        
+        // Skip non-completed orders
+        if (t.orderStatus !== 'Completed') return;
         
         const weekStart = getMondayOfWeek(parseUberDate(t.date));
         
@@ -2145,9 +2145,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
         metrics.payout += t.netPayout || 0;
         metrics.orders += 1;
         
-        if (t.marketingPromo) {
-          const marketingAmt = t.marketingAmount || 0;
-          metrics.marketingSpend += marketingAmt;
+        // Marketing spend: offers + ad spend (from order-level charges)
+        const offersValue = Math.abs(t.offersOnItems || 0) + 
+                           Math.abs(t.deliveryOfferRedemptions || 0) +
+                           Math.abs(t.offerRedemptionFee || 0);
+        
+        const adSpend = (t.otherPaymentsDescription && (t.otherPayments || 0) > 0 && 
+                        isUberEatsAdRelatedDescription(t.otherPaymentsDescription)) 
+                        ? t.otherPayments : 0;
+        
+        metrics.marketingSpend += offersValue + adSpend;
+        
+        // Marketing Attribution: Consistent with UberEats metrics calculation
+        const isAdDriven = (t.otherPayments || 0) > 0 && 
+                          isUberEatsAdRelatedDescription(t.otherPaymentsDescription);
+        const hasPromotionalOffer = (t.offersOnItems < 0) || (t.deliveryOfferRedemptions < 0);
+        const hasMarketing = isAdDriven || hasPromotionalOffer;
+        
+        if (hasMarketing) {
           metrics.marketingSales += sales;
           metrics.marketingOrders += 1;
         }
@@ -2186,8 +2201,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         metrics.orders += 1;
         
         const promoAmount = t.merchantFundedPromotion || 0;
-        if (promoAmount > 0) {
-          metrics.marketingSpend += promoAmount;
+        if (promoAmount !== 0) {
+          metrics.marketingSpend += Math.abs(promoAmount);
           metrics.marketingSales += sales;
           metrics.marketingOrders += 1;
         }
