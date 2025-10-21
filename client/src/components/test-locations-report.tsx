@@ -33,7 +33,7 @@ interface TestLocationsReportData {
 
 export function TestLocationsReport({ clientId, isActive }: { clientId: string; isActive?: boolean }) {
   const { toast } = useToast();
-  const [selectedWeeks, setSelectedWeeks] = useState<number>(12); // Show last 12 weeks
+  const [selectedWeeks, setSelectedWeeks] = useState<number>(8); // Show last 8 weeks by default
 
   const { data, isLoading } = useQuery<TestLocationsReportData>({
     queryKey: ["/api/analytics/test-locations-report", clientId],
