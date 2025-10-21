@@ -98,8 +98,12 @@ export function calculateUberEatsMetrics(txns: UberEatsTransaction[]) {
                         Math.abs(t.deliveryOfferRedemptions || 0);
     offerDiscountValue += offersValue;
     
-    // Marketing Attribution: Orders with offers < 0 OR delivery redemptions < 0
-    const hasMarketing = (t.offersOnItems < 0) || (t.deliveryOfferRedemptions < 0);
+    // Marketing Attribution: Uber Eats uses multiple signals
+    // 1. Promotional offers (primary): offers_on_items < 0 OR delivery_offer_redemptions < 0
+    // 2. Ad-driven orders (rare): other_payments > 0
+    const hasMarketing = (t.offersOnItems < 0) || 
+                        (t.deliveryOfferRedemptions < 0) || 
+                        ((t.otherPayments || 0) > 0);
     
     if (hasMarketing) {
       marketingDrivenSales += sales;
@@ -178,11 +182,12 @@ export function calculateDoorDashMetrics(txns: DoordashTransaction[]) {
                         (t.thirdPartyContribution || 0);
       offerDiscountValue += offersValue;
       
-      // Marketing Attribution: Orders with offers < 0 OR delivery redemptions < 0 OR credits > 0
-      const hasMarketing = (t.offersOnItems < 0) || 
-                          (t.deliveryOfferRedemptions < 0) || 
-                          (t.marketingCredits > 0) || 
-                          (t.thirdPartyContribution > 0);
+      // Marketing Attribution: Use otherPayments (Marketing fees) as attribution signal
+      // Per DoorDash methodology (stored as absolute values):
+      //   - otherPayments = 0.99 → order from offer redemption
+      //   - otherPayments = larger value → order from ads
+      //   - otherPayments = null/0 → organic order (no marketing attribution)
+      const hasMarketing = (t.otherPayments || 0) > 0;
       
       if (hasMarketing) {
         marketingDrivenSales += sales;
