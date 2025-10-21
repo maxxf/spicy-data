@@ -16,6 +16,7 @@ import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import logoImage from "@assets/a5b36301-f70a-4a41-907e-9f34a1a70b80_1760998717264.png";
 
 const navigation = [
   {
@@ -68,7 +69,7 @@ export function AppSidebar() {
       <SidebarHeader className="p-6 border-b">
         <div className="flex items-center gap-3">
           <div className="flex items-center justify-center w-10 h-10 rounded-md overflow-hidden">
-            <img src="/attached_assets/a5b36301-f70a-4a41-907e-9f34a1a70b80_1760998717264.png" alt="Spicy Data" className="w-full h-full object-cover" />
+            <img src={logoImage} alt="Spicy Data" className="w-full h-full object-cover" />
           </div>
           <div>
             <h2 className="text-base font-semibold">Spicy Data</h2>
