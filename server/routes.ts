@@ -606,6 +606,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
             continue;
           }
 
+          // CRITICAL: Skip Storefront orders - only process Marketplace orders
+          const channel = getColumnValue(row, "Channel", "channel");
+          if (channel && channel.trim().toLowerCase() === "storefront") {
+            continue;
+          }
+
           const locationName = getColumnValue(row, "Store name", "Store Name", "Store_Name", "store_name");
           const locationId = locationMap.get(locationName) || null;
 

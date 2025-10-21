@@ -42,6 +42,7 @@ Preferred communication style: Simple, everyday language.
 
 ### File Upload Processing
 - **Transaction Data Upload**: Supports CSV upload by platform and client. Server-side parsing, validation, and transaction creation. Location matching uses a master sheet; unmapped transactions are assigned to an "Unmapped Locations" bucket. Duplicate prevention uses upsert logic with platform-specific unique constraints (e.g., `workflowId` for Uber Eats, `(clientId, transactionId)` for DoorDash and Grubhub).
+- **DoorDash Storefront Filtering**: **CRITICAL** - Upload route filters out all DoorDash Storefront channel transactions during CSV processing. Only Marketplace orders are saved to the database. This ensures all analytics reflect Marketplace-only performance.
 - **Marketing Data Upload**: Supports platform and data type selection, fuzzy location matching, and deduplication for campaign records and location metrics.
 
 ### Required CSV Report Types by Platform
