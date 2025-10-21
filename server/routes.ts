@@ -595,6 +595,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Parse marketing/promotional fields
           const offersOnItems = parseNegativeFloat(getColumnValue(
             row,
+            "Customer discounts",
             "Customer discounts from marketing | (funded by you)",
             "Customer Discounts from Marketing | (Funded by You)",
             "Offers on items (incl. tax)",
