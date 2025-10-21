@@ -628,8 +628,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             marketingCredits + 
             thirdPartyContribution;
           
-          // Calculate net payout: Subtotal + Tax + Tips - Commission - Marketing Fees - Processing Fees - Order Fees + Error Charges
-          const calculatedNetPayout = subtotal + taxes + totalTips - commission - marketingFees - paymentProcessingFee - deliveryOrderFee - pickupOrderFee + errorCharge;
+          // Use the Net total from CSV directly (DoorDash calculates this correctly)
+          const netTotal = parseNegativeFloat(getColumnValue(row, "Net total", "Net Total"));
           
 
           transactions.push({
@@ -654,7 +654,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             
             // Fees and charges
             deliveryFees: parseNegativeFloat(getColumnValue(row, "Delivery Fees", "Delivery_Fees", "delivery_fees")),
-            commission: commission,
+            commission: Math.abs(commission),
             errorCharges: errorCharge,
             
             // Marketing/promotional fields (typically negative for discounts)
@@ -672,9 +672,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
             // Marketing Spend: Auto-calculated sum of ad spend + customer discounts
             marketingSpend: totalMarketingSpend,
             
-            // Payout (calculated from transaction columns)
-            totalPayout: calculatedNetPayout,
-            netPayment: calculatedNetPayout,
+            // Payout (from CSV's Net total column)
+            totalPayout: netTotal,
+            netPayment: netTotal,
             
             // Source
             orderSource: getColumnValue(row, "Order Source", "Order_Source", "order_source") || null,
