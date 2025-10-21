@@ -310,6 +310,19 @@ async function uploadDoorDash(filePath: string, clientId: string) {
     const marketingFees = parseNegativeFloat(getColumnValue(row, "Marketing fees"));
     const netTotal = parseNegativeFloat(getColumnValue(row, "Net total"));
 
+    // Marketing columns (AA-AD in DoorDash Financial Report)
+    // Support multiple column name variants across different DoorDash export formats
+    const otherPayments = parseNegativeFloat(getColumnValue(row, "Other payments", "Other Payments"));
+    const offers = parseNegativeFloat(getColumnValue(row, "Offers", "offers"));
+    const deliveryRedemptions = parseNegativeFloat(getColumnValue(row, "Delivery redemptions", "Delivery Redemptions"));
+    const credits = parseNegativeFloat(getColumnValue(row, "Credits", "DoorDash marketing credit", "DoorDash Marketing Credit"));
+    const thirdParty = parseNegativeFloat(getColumnValue(row, "Third-party contribution", "Third-party contributions", "Third Party Contributions", "Third-Party Contribution"));
+    
+    // Calculate total marketing spend as sum of all marketing components
+    const totalMarketingSpend = Math.abs(otherPayments) + Math.abs(offers) + 
+                               Math.abs(deliveryRedemptions) + Math.abs(credits) + 
+                               Math.abs(thirdParty);
+
     transactions.push({
       clientId,
       locationId,
@@ -325,13 +338,13 @@ async function uploadDoorDash(filePath: string, clientId: string) {
       deliveryFees: parseNegativeFloat(getColumnValue(row, "Customer fees")),
       commission: Math.abs(commission),
       errorCharges: parseNegativeFloat(getColumnValue(row, "Error charges")),
-      offersOnItems: discounts,
-      deliveryOfferRedemptions: 0,
-      marketingCredits: parseNegativeFloat(getColumnValue(row, "DoorDash marketing credit")),
-      thirdPartyContribution: parseNegativeFloat(getColumnValue(row, "Third-party contribution")),
-      otherPayments: 0,
-      otherPaymentsDescription: null,
-      marketingSpend: Math.abs(marketingFees),
+      offersOnItems: offers,
+      deliveryOfferRedemptions: deliveryRedemptions,
+      marketingCredits: credits,
+      thirdPartyContribution: thirdParty,
+      otherPayments: otherPayments,
+      otherPaymentsDescription: getColumnValue(row, "Other payments description"),
+      marketingSpend: totalMarketingSpend,
       totalPayout: netTotal,
       netPayment: netTotal,
       orderSource: getColumnValue(row, "Channel"),
@@ -390,16 +403,8 @@ async function uploadGrubhub(filePath: string, clientId: string) {
       }
     }
     
-    // Fallback: Match by store number
-    if (storeNumber) {
-      const match = allLocations.find(loc => 
-        loc.storeNumber && loc.storeNumber.trim() === storeNumber.trim()
-      );
-      if (match) {
-        resolvedLocations.set(key, match.id);
-        continue;
-      }
-    }
+    // Note: Store number matching not currently supported in schema
+    // Grubhub locations are matched primarily by address
     
     console.log(`Warning: No Grubhub location found for "${locationName}" (Address: ${address || 'N/A'}, Store#: ${storeNumber || 'N/A'})`);
   }
