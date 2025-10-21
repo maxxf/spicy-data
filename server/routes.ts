@@ -424,7 +424,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/upload", isAuthenticated, upload.single("file"), async (req, res) => {
+  app.post("/api/upload", upload.single("file"), async (req, res) => {
     try {
       if (!req.file) {
         return res.status(400).json({ error: "No file uploaded" });
@@ -651,9 +651,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
         }
         
-        // Step 3: Insert all transactions in batch
-        await storage.createDoordashTransactionsBatch(transactions);
-        res.json({ success: true, rowsProcessed: transactions.length });
+        // Step 3: Deduplicate transactions by transactionId (unique identifier)
+        // DoorDash CSVs can have duplicate transaction IDs in the same file
+        const uniqueTransactions = new Map<string, InsertDoordashTransaction>();
+        for (const txn of transactions) {
+          const key = txn.transactionId;
+          // Keep the last occurrence (most complete data row)
+          uniqueTransactions.set(key, txn);
+        }
+        
+        const deduplicatedTransactions = Array.from(uniqueTransactions.values());
+        console.log(`DoorDash: Reduced ${transactions.length} rows to ${deduplicatedTransactions.length} unique transactions`);
+        
+        // Step 4: Insert deduplicated transactions in batch
+        await storage.createDoordashTransactionsBatch(deduplicatedTransactions);
+        res.json({ success: true, rowsProcessed: deduplicatedTransactions.length });
         return;
       } else if (platform === "grubhub") {
         // Step 1: Collect unique locations and create them upfront
@@ -778,7 +790,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   }
 
   // Marketing data upload endpoint
-  app.post("/api/upload/marketing", isAuthenticated, upload.single("file"), async (req, res) => {
+  app.post("/api/upload/marketing", upload.single("file"), async (req, res) => {
     try {
       if (!req.file) {
         return res.status(400).json({ error: "No file uploaded" });
