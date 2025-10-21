@@ -49,7 +49,7 @@ import type { IStorage } from "./storage";
 import { getUniqueWeeks } from "../shared/week-utils";
 
 // Helper function to detect if an UberEats description is ad-related
-function isUberEatsAdRelatedDescription(description: string | null | undefined): boolean {
+export function isUberEatsAdRelatedDescription(description: string | null | undefined): boolean {
   if (!description) return false;
   
   const desc = description.toLowerCase().trim();
