@@ -323,7 +323,7 @@ async function findOrCreateLocation(
         return numericPortion === platformKey;
       });
       
-      // Strategy 2: If numeric matching failed, try matching by store name
+      // Strategy 2: If numeric matching failed, try matching by store name against storeId
       // (handles cases like "467" → "NV900467" where numeric portions don't match)
       if (!locationByKey) {
         const normalizedLocationName = locationName.toLowerCase().trim();
@@ -344,6 +344,19 @@ async function findOrCreateLocation(
           console.log(`[doordash] Matched by store_name fallback (numeric ID ${platformKey}): "${locationName}" → "${locationByKey.canonicalName}"`);
         }
       }
+      
+      // Strategy 3: If still no match, try exact match against doordashName
+      // (handles cases where CSV only has store name like "Old Town" matching doordashName = "Old Town")
+      if (!locationByKey) {
+        const normalizedLocationName = locationName.toLowerCase().trim();
+        locationByKey = allLocations.find(l => 
+          l.doordashName && l.doordashName.toLowerCase().trim() === normalizedLocationName
+        );
+        
+        if (locationByKey) {
+          console.log(`[doordash] Matched by doordashName exact match (numeric ID ${platformKey}): "${locationName}" → "${locationByKey.canonicalName}"`);
+        }
+      }
     }
     
     if (locationByKey) {
@@ -354,6 +367,20 @@ async function findOrCreateLocation(
         });
       }
       return locationByKey.id;
+    }
+  }
+  
+  // Final fallback for DoorDash: Try exact match on doordashName even without platformKey
+  // (handles simplified CSV format with only store name, no Merchant Store ID)
+  if (platform === "doordash") {
+    const normalizedLocationName = locationName.toLowerCase().trim();
+    const locationByName = allLocations.find(l => 
+      l.doordashName && l.doordashName.toLowerCase().trim() === normalizedLocationName
+    );
+    
+    if (locationByName) {
+      console.log(`[doordash] Matched by doordashName (no platformKey): "${locationName}" → "${locationByName.canonicalName}"`);
+      return locationByName.id;
     }
   }
   
