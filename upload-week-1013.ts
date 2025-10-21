@@ -135,6 +135,11 @@ async function uploadGrubhub() {
     
     const locationName = getColumnValue(row, "store_name", "Restaurant", "Store_Name", "store name");
     
+    // Parse financial fields
+    const subtotal = parseFloat(getColumnValue(row, "subtotal", "Subtotal")) || 0;
+    const subtotalSalesTax = parseFloat(getColumnValue(row, "subtotal_sales_tax", "Subtotal Sales Tax")) || 0;
+    const saleAmount = subtotal + subtotalSalesTax; // Calculate total sale amount (matches routes.ts logic)
+    
     transactions.push({
       clientId,
       locationId: null, // Will be matched by backend
@@ -145,9 +150,9 @@ async function uploadGrubhub() {
       restaurant: locationName,
       orderChannel: getColumnValue(row, "order_channel", "Order Channel", "order_channel") || null,
       fulfillmentType: getColumnValue(row, "fulfillment_type", "Fulfillment Type", "fulfillment_type") || null,
-      subtotal: parseFloat(getColumnValue(row, "subtotal", "Subtotal")) || 0,
-      subtotalSalesTax: parseFloat(getColumnValue(row, "subtotal_sales_tax", "Subtotal Sales Tax")) || 0,
-      saleAmount: parseFloat(getColumnValue(row, "sale_amount", "Sale Amount")) || 0,
+      subtotal,
+      subtotalSalesTax,
+      saleAmount,
       commission: parseFloat(getColumnValue(row, "commission", "Commission")) || 0,
       deliveryCommission: parseFloat(getColumnValue(row, "delivery_commission", "Delivery Commission")) || 0,
       processingFee: parseFloat(getColumnValue(row, "processing_fee", "Processing Fee")) || 0,
@@ -257,10 +262,11 @@ async function uploadDoorDash() {
 
 async function main() {
   try {
-    await uploadUberEats();
+    // Only re-upload Grubhub with corrected sale_amount calculation
+    // await uploadUberEats();
     await uploadGrubhub();
-    await uploadDoorDash();
-    console.log('\n🎉 All uploads complete!');
+    // await uploadDoorDash();
+    console.log('\n🎉 Grubhub re-upload complete!');
     process.exit(0);
   } catch (error) {
     console.error('Upload failed:', error);
