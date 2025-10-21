@@ -420,6 +420,14 @@ export type DashboardOverview = {
   blendedRoas: number;
   netPayoutPercent: number;
   platformBreakdown: PlatformMetrics[];
+  comparison?: {
+    totalSales: number;
+    totalOrders: number;
+    averageAov: number;
+    totalMarketingInvestment: number;
+    blendedRoas: number;
+    netPayout: number;
+  };
 };
 
 export type LocationMatchSuggestion = {

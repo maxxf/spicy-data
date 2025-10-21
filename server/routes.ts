@@ -1604,7 +1604,61 @@ export async function registerRoutes(app: Express): Promise<Server> {
         weekEnd: weekEnd as string | undefined,
         locationTag: locationTag as string | undefined,
       };
+      
+      // Get current week overview
       const overview = await storage.getDashboardOverview(filters);
+      
+      // Calculate previous week data if weekStart is provided
+      if (weekStart) {
+        const currentWeekStart = new Date(weekStart + 'T00:00:00Z');
+        const previousWeekStart = new Date(currentWeekStart);
+        previousWeekStart.setUTCDate(previousWeekStart.getUTCDate() - 7);
+        
+        const previousWeekEnd = new Date(previousWeekStart);
+        previousWeekEnd.setUTCDate(previousWeekEnd.getUTCDate() + 6);
+        
+        const formatDate = (date: Date): string => {
+          const year = date.getUTCFullYear();
+          const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+          const day = String(date.getUTCDate()).padStart(2, '0');
+          return `${year}-${month}-${day}`;
+        };
+        
+        const previousFilters = {
+          ...filters,
+          weekStart: formatDate(previousWeekStart),
+          weekEnd: formatDate(previousWeekEnd),
+        };
+        
+        const previousOverview = await storage.getDashboardOverview(previousFilters);
+        
+        // Calculate net payout for current week
+        const currentNetPayout = overview.totalSales * (overview.netPayoutPercent / 100);
+        const previousNetPayout = previousOverview.totalSales * (previousOverview.netPayoutPercent / 100);
+        
+        // Add comparison data with percentage changes
+        overview.comparison = {
+          totalSales: previousOverview.totalSales > 0 
+            ? ((overview.totalSales - previousOverview.totalSales) / previousOverview.totalSales) * 100 
+            : 0,
+          totalOrders: previousOverview.totalOrders > 0 
+            ? ((overview.totalOrders - previousOverview.totalOrders) / previousOverview.totalOrders) * 100 
+            : 0,
+          averageAov: previousOverview.averageAov > 0 
+            ? ((overview.averageAov - previousOverview.averageAov) / previousOverview.averageAov) * 100 
+            : 0,
+          totalMarketingInvestment: previousOverview.totalMarketingInvestment > 0 
+            ? ((overview.totalMarketingInvestment - previousOverview.totalMarketingInvestment) / previousOverview.totalMarketingInvestment) * 100 
+            : 0,
+          blendedRoas: previousOverview.blendedRoas > 0 
+            ? ((overview.blendedRoas - previousOverview.blendedRoas) / previousOverview.blendedRoas) * 100 
+            : 0,
+          netPayout: previousNetPayout > 0 
+            ? ((currentNetPayout - previousNetPayout) / previousNetPayout) * 100 
+            : 0,
+        };
+      }
+      
       res.json(overview);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
