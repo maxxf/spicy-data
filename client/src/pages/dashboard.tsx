@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
 import {
   ChartContainer,
   ChartTooltip,
@@ -41,6 +42,7 @@ export default function Dashboard() {
   const [selectedLocationId, setSelectedLocationId] = useState<string | null>(null);
   const [selectedPlatform, setSelectedPlatform] = useState<string | null>(null);
   const [selectedWeek, setSelectedWeek] = useState<{ weekStart: string; weekEnd: string } | null>(null);
+  const [showLocationDetails, setShowLocationDetails] = useState(false);
 
   // Fetch available weeks to default to most recent
   const { data: weeks } = useQuery<Array<{ weekStart: string; weekEnd: string }>>({
@@ -83,6 +85,7 @@ export default function Dashboard() {
       if (!response.ok) throw new Error("Failed to fetch locations");
       return response.json();
     },
+    enabled: showLocationDetails,
   });
 
   const { data: clientPerformance, isLoading: clientPerfLoading } = useQuery<ClientPerformance[]>({
@@ -602,11 +605,25 @@ export default function Dashboard() {
       </Card>
 
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between gap-2">
           <CardTitle>Location Performance</CardTitle>
+          {!showLocationDetails && (
+            <Button 
+              onClick={() => setShowLocationDetails(true)}
+              variant="outline"
+              size="sm"
+              data-testid="button-load-location-details"
+            >
+              Load Location Details
+            </Button>
+          )}
         </CardHeader>
         <CardContent>
-          {locationsLoading ? (
+          {!showLocationDetails ? (
+            <div className="text-center py-12 text-muted-foreground">
+              Click "Load Location Details" to view consolidated location metrics
+            </div>
+          ) : locationsLoading ? (
             <div className="space-y-2">
               {[...Array(5)].map((_, i) => (
                 <Skeleton key={i} className="h-12" />

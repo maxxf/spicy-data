@@ -70,7 +70,7 @@ export default function LocationsPage() {
       if (!response.ok) throw new Error("Failed to fetch location metrics");
       return response.json();
     },
-    enabled: activeTab === "overview",
+    enabled: activeTab === "overview" && !!selectedClientId,
   });
 
   const matchMutation = useMutation({
