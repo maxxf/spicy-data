@@ -162,12 +162,14 @@ export function calculateDoorDashMetrics(txns: DoordashTransaction[]) {
       const sales = t.salesExclTax || t.orderSubtotal || 0;
       totalSales += sales;
       
-      // Marketing Spend: Use pre-calculated marketingSpend field if available
-      // This is the sum of: abs(offers_on_items) + abs(delivery_offer_redemptions) + 
-      //                     marketing_credits + third_party_contribution
-      const totalMarketingSpend = t.marketingSpend || 0;
+      // DoorDash Marketing Spend Breakdown:
+      // Ad Spend = other_payments (actual ad spend charged by DoorDash)
+      // Offers = offers_on_items + delivery_offer_redemptions + marketing_credits + third_party
       
-      // For backward compatibility and transparency, also calculate offer discount value
+      // Ad Spend from other_payments field
+      adSpend += Math.abs(t.otherPayments || 0);
+      
+      // Offer Discount Value (all promotional discounts and credits)
       // Note: offers_on_items and delivery_offer_redemptions are stored as NEGATIVE values
       // marketing_credits and third_party_contribution are stored as POSITIVE values
       const offersValue = Math.abs(t.offersOnItems || 0) + 
@@ -175,9 +177,6 @@ export function calculateDoorDashMetrics(txns: DoordashTransaction[]) {
                         (t.marketingCredits || 0) +
                         (t.thirdPartyContribution || 0);
       offerDiscountValue += offersValue;
-      
-      // Use marketingSpend as adSpend since DoorDash doesn't separate ad spend from offers
-      adSpend += totalMarketingSpend;
       
       // Marketing Attribution: Orders with offers < 0 OR delivery redemptions < 0 OR credits > 0
       const hasMarketing = (t.offersOnItems < 0) || 
