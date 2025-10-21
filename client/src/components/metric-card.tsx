@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 interface MetricCardProps {
   label: string;
   value: string | number;
-  change?: number;
+  change?: number | null;
   changeLabel?: string;
   subtitle?: string;
   format?: "currency" | "number" | "percent" | "multiplier";
@@ -47,12 +47,12 @@ export function MetricCard({
   };
 
   const getTrendIcon = () => {
-    if (change === undefined || change === 0) return <Minus className="w-3 h-3" />;
+    if (change === undefined || change === null || change === 0) return <Minus className="w-3 h-3" />;
     return change > 0 ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />;
   };
 
   const getTrendColor = () => {
-    if (change === undefined || change === 0) return "text-muted-foreground";
+    if (change === undefined || change === null || change === 0) return "text-muted-foreground";
     return change > 0 ? "text-green-600 dark:text-green-500" : "text-red-600 dark:text-red-500";
   };
 
@@ -73,7 +73,7 @@ export function MetricCard({
             <div className={cn("flex items-center gap-1 text-sm", getTrendColor())} data-testid={`text-change-${label.toLowerCase().replace(/\s+/g, "-")}`}>
               {getTrendIcon()}
               <span className="font-medium">
-                {Math.abs(change).toFixed(2)}%
+                {change === null ? "—" : `${Math.abs(change).toFixed(2)}%`}
               </span>
               {changeLabel && <>{" "}<span className="text-muted-foreground">{changeLabel}</span></>}
             </div>

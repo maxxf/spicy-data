@@ -421,12 +421,12 @@ export type DashboardOverview = {
   netPayoutPercent: number;
   platformBreakdown: PlatformMetrics[];
   comparison?: {
-    totalSales: number;
-    totalOrders: number;
-    averageAov: number;
-    totalMarketingInvestment: number;
-    blendedRoas: number;
-    netPayout: number;
+    totalSales: number | null;
+    totalOrders: number | null;
+    averageAov: number | null;
+    totalMarketingInvestment: number | null;
+    blendedRoas: number | null;
+    netPayout: number | null;
   };
 };
 

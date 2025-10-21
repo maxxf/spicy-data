@@ -9,6 +9,14 @@ import { z } from "zod";
 
 const upload = multer({ storage: multer.memoryStorage() });
 
+// Helper to safely calculate percentage change, returning null for invalid cases
+function calculatePercentageChange(current: number, previous: number): number | null {
+  if (previous === 0 || previous === null || previous === undefined) {
+    return null; // Can't calculate change from zero or missing data
+  }
+  return ((current - previous) / previous) * 100;
+}
+
 function parseCSV(buffer: Buffer, platform?: string): any[] {
   // Strip UTF-8 BOM if present (0xEF, 0xBB, 0xBF)
   if (buffer.length >= 3 && buffer[0] === 0xEF && buffer[1] === 0xBB && buffer[2] === 0xBF) {
@@ -1636,26 +1644,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const currentNetPayout = overview.totalSales * (overview.netPayoutPercent / 100);
         const previousNetPayout = previousOverview.totalSales * (previousOverview.netPayoutPercent / 100);
         
-        // Add comparison data with percentage changes
+        // Add comparison data with percentage changes (null if previous is 0 or missing)
         overview.comparison = {
-          totalSales: previousOverview.totalSales > 0 
-            ? ((overview.totalSales - previousOverview.totalSales) / previousOverview.totalSales) * 100 
-            : 0,
-          totalOrders: previousOverview.totalOrders > 0 
-            ? ((overview.totalOrders - previousOverview.totalOrders) / previousOverview.totalOrders) * 100 
-            : 0,
-          averageAov: previousOverview.averageAov > 0 
-            ? ((overview.averageAov - previousOverview.averageAov) / previousOverview.averageAov) * 100 
-            : 0,
-          totalMarketingInvestment: previousOverview.totalMarketingInvestment > 0 
-            ? ((overview.totalMarketingInvestment - previousOverview.totalMarketingInvestment) / previousOverview.totalMarketingInvestment) * 100 
-            : 0,
-          blendedRoas: previousOverview.blendedRoas > 0 
-            ? ((overview.blendedRoas - previousOverview.blendedRoas) / previousOverview.blendedRoas) * 100 
-            : 0,
-          netPayout: previousNetPayout > 0 
-            ? ((currentNetPayout - previousNetPayout) / previousNetPayout) * 100 
-            : 0,
+          totalSales: calculatePercentageChange(overview.totalSales, previousOverview.totalSales),
+          totalOrders: calculatePercentageChange(overview.totalOrders, previousOverview.totalOrders),
+          averageAov: calculatePercentageChange(overview.averageAov, previousOverview.averageAov),
+          totalMarketingInvestment: calculatePercentageChange(overview.totalMarketingInvestment, previousOverview.totalMarketingInvestment),
+          blendedRoas: calculatePercentageChange(overview.blendedRoas, previousOverview.blendedRoas),
+          netPayout: calculatePercentageChange(currentNetPayout, previousNetPayout),
         };
       }
       
