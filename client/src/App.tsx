@@ -11,7 +11,6 @@ import LocationsPage from "@/pages/locations";
 import PromosPage from "@/pages/campaigns";
 import AdminPage from "@/pages/admin";
 import IncomeStatement from "@/pages/income-statement";
-import UploadPage from "@/pages/upload";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -21,7 +20,6 @@ function Router() {
       <Route path="/locations" component={LocationsPage} />
       <Route path="/campaigns" component={PromosPage} />
       <Route path="/income-statement" component={IncomeStatement} />
-      <Route path="/upload" component={UploadPage} />
       <Route path="/admin" component={AdminPage} />
       <Route component={NotFound} />
     </Switch>
