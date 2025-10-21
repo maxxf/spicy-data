@@ -80,6 +80,7 @@ export const uberEatsTransactions = pgTable("uber_eats_transactions", {
   // Marketing/Promotional fields (updated methodology)
   offersOnItems: real("offers_on_items").notNull().default(0), // "Offers on items (incl. tax)" - negative for discounts
   deliveryOfferRedemptions: real("delivery_offer_redemptions").notNull().default(0), // "Delivery Offer Redemptions (incl. tax)" - negative for discounts
+  offerRedemptionFee: real("offer_redemption_fee").notNull().default(0), // "Offer Redemption Fee" - fee charged for offer redemptions
   marketingPromo: text("marketing_promo"), // Legacy field - kept for backward compatibility
   marketingAmount: real("marketing_amount").notNull(), // Legacy field - kept for backward compatibility
   

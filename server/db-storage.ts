@@ -92,10 +92,12 @@ export function calculateUberEatsMetrics(txns: UberEatsTransaction[]) {
       }
     }
     
-    // Offer/Discount Value: Sum absolute values of promotional discounts
+    // Offer/Discount Value: Sum absolute values of promotional discounts and fees
     // Note: offersOnItems and deliveryOfferRedemptions are stored as NEGATIVE values
+    // offerRedemptionFee is stored as POSITIVE value (fee charged for redemptions)
     const offersValue = Math.abs(t.offersOnItems || 0) + 
-                        Math.abs(t.deliveryOfferRedemptions || 0);
+                        Math.abs(t.deliveryOfferRedemptions || 0) +
+                        Math.abs(t.offerRedemptionFee || 0);
     offerDiscountValue += offersValue;
     
     // Marketing Attribution: Uber Eats uses two distinct signals

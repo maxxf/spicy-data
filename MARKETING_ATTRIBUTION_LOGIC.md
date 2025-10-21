@@ -66,12 +66,14 @@ const hasMarketing = isAdDriven || hasPromotionalOffer;
 - **Offer Discounts**: Sum of:
   - `abs(offers_on_items)` (promotional item discounts)
   - `abs(delivery_offer_redemptions)` (delivery fee discounts)
+  - `abs(offer_redemption_fee)` (fees charged for offer redemptions)
 
 **Total Marketing Investment** = Ad Spend (order + platform) + Offer Discounts
 
 **CSV Fields**:
 - `Offers on items (incl. tax)` → `offers_on_items` (negative values) - **Primary attribution signal**
 - `Delivery Offer Redemptions (incl. tax)` → `delivery_offer_redemptions` (negative values)
+- `Offer Redemption Fee` → `offer_redemption_fee` (positive values) - Fee charged for processing offer redemptions
 - `Other payments` → `other_payments` (positive for ad spend)
 - `Other payments description` → `other_payments_description` (e.g., "Ad Spend", "Customer contribution")
 
