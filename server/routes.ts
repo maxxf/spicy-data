@@ -1884,7 +1884,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Test locations weekly financials report - calculated from transaction data
-  app.get("/api/analytics/test-locations-report", isAuthenticated, async (req, res) => {
+  app.get("/api/analytics/test-locations-report", async (req, res) => {
     try {
       const { clientId } = req.query;
       
@@ -1970,7 +1970,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (!t.locationId) return;
         
         const isMarketplace = !t.channel || t.channel === "Marketplace";
-        const isCompleted = !t.orderStatus || t.orderStatus === "Delivered" || t.orderStatus === "Picked Up";
+        const isCompleted = t.orderStatus === "Delivered" || t.orderStatus === "Picked Up" || t.orderStatus === "Order";
         
         if (!isMarketplace || !isCompleted) return;
         
@@ -2001,10 +2001,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         // Marketing attribution
         const adSpend = t.otherPayments || 0;
+        // DoorDash marketing spend: offers/delivery redemptions are NEGATIVE, credits are POSITIVE
         const offersValue = Math.abs(t.offersOnItems || 0) + 
                           Math.abs(t.deliveryOfferRedemptions || 0) +
-                          Math.abs(t.marketingCredits || 0) +
-                          Math.abs(t.thirdPartyContribution || 0);
+                          (t.marketingCredits || 0) +
+                          (t.thirdPartyContribution || 0);
         
         metrics.marketingSpend += adSpend + offersValue;
         

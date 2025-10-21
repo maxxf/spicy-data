@@ -38,7 +38,9 @@ export function TestLocationsReport({ clientId }: { clientId: string }) {
   const { data, isLoading } = useQuery<TestLocationsReportData>({
     queryKey: ["/api/analytics/test-locations-report", clientId],
     queryFn: async () => {
-      const response = await fetch(`/api/analytics/test-locations-report?clientId=${clientId}`);
+      const response = await fetch(`/api/analytics/test-locations-report?clientId=${clientId}`, {
+        credentials: 'include', // Include cookies for authentication
+      });
       if (!response.ok) throw new Error("Failed to fetch test locations report");
       return response.json();
     },
