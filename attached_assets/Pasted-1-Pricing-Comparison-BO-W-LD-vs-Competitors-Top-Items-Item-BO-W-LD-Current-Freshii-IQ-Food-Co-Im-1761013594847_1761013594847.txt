@@ -1,0 +1,183 @@
+1. Pricing Comparison: BO[W]LD vs Competitors (Top Items)
+Item	BO[W]LD Current	Freshii	IQ Food Co	Impact Kitchen	Positioning	Price Gap vs Avg	Opportunity
+Base Veggie Bowl	$11.49	$11.99	$13.99	$14.49	Lower	-$1.33	Raise to $11.99
+Build-Your-Own Bowl (no protein)	$11.49	$12.49	$13.99	$14.49	Lower	-$1.83	Raise to $12.49
+Chicken Protein Bowl	$17.49	$16.99	$18.99	$19.49	Mid-Low	-$1.00	OK as-is
+Salmon Protein Bowl	$17.49	$18.49	$20.99	$21.49	Lower	-$3.00	Raise to $18.49
+Tofu/Vegan Bowl	$17.49	$15.99	$17.99	$18.49	Lower	-$0.83	OK as-is
+Shrimp Bowl	$17.49	$19.49	$21.99	$22.49	Lowest	-$4.50	Raise to $18.49
+Signature/Curated Bowl	$17.49	$15.99-17.99	$18.99-20.99	$19.49-21.49	Lower	-$1.50	Raise to $18.49
+Extra Protein Add-on	$5.99	$5.99	$6.99	$6.99	Competitive	-$0.83	OK as-is
+Premium Toppings (Avocado)	$2.99	$2.99	$3.49	$3.49	Competitive	-$0.50	OK as-is
+Side (Quinoa/Rice)	$1.49	$1.99	$2.49	$2.49	Lowest	-$0.83	Raise to $1.99
+House Dressing	$1.49	$1.49	$1.99	$1.99	Lowest	-$0.50	Raise to $1.99
+Premium Beverage	$4.45	$6.99	$7.49	$7.99	Lowest	-$3.00	Raise to $5.45
+Dessert	$4.99	$4.99	$5.49	$5.99	Competitive	-$0.50	OK as-is
+Key Insights:
+✅ BO[W]LD is pricing BELOW market on 10 of 13 items
+
+✅ Biggest gaps: Shrimp Bowl (-$4.50), Salmon Bowl (-$3.00), Premium Drinks (-$3.00)
+
+✅ Opportunity: Raise prices on premium items to capture $2-4 more per order
+
+✅ Risk: Low — 4.8 rating + fire-grilled differentiation justifies premium vs Freshii
+
+Recommended Price Increases:
+Salmon Bowl: $17.49 → $18.49 (+$1.00)
+
+Shrimp Bowl: $17.49 → $18.49 (+$1.00)
+
+Curated Bowls: $17.49 → $18.49 (+$1.00)
+
+Base Bowl: $11.49 → $11.99 (+$0.50)
+
+Premium Drinks: $4.45 → $5.45 (+$1.00)
+
+Sides: $1.49 → $1.99 (+$0.50)
+
+Revenue Impact:
+Avg order increase: +$1.50-2.50 per order
+
+On 500 orders/month = +$750-1,250/month
+
+On 1,000 orders/month = +$1,500-2,500/month
+
+2. Optimized Menu Structure
+Category	Item Name	Description	Price (Current)	Price (Optimized)	Change	Priority	Notes
+Featured Items	Protein Power BO[W]LD	70g protein | Quinoa, edamame, chickpeas, lentils, choice of protein	$17.49	$18.49	+$1.00	P0	#1 seller, justify premium w/ 70g callout
+Featured Items	Fire-Kissed Chicken BO[W]LD	Fire-grilled chicken | Choice of marinade, build your bowl	$17.49	$17.49	—	P0	#3 seller, keep competitive on chicken
+Featured Items	Green Glow BO[W]LD	Veg base bowl | Add protein to customize	$11.49	$11.99	+$0.50	P0	#2 seller, raise to Freshii parity
+Featured Items	Keto Power BO[W]LD	12g net carbs | Spring mix, protein, keto dressing	$17.49	$18.49	+$1.00	P0	Trending, justify premium w/ macro positioning
+Power Bundles	Lunch Deal	Any bowl + side + drink	—	$20.99	NEW	P1	Drive AOV, high-margin combo
+Power Bundles	Protein Pack	2 protein bowls (BOGO)	$25.00	$25.00	—	P1	Keep existing BOGO, performing well
+Power Bundles	Gym Fuel	Protein bowl + premium drink	—	$22.99	NEW	P2	Target post-workout crowd
+Signature Bowls	Anti-Inflammatory BO[W]LD	Brown rice, edamame, chickpeas, turmeric ginger dressing	$17.49	$18.49	+$1.00	P1	Functional nutrition positioning = premium
+Signature Bowls	Tide Salmon BO[W]LD	Fire-grilled salmon fillet, choice of marinade	$17.49	$18.49	+$1.00	P0	Premium protein, close gap vs market ($20+)
+Signature Bowls	Skewered Catch Shrimp BO[W]LD	Fire-grilled shrimp skewer, choice of marinade	$17.49	$18.49	+$1.00	P0	Premium protein, close gap vs market ($21+)
+Build Your Own	Create Your Bowl	Choose base + 5 toppings + dressing | Add protein below	$11.49	$11.99	+$0.50	P0	Entry price point, raise to market
+Build Your Own	→ Add Fire-Kissed Chicken	Ginger Garlic / Sriracha Honey / Miso	$17.49	$17.49	—	P0	Keep competitive
+Build Your Own	→ Add Tofu Steak	Flame-finished, choice of marinade	$17.49	$17.49	—	P0	Keep veg option competitive
+Build Your Own	→ Add Umami Earth (Mushroom)	Pulled shiitake, choice of marinade	$17.49	$17.49	—	P1	Unique offering, test demand
+Power-Ups	Double Protein	2x your protein choice	—	$5.99	NEW	P1	Upsell for high-protein seekers
+Power-Ups	Extra Chicken Tenders	Fire-grilled tenders (3pc)	$5.99	$5.99	—	P1	Keep competitive
+Power-Ups	Extra Salmon Fillet	Grilled salmon (1pc)	$5.99	$6.99	+$1.00	P2	Premium protein = premium price
+Power-Ups	Extra Shrimp Skewer	Grilled shrimp (1pc)	$5.99	$6.99	+$1.00	P2	Premium protein = premium price
+Power-Ups	Premium Toppings	Avocado, Egg, Cheese, Nuts	$2.99	$2.99	—	P1	Keep competitive
+Sides & Add-Ons	Extra Base (Quinoa/Rice/Greens)	Boost your bowl	$1.49	$1.99	+$0.50	P2	Low-volume, raise to market
+Sides & Add-Ons	Extra Dressing	8 house-made options	$1.49	$1.99	+$0.50	P2	Low-volume, raise to market
+Fuel Up	Premium Wellness Shots	Kombucha, Ginger Defense, Green Ritual, Lavender Lemonade	$4.45	$5.45	+$1.00	P1	Close gap vs Freshii ($6.99)
+Fuel Up	Gatsby (Cold-Pressed Juice)	Ginger, vitamins A/C/K	$8.45	$8.45	—	P2	Premium item, OK as-is
+Fuel Up	Sparkling Water (Sapsucker)	Lemon / Lime / Peach	$3.49	$3.99	+$0.50	P2	Small lift on mid-tier drink
+Fuel Up	Soft Drinks & Water	Pepsi, Diet Pepsi, 7UP, Water	$2.29-2.89	$2.49-2.99	+$0.20	P3	Minimal lift on commodity items
+Sweet Treats	Shockingly Healthy Brownies	Double Chocolate / PB Blondie | Chickpea & date base	$4.99	$4.99	—	P2	Unique brand positioning, OK as-is
+Menu Summary:
+Total Categories: 8 (down from 9)
+
+Total Items: 26
+
+Items with Price Increases: 14
+
+New Items Added: 3
+
+Rationale for Menu Changes
+1. Category Restructuring (9→8 Categories)
+Consolidated: "Sides" + "Extra Dressing" → "Sides & Add-Ons" (low-volume items grouped)
+
+Renamed: "Extra Protein" → "Power-Ups" (more appealing, suggests enhancement)
+
+Renamed: "Drinks" → "Fuel Up" (aligns with fitness/wellness positioning)
+
+Renamed: "Desserts" → "Sweet Treats" (playful, less guilt-inducing)
+
+Added: "Power Bundles" category (NEW) to highlight meal deals and BOGO
+
+Rationale: 8 categories still optimal. Consolidation reduces clutter while new "Power Bundles" category drives AOV.
+
+2. Pricing Philosophy: Value-Based Pricing
+Current state: BO[W]LD is underpriced vs market on premium items (salmon, shrimp, curated bowls)
+
+4.8 rating + fire-grilled differentiation justifies premium positioning
+
+Price increases target premium/specialty items (not entry-level or chicken)
+
+Competitive parity maintained on high-volume items (chicken bowls, add-ons)
+
+3. New Bundle Offerings (3 Added)
+Lunch Deal ($20.99): Targets office workers, high-margin combo (bowl+side+drink)
+
+Protein Pack ($25.00): Keeps existing BOGO structure, proven performer
+
+Gym Fuel ($22.99): Targets fitness crowd, pairs protein bowl with premium wellness drink
+
+Rationale: Bundles drive AOV lift (+15-30%) and reduce decision fatigue
+
+4. New "Double Protein" Modifier
+Price: $5.99 (same as single extra protein)
+
+Target: High-protein seekers who want 2x their base protein
+
+Rationale: Upsell opportunity for Protein Power buyers, competitive with "extra protein" add-on pricing
+
+5. Premium Protein Price Increases
+Salmon bowls: $17.49 → $18.49 (market avg: $20+)
+
+Shrimp bowls: $17.49 → $18.49 (market avg: $21+)
+
+Rationale: Still $2-3 below premium competitors (IQ Food Co, Impact Kitchen), justified by quality
+
+6. Entry-Level Price Adjustments
+Green Glow (base bowl): $11.49 → $11.99 (+$0.50)
+
+Rationale: Brings to Freshii parity, still accessible, maintains value perception
+
+7. Premium Beverage Pricing
+Wellness shots (kombucha, etc): $4.45 → $5.45 (+$1.00)
+
+Current gap: $2.54 below Freshii's $6.99 smoothies
+
+Rationale: Still $1.50 below market, aligns with premium wellness positioning
+
+8. Low-Volume Item Increases
+Sides & dressings: $1.49 → $1.99 (+$0.50)
+
+Rationale: Low attach rate, minimal customer resistance, brings to market parity
+
+9. Items Kept Competitive (No Change)
+Fire-Kissed Chicken: $17.49 (highest-volume item, keep competitive)
+
+Tofu/Mushroom bowls: $17.49 (veg options should be accessible)
+
+Extra Chicken Tenders: $5.99 (high-volume add-on)
+
+Premium Toppings: $2.99 (competitive with market)
+
+Desserts: $4.99 (unique "Shockingly Healthy" positioning, OK as-is)
+
+Expected Impact of Optimized Menu
+Revenue Lift Projections:
+
+Price increases: +$1.50-2.50 per order = +$750-2,500/month (depending on volume)
+
+New bundles: +$2-4 AOV lift on 20-30% of orders = +$400-1,200/month
+
+Double Protein upsell: 10% attachment rate = +$200-400/month
+
+Total monthly lift: +$1,350-4,100/month (+5-15% revenue increase)
+
+Customer Experience:
+
+✅ Maintains entry-level accessibility ($11.99 base bowl)
+
+✅ Bundles reduce decision fatigue and drive value perception
+
+✅ Premium pricing signals quality (fire-grilled, curated, functional nutrition)
+
+✅ Chicken bowls stay competitive (highest volume item)
+
+Competitive Positioning:
+
+Still below IQ Food Co / Impact Kitchen on premium items ($18.49 vs $20-22)
+
+At parity with Freshii on entry-level items
+
+Best value on shrimp/salmon vs premium competitors
