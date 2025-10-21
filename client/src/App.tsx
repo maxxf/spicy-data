@@ -6,8 +6,6 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { useAuth } from "@/hooks/useAuth";
-import Landing from "@/pages/landing";
 import Dashboard from "@/pages/dashboard";
 import LocationsPage from "@/pages/locations";
 import PromosPage from "@/pages/campaigns";
@@ -16,19 +14,6 @@ import IncomeStatement from "@/pages/income-statement";
 import NotFound from "@/pages/not-found";
 
 function Router() {
-  const { isAuthenticated, isLoading } = useAuth();
-
-  // Show landing page for logged-out users or while loading
-  if (isLoading || !isAuthenticated) {
-    return (
-      <Switch>
-        <Route path="/" component={Landing} />
-        <Route component={Landing} />
-      </Switch>
-    );
-  }
-
-  // Show dashboard and protected routes for logged-in users
   return (
     <Switch>
       <Route path="/" component={Dashboard} />
@@ -51,36 +36,21 @@ export default function App() {
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <SidebarProvider style={style as React.CSSProperties}>
-          <AuthenticatedLayout />
+          <div className="flex h-screen w-full">
+            <AppSidebar />
+            <div className="flex flex-col flex-1 overflow-hidden">
+              <header className="flex items-center justify-between p-4 border-b bg-background">
+                <SidebarTrigger data-testid="button-sidebar-toggle" />
+                <ThemeToggle />
+              </header>
+              <main className="flex-1 overflow-y-auto">
+                <Router />
+              </main>
+            </div>
+          </div>
         </SidebarProvider>
         <Toaster />
       </TooltipProvider>
     </QueryClientProvider>
-  );
-}
-
-// Layout component that shows sidebar only for authenticated users
-function AuthenticatedLayout() {
-  const { isAuthenticated, isLoading } = useAuth();
-
-  // Show landing page without sidebar for logged-out users
-  if (isLoading || !isAuthenticated) {
-    return <Router />;
-  }
-
-  // Show sidebar and header for logged-in users
-  return (
-    <div className="flex h-screen w-full">
-      <AppSidebar />
-      <div className="flex flex-col flex-1 overflow-hidden">
-        <header className="flex items-center justify-between p-4 border-b bg-background">
-          <SidebarTrigger data-testid="button-sidebar-toggle" />
-          <ThemeToggle />
-        </header>
-        <main className="flex-1 overflow-y-auto">
-          <Router />
-        </main>
-      </div>
-    </div>
   );
 }

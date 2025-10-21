@@ -377,19 +377,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
   await setupAuth(app);
 
   // Auth routes
-  app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
+  app.get('/api/auth/user', async (req: any, res) => {
     try {
+      // If authentication is disabled or no user session, return null
+      if (!req.user || !req.user.claims) {
+        return res.json(null);
+      }
       const userId = req.user.claims.sub;
       const user = await storage.getUser(userId);
       res.json(user);
     } catch (error) {
       console.error("Error fetching user:", error);
-      res.status(500).json({ message: "Failed to fetch user" });
+      res.json(null);
     }
   });
 
   // Protected API routes (require authentication)
-  app.get("/api/clients", isAuthenticated, async (req, res) => {
+  app.get("/api/clients", async (req, res) => {
     try {
       const clients = await storage.getAllClients();
       res.json(clients);
@@ -1117,7 +1121,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/locations", isAuthenticated, async (req, res) => {
+  app.get("/api/locations", async (req, res) => {
     try {
       const { clientId } = req.query;
       const locations = clientId
@@ -1142,7 +1146,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/locations/suggestions", isAuthenticated, async (req, res) => {
+  app.get("/api/locations/suggestions", async (req, res) => {
     try {
       const { clientId } = req.query;
       const suggestions = await storage.getLocationMatchSuggestions(clientId as string);
@@ -1471,7 +1475,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/analytics/weeks", isAuthenticated, async (req, res) => {
+  app.get("/api/analytics/weeks", async (req, res) => {
     try {
       const weeks = await storage.getAvailableWeeks();
       res.json(weeks);
@@ -1589,7 +1593,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/analytics/overview", isAuthenticated, async (req, res) => {
+  app.get("/api/analytics/overview", async (req, res) => {
     try {
       const { clientId, locationId, platform, weekStart, weekEnd, locationTag } = req.query;
       const filters: AnalyticsFilters = {
@@ -1607,7 +1611,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/analytics/client-performance", isAuthenticated, async (req, res) => {
+  app.get("/api/analytics/client-performance", async (req, res) => {
     try {
       const performance = await storage.getClientPerformance();
       res.json(performance);
@@ -1616,7 +1620,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/analytics/locations", isAuthenticated, async (req, res) => {
+  app.get("/api/analytics/locations", async (req, res) => {
     try {
       const { clientId, locationId, platform, weekStart, weekEnd, locationTag } = req.query;
       const filters: AnalyticsFilters = {
@@ -1634,7 +1638,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/analytics/locations/consolidated", isAuthenticated, async (req, res) => {
+  app.get("/api/analytics/locations/consolidated", async (req, res) => {
     try {
       const { clientId, locationId, platform, weekStart, weekEnd, locationTag } = req.query;
       const filters: AnalyticsFilters = {
@@ -1715,7 +1719,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/analytics/promotions", isAuthenticated, async (req, res) => {
+  app.get("/api/analytics/promotions", async (req, res) => {
     try {
       const { clientId } = req.query;
       const metrics = await storage.getPromotionMetrics(clientId as string);
@@ -2096,7 +2100,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Income Statement - Financial breakdown by platform
-  app.get("/api/analytics/income-statement", isAuthenticated, async (req, res) => {
+  app.get("/api/analytics/income-statement", async (req, res) => {
     try {
       const { clientId, startDate, endDate } = req.query;
       
