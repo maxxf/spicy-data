@@ -114,7 +114,7 @@ export function calculateDoorDashMetrics(txns: DoordashTransaction[]) {
 
   txns.forEach((t) => {
     const isMarketplace = !t.channel || t.channel === "Marketplace";
-    const isCompleted = t.orderStatus === "Delivered" || t.orderStatus === "Picked Up" || t.orderStatus === "Order";
+    const isCompleted = t.orderStatus === "Completed";
     
     // Net payout for Marketplace orders only (all statuses)
     if (isMarketplace) {
@@ -127,8 +127,7 @@ export function calculateDoorDashMetrics(txns: DoordashTransaction[]) {
       const sales = t.salesExclTax || t.orderSubtotal || 0;
       totalSales += sales;
       
-      // DoorDash Ad Spend: Currently other_payments is always 0 in the data
-      // All marketing spend comes from offers and credits below
+      // Ad Spend: Sum absolute value of ALL "Other payments" where description is not null
       if (t.otherPaymentsDescription) {
         adSpend += Math.abs(t.otherPayments || 0);
       }
@@ -142,10 +141,9 @@ export function calculateDoorDashMetrics(txns: DoordashTransaction[]) {
                         (t.thirdPartyContribution || 0);
       offerDiscountValue += offersValue;
       
-      // Marketing Attribution: Orders with any promotional offers/credits
-      // Check for non-zero values (offers are negative, credits are positive)
-      const hasMarketing = (t.offersOnItems !== 0) || 
-                          (t.deliveryOfferRedemptions !== 0) || 
+      // Marketing Attribution: Orders with offers < 0 OR delivery redemptions < 0 OR credits > 0
+      const hasMarketing = (t.offersOnItems < 0) || 
+                          (t.deliveryOfferRedemptions < 0) || 
                           (t.marketingCredits > 0) || 
                           (t.thirdPartyContribution > 0);
       

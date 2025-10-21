@@ -1970,7 +1970,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (!t.locationId) return;
         
         const isMarketplace = !t.channel || t.channel === "Marketplace";
-        const isCompleted = t.orderStatus === "Delivered" || t.orderStatus === "Picked Up" || t.orderStatus === "Order";
+        const isCompleted = t.orderStatus === "Completed";
         
         if (!isMarketplace || !isCompleted) return;
         
@@ -1999,9 +1999,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         metrics.payout += t.totalPayout || t.netPayment || 0;
         metrics.orders += 1;
         
-        // Marketing attribution
-        const adSpend = t.otherPayments || 0;
-        // DoorDash marketing spend: offers/delivery redemptions are NEGATIVE, credits are POSITIVE
+        // Marketing Investment: Ad Spend + Offer/Discount Value
+        // Ad Spend: Sum absolute value of ALL "Other payments" where description is not null
+        const adSpend = t.otherPaymentsDescription ? Math.abs(t.otherPayments || 0) : 0;
+        
+        // Offer/Discount Value: Sum abs of promotional discounts + credits
+        // offers_on_items and delivery_offer_redemptions are NEGATIVE, credits are POSITIVE
         const offersValue = Math.abs(t.offersOnItems || 0) + 
                           Math.abs(t.deliveryOfferRedemptions || 0) +
                           (t.marketingCredits || 0) +
@@ -2009,7 +2012,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         metrics.marketingSpend += adSpend + offersValue;
         
-        if (offersValue > 0 || adSpend > 0) {
+        // Marketing Attribution: Orders with offers < 0 OR delivery redemptions < 0 OR credits > 0
+        const hasMarketing = (t.offersOnItems < 0) || 
+                            (t.deliveryOfferRedemptions < 0) || 
+                            (t.marketingCredits > 0) || 
+                            (t.thirdPartyContribution > 0);
+        
+        if (hasMarketing) {
           metrics.marketingSales += sales;
           metrics.marketingOrders += 1;
         }
