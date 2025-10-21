@@ -64,6 +64,25 @@ Preferred communication style: Simple, everyday language.
 - **Platform-specific brand colors**: Uber Green, DoorDash Red, Grubhub Orange.
 - **Chart Palette**: 8-color scheme.
 
+## Recent Changes (October 21, 2025)
+
+### Week-over-Week Comparison Implementation
+- **Real Calculations**: Replaced hardcoded placeholder percentages with actual calculated week-over-week changes
+  - Backend fetches both current and previous week data (7 days prior)
+  - Calculates percentage change: `((current - previous) / previous) * 100`
+  - Returns `null` for invalid cases (previous value is 0, null, or undefined)
+- **Safe Division**: Added `calculatePercentageChange()` helper to avoid NaN/Infinity errors
+- **Frontend Display**: MetricCard component now handles `null` values by displaying "—" instead of percentages
+- **Tested & Verified**: End-to-end testing confirmed correct calculation, formatting, and color indicators
+
+### DoorDash Marketing Spend Fix
+- **Corrected Calculation**: Now properly handles negative and positive field values
+  - `offers_on_items` and `delivery_offer_redemptions`: Stored as NEGATIVE, use `Math.abs()`
+  - `marketing_credits` and `third_party_contribution`: Stored as POSITIVE, use as-is
+- **Marketing Investment Formula**: `Math.abs(offers_on_items) + Math.abs(delivery_offer_redemptions) + marketing_credits + third_party_contribution`
+- **Attribution Logic**: Updated to check for non-zero values (offers are negative, credits are positive)
+- **Verified Accuracy**: Oct 13-19 week shows $1,969.89 from marketing_credits only (correct)
+
 ## Production Status
 
 ### Current State (October 2025)
