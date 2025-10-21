@@ -487,8 +487,8 @@ export class DbStorage implements IStorage {
       .where(
         and(
           eq(doordashTransactions.clientId, clientId),
-          sql`transaction_date >= ${startDate}`,
-          sql`transaction_date <= ${endDate}`
+          sql`CAST(transaction_date AS DATE) >= ${startDate}`,
+          sql`CAST(transaction_date AS DATE) <= ${endDate}`
         )
       );
     return result.rowCount || 0;
@@ -576,8 +576,9 @@ export class DbStorage implements IStorage {
     if (filters?.weekStart && filters?.weekEnd) {
       doorConditions.push(
         and(
-          sql`${doordashTransactions.transactionDate} >= ${filters.weekStart}`,
-          sql`${doordashTransactions.transactionDate} <= ${filters.weekEnd}`
+          sql`${doordashTransactions.transactionDate} != ''`,
+          sql`CAST(${doordashTransactions.transactionDate} AS DATE) >= ${filters.weekStart}`,
+          sql`CAST(${doordashTransactions.transactionDate} AS DATE) <= ${filters.weekEnd}`
         )!
       );
       grubConditions.push(
@@ -833,8 +834,9 @@ export class DbStorage implements IStorage {
     if (filters?.weekStart && filters?.weekEnd) {
       doorConditions.push(
         and(
-          sql`${doordashTransactions.transactionDate} >= ${filters.weekStart}`,
-          sql`${doordashTransactions.transactionDate} <= ${filters.weekEnd}`
+          sql`${doordashTransactions.transactionDate} != ''`,
+          sql`CAST(${doordashTransactions.transactionDate} AS DATE) >= ${filters.weekStart}`,
+          sql`CAST(${doordashTransactions.transactionDate} AS DATE) <= ${filters.weekEnd}`
         )!
       );
       grubConditions.push(
