@@ -67,9 +67,22 @@ function parseCSV(buffer: Buffer, platform?: string): any[] {
   });
 }
 
+// Normalize location name for matching
+function normalizeLocationName(name: string): string {
+  return name
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, ' ')  // Collapse multiple spaces
+    .replace(/[,._]/g, '') // Remove punctuation (except dashes for now)
+    .replace(/\b(inc|llc|corp|corporation|co)\b/g, '') // Remove corporate suffixes
+    .replace(/\bof\b/g, '') // Remove "of"
+    .replace(/\b(street|road|avenue|boulevard|highway|drive|lane|parkway)\b/g, '') // Remove full street type words only
+    .trim();
+}
+
 function calculateStringSimilarity(str1: string, str2: string): number {
-  const s1 = str1.toLowerCase().trim();
-  const s2 = str2.toLowerCase().trim();
+  const s1 = normalizeLocationName(str1);
+  const s2 = normalizeLocationName(str2);
 
   if (s1 === s2) return 1.0;
 
@@ -121,6 +134,7 @@ async function findOrCreateLocation(
   }
   
   if (platform === "doordash") {
+    // 1. Try exact match on Store ID (primary key)
     if (storeId) {
       const exactMatch = allLocations.find(loc => 
         loc.doorDashStoreKey && loc.doorDashStoreKey.trim() === storeId.trim()
@@ -128,12 +142,29 @@ async function findOrCreateLocation(
       if (exactMatch) return exactMatch.id;
     }
     
-    const nameMatch = allLocations.find(loc => {
-      if (!loc.name || !locationName) return false;
-      const similarity = calculateStringSimilarity(loc.name, locationName);
-      return similarity >= 0.85;
+    // 2. Try exact normalized match on doordashName
+    const normalizedInput = normalizeLocationName(locationName);
+    const exactNameMatch = allLocations.find(loc => {
+      if (!loc.doordashName) return false;
+      return normalizeLocationName(loc.doordashName) === normalizedInput;
     });
-    if (nameMatch) return nameMatch.id;
+    if (exactNameMatch) return exactNameMatch.id;
+    
+    // 3. Try exact normalized match on canonicalName
+    const canonicalMatch = allLocations.find(loc => {
+      if (!loc.canonicalName) return false;
+      return normalizeLocationName(loc.canonicalName) === normalizedInput;
+    });
+    if (canonicalMatch) return canonicalMatch.id;
+    
+    // 4. Try fuzzy match as fallback (conservative threshold)
+    const fuzzyMatch = allLocations.find(loc => {
+      if (!loc.doordashName && !loc.canonicalName) return false;
+      const nameToCheck = loc.doordashName || loc.canonicalName;
+      const similarity = calculateStringSimilarity(nameToCheck, locationName);
+      return similarity >= 0.90;
+    });
+    if (fuzzyMatch) return fuzzyMatch.id;
     
     console.log(`Warning: No DoorDash location found for "${locationName}" (Store ID: ${storeId || 'N/A'})`);
     return "";
@@ -228,20 +259,23 @@ async function uploadDoorDash(filePath: string, clientId: string) {
     return isNaN(parsed) ? 0 : parsed;
   };
 
+  // Map by Store ID (preferred) or locationName as fallback
+  // Key format: storeId if available, otherwise "name::{locationName}"
   const locationMap = new Map<string, string>();
-  const uniqueLocations = new Map<string, string | undefined>();
+  const uniqueLocations = new Map<string, { locationName: string; storeId?: string }>();
   
   for (const row of rows) {
     const locationName = getColumnValue(row, "Store name", "Store_name", "location");
-    const storeId = getColumnValue(row, "Store ID", "Store_ID", "store_id");
+    const storeId = getColumnValue(row, "Store ID", "Store_ID", "store_id", "Merchant Store ID");
     if (locationName && locationName.trim() !== "") {
-      uniqueLocations.set(locationName, storeId || undefined);
+      const key = storeId && storeId.trim() !== "" ? storeId : `name::${locationName}`;
+      uniqueLocations.set(key, { locationName, storeId: storeId || undefined });
     }
   }
   
-  for (const [locationName, storeId] of Array.from(uniqueLocations.entries())) {
+  for (const [key, { locationName, storeId }] of Array.from(uniqueLocations.entries())) {
     const locationId = await findOrCreateLocation(clientId, locationName, "doordash", storeId);
-    locationMap.set(locationName, locationId);
+    locationMap.set(key, locationId);
   }
   
   const transactions: any[] = [];
@@ -255,8 +289,11 @@ async function uploadDoorDash(filePath: string, clientId: string) {
     if (!orderId || orderId.trim() === "") continue;
 
     const locationName = getColumnValue(row, "Store name", "Store_name", "location");
-    const locationId = locationMap.get(locationName) || null;
-    const storeId = getColumnValue(row, "Store ID", "Store_ID", "store_id");
+    const storeId = getColumnValue(row, "Store ID", "Store_ID", "store_id", "Merchant Store ID");
+    
+    // Look up location by Store ID (preferred) or name (fallback)
+    const lookupKey = storeId && storeId.trim() !== "" ? storeId : `name::${locationName}`;
+    const locationId = locationMap.get(lookupKey) || null;
 
     const subtotal = parseNegativeFloat(getColumnValue(row, "Subtotal"));
     const discounts = parseNegativeFloat(getColumnValue(row, "Discounts"));
