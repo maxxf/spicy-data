@@ -995,6 +995,7 @@ export class DbStorage implements IStorage {
           totalOrders: 0,
           aov: 0,
           totalMarketingInvestment: 0,
+          marketingDrivenSales: 0,
           marketingRoas: 0,
           netPayout: 0,
           netPayoutPercent: 0,
@@ -1008,6 +1009,7 @@ export class DbStorage implements IStorage {
       consolidated.totalSales += metric.totalSales;
       consolidated.totalOrders += metric.totalOrders;
       consolidated.totalMarketingInvestment += metric.totalMarketingInvestment;
+      consolidated.marketingDrivenSales = (consolidated.marketingDrivenSales || 0) + metric.marketingDrivenSales;
       consolidated.netPayout += metric.netPayout;
 
       // Store platform-specific metrics
@@ -1035,7 +1037,7 @@ export class DbStorage implements IStorage {
       ...item,
       aov: item.totalOrders > 0 ? item.totalSales / item.totalOrders : 0,
       marketingRoas: item.totalMarketingInvestment > 0 ? 
-        item.totalSales / item.totalMarketingInvestment : 0,
+        (item.marketingDrivenSales || 0) / item.totalMarketingInvestment : 0,
       netPayoutPercent: item.totalSales > 0 ? 
         (item.netPayout / item.totalSales) * 100 : 0,
     }));

@@ -401,6 +401,7 @@ export type ConsolidatedLocationMetrics = {
   totalOrders: number;
   aov: number;
   totalMarketingInvestment: number;
+  marketingDrivenSales?: number;
   marketingRoas: number;
   netPayout: number;
   netPayoutPercent: number;
