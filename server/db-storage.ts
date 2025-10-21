@@ -48,6 +48,21 @@ import {
 import type { IStorage } from "./storage";
 import { getUniqueWeeks } from "../shared/week-utils";
 
+// Helper function to detect if an UberEats description is ad-related
+function isUberEatsAdRelatedDescription(description: string | null | undefined): boolean {
+  if (!description) return false;
+  
+  const desc = description.toLowerCase().trim();
+  
+  // Use word boundaries to match ad-related terms while excluding "adjustment", "added", etc.
+  // Matches: "ad", "ads", "ad fee", "ad campaign", "advertising", "paid promotion"
+  // Excludes: "adjustment", "adjustments", "added", "upgraded"
+  const adPattern = /\b(ad|ads|advertising|paid\s*promotion|ad\s*spend|ad\s*fee|ad\s*campaign)\b/i;
+  const adjustmentPattern = /\b(adjust|added|upgrade)\b/i;
+  
+  return adPattern.test(desc) && !adjustmentPattern.test(desc);
+}
+
 // Helper function to calculate UberEats metrics using updated attribution methodology
 export function calculateUberEatsMetrics(txns: UberEatsTransaction[]) {
   let totalOrders = 0;
@@ -75,19 +90,8 @@ export function calculateUberEatsMetrics(txns: UberEatsTransaction[]) {
     
     // Ad Spend: Check "Other payments" for advertising charges (positive values only)
     // otherPayments can be positive (ad spend) or negative (ad credits)
-    // Match standalone ad keywords using word boundaries to exclude words like "adjustment"
     if (t.otherPaymentsDescription && (t.otherPayments || 0) > 0) {
-      const desc = t.otherPaymentsDescription.toLowerCase().trim();
-      
-      // Use word boundaries to match ad-related terms while excluding "adjustment", "added", etc.
-      // Matches: "ad", "ads", "ad fee", "ad campaign", "advertising", "paid promotion"
-      // Excludes: "adjustment", "adjustments", "added", "upgraded"
-      const adPattern = /\b(ad|ads|advertising|paid\s*promotion|ad\s*spend|ad\s*fee|ad\s*campaign)\b/i;
-      const adjustmentPattern = /\b(adjust|added|upgrade)\b/i;
-      
-      const isAdRelated = adPattern.test(desc) && !adjustmentPattern.test(desc);
-      
-      if (isAdRelated) {
+      if (isUberEatsAdRelatedDescription(t.otherPaymentsDescription)) {
         adSpend += t.otherPayments;
       }
     }
@@ -103,12 +107,8 @@ export function calculateUberEatsMetrics(txns: UberEatsTransaction[]) {
     // Marketing Attribution: Uber Eats uses two distinct signals
     // 1. Promotional offers: offers_on_items < 0 (promotions/offers spend & attribution)
     // 2. Ad-driven orders: Other Payments Description matches ad-related patterns
-    const isAdDriven = t.otherPaymentsDescription && (t.otherPayments || 0) > 0 ? (() => {
-      const desc = t.otherPaymentsDescription.toLowerCase().trim();
-      const adPattern = /\b(ad|ads|advertising|paid\s*promotion|ad\s*spend|ad\s*fee|ad\s*campaign)\b/i;
-      const adjustmentPattern = /\b(adjust|added|upgrade)\b/i;
-      return adPattern.test(desc) && !adjustmentPattern.test(desc);
-    })() : false;
+    const isAdDriven = (t.otherPayments || 0) > 0 && 
+                       isUberEatsAdRelatedDescription(t.otherPaymentsDescription);
     const hasPromotionalOffer = (t.offersOnItems < 0) || (t.deliveryOfferRedemptions < 0);
     
     const hasMarketing = isAdDriven || hasPromotionalOffer;
