@@ -591,6 +591,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const pickupOrderFee = parseNegativeFloat(getColumnValue(row, "Pickup Order Fee", "pickup_order_fee"));
           const errorCharge = parseNegativeFloat(getColumnValue(row, "Error Charge", "Error charges", "Error Charges", "error_charges"));
 
+          // Parse marketing/promotional fields
+          const offersOnItems = parseNegativeFloat(getColumnValue(
+            row,
+            "Customer discounts from marketing | (funded by you)",
+            "Customer Discounts from Marketing | (Funded by You)",
+            "Offers on items (incl. tax)",
+            "offers_on_items"
+          ));
+          const deliveryOfferRedemptions = parseNegativeFloat(getColumnValue(
+            row,
+            "Customer discounts from marketing | (funded by DoorDash)",
+            "Customer Discounts from Marketing | (Funded by DoorDash)",
+            "Delivery Offer Redemptions (incl. tax)",
+            "delivery_offer_redemptions"
+          ));
+          const marketingCredits = parseNegativeFloat(getColumnValue(
+            row,
+            "DoorDash marketing credit",
+            "DoorDash Marketing Credit",
+            "Marketing Credits",
+            "marketing_credits"
+          ));
+          const thirdPartyContribution = parseNegativeFloat(getColumnValue(
+            row,
+            "Customer discounts from marketing | (funded by a third-party)",
+            "Customer Discounts from Marketing | (Funded by a Third-party)",
+            "Third-party Contribution",
+            "third_party_contribution"
+          ));
+          
+          // Calculate total marketing spend: ad fees + all customer discounts
+          const totalMarketingSpend = Math.abs(marketingFees) + 
+            Math.abs(offersOnItems) + 
+            Math.abs(deliveryOfferRedemptions) + 
+            marketingCredits + 
+            thirdPartyContribution;
+          
           // Calculate net payout: Subtotal + Tax + Tips - Commission - Marketing Fees - Processing Fees - Order Fees + Error Charges
           const calculatedNetPayout = subtotal + taxes + totalTips - commission - marketingFees - paymentProcessingFee - deliveryOrderFee - pickupOrderFee + errorCharge;
           
@@ -621,41 +658,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
             errorCharges: errorCharge,
             
             // Marketing/promotional fields (typically negative for discounts)
-            offersOnItems: parseNegativeFloat(getColumnValue(
-              row,
-              "Customer discounts from marketing | (funded by you)",
-              "Customer Discounts from Marketing | (Funded by You)",
-              "Offers on items (incl. tax)",
-              "offers_on_items"
-            )),
-            deliveryOfferRedemptions: parseNegativeFloat(getColumnValue(
-              row,
-              "Customer discounts from marketing | (funded by DoorDash)",
-              "Customer Discounts from Marketing | (Funded by DoorDash)",
-              "Delivery Offer Redemptions (incl. tax)",
-              "delivery_offer_redemptions"
-            )),
-            marketingCredits: parseNegativeFloat(getColumnValue(
-              row,
-              "DoorDash marketing credit",
-              "DoorDash Marketing Credit",
-              "Marketing Credits",
-              "marketing_credits"
-            )),
-            thirdPartyContribution: parseNegativeFloat(getColumnValue(
-              row,
-              "Customer discounts from marketing | (funded by a third-party)",
-              "Customer Discounts from Marketing | (Funded by a Third-party)",
-              "Third-party Contribution",
-              "third_party_contribution"
-            )),
+            offersOnItems,
+            deliveryOfferRedemptions,
+            marketingCredits,
+            thirdPartyContribution,
             
             // Other payments (ad spend, credits, etc.)
             otherPayments: Math.abs(marketingFees),
-            otherPaymentsDescription: getColumnValue(row, "Description", "Other payments description", "other_payments_description") || null,
+            otherPaymentsDescription: marketingFees !== 0 
+              ? (getColumnValue(row, "Description", "Other payments description", "other_payments_description") || "Marketing Fees")
+              : null,
             
-            // Legacy marketing field
-            marketingSpend: parseNegativeFloat(getColumnValue(row, "Marketing Spend", "Marketing_Spend", "marketing_spend")),
+            // Marketing Spend: Auto-calculated sum of ad spend + customer discounts
+            marketingSpend: totalMarketingSpend,
             
             // Payout (calculated from transaction columns)
             totalPayout: calculatedNetPayout,

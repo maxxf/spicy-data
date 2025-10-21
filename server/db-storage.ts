@@ -59,7 +59,11 @@ export function calculateUberEatsMetrics(txns: UberEatsTransaction[]) {
   let ordersFromMarketing = 0;
 
   txns.forEach((t) => {
-    // Uber Eats: Count all transactions (no status filtering needed)
+    // Uber Eats: Count all completed transactions
+    if (t.orderStatus !== 'Completed') {
+      return;
+    }
+    
     totalOrders++;
     
     // Sales Calculation: Use subtotal as primary metric for Uber Eats
@@ -69,9 +73,35 @@ export function calculateUberEatsMetrics(txns: UberEatsTransaction[]) {
     // Net Payout: Sum all payouts
     netPayout += t.netPayout || 0;
     
-    // Marketing: Check for marketing promo flag and amount
-    if (t.marketingPromo) {
-      offerDiscountValue += t.marketingAmount || 0;
+    // Ad Spend: Check "Other payments" for advertising charges (positive values only)
+    // otherPayments can be positive (ad spend) or negative (ad credits)
+    // Match standalone ad keywords using word boundaries to exclude words like "adjustment"
+    if (t.otherPaymentsDescription && (t.otherPayments || 0) > 0) {
+      const desc = t.otherPaymentsDescription.toLowerCase().trim();
+      
+      // Use word boundaries to match ad-related terms while excluding "adjustment", "added", etc.
+      // Matches: "ad", "ads", "ad fee", "ad campaign", "advertising", "paid promotion"
+      // Excludes: "adjustment", "adjustments", "added", "upgraded"
+      const adPattern = /\b(ad|ads|advertising|paid\s*promotion|ad\s*spend|ad\s*fee|ad\s*campaign)\b/i;
+      const adjustmentPattern = /\b(adjust|added|upgrade)\b/i;
+      
+      const isAdRelated = adPattern.test(desc) && !adjustmentPattern.test(desc);
+      
+      if (isAdRelated) {
+        adSpend += t.otherPayments;
+      }
+    }
+    
+    // Offer/Discount Value: Sum absolute values of promotional discounts
+    // Note: offersOnItems and deliveryOfferRedemptions are stored as NEGATIVE values
+    const offersValue = Math.abs(t.offersOnItems || 0) + 
+                        Math.abs(t.deliveryOfferRedemptions || 0);
+    offerDiscountValue += offersValue;
+    
+    // Marketing Attribution: Orders with offers < 0 OR delivery redemptions < 0
+    const hasMarketing = (t.offersOnItems < 0) || (t.deliveryOfferRedemptions < 0);
+    
+    if (hasMarketing) {
       marketingDrivenSales += sales;
       ordersFromMarketing++;
     }
@@ -132,12 +162,12 @@ export function calculateDoorDashMetrics(txns: DoordashTransaction[]) {
       const sales = t.salesExclTax || t.orderSubtotal || 0;
       totalSales += sales;
       
-      // Ad Spend: Sum absolute value of ALL "Other payments" where description is not null
-      if (t.otherPaymentsDescription) {
-        adSpend += Math.abs(t.otherPayments || 0);
-      }
+      // Marketing Spend: Use pre-calculated marketingSpend field if available
+      // This is the sum of: abs(offers_on_items) + abs(delivery_offer_redemptions) + 
+      //                     marketing_credits + third_party_contribution
+      const totalMarketingSpend = t.marketingSpend || 0;
       
-      // Offer/Discount Value: Sum absolute values of all promotional discounts and credits
+      // For backward compatibility and transparency, also calculate offer discount value
       // Note: offers_on_items and delivery_offer_redemptions are stored as NEGATIVE values
       // marketing_credits and third_party_contribution are stored as POSITIVE values
       const offersValue = Math.abs(t.offersOnItems || 0) + 
@@ -145,6 +175,9 @@ export function calculateDoorDashMetrics(txns: DoordashTransaction[]) {
                         (t.marketingCredits || 0) +
                         (t.thirdPartyContribution || 0);
       offerDiscountValue += offersValue;
+      
+      // Use marketingSpend as adSpend since DoorDash doesn't separate ad spend from offers
+      adSpend += totalMarketingSpend;
       
       // Marketing Attribution: Orders with offers < 0 OR delivery redemptions < 0 OR credits > 0
       const hasMarketing = (t.offersOnItems < 0) || 
