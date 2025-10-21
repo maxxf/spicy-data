@@ -1748,6 +1748,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/analytics/weekly-trend", async (req, res) => {
+    try {
+      const { clientId, locationId, platform, locationTag } = req.query;
+      
+      // Get all available weeks
+      const weeks = await storage.getAvailableWeeks();
+      
+      // Get overview for each week
+      const weeklyData = await Promise.all(
+        weeks.map(async (week) => {
+          const filters: AnalyticsFilters = {
+            clientId: clientId as string | undefined,
+            locationId: locationId as string | undefined,
+            platform: platform as "ubereats" | "doordash" | "grubhub" | undefined,
+            weekStart: week.weekStart,
+            weekEnd: week.weekEnd,
+            locationTag: locationTag as string | undefined,
+          };
+          const overview = await storage.getDashboardOverview(filters);
+          return {
+            weekStart: week.weekStart,
+            weekEnd: week.weekEnd,
+            weekLabel: `${week.weekStart.slice(5)} - ${week.weekEnd.slice(5)}`,
+            totalSales: overview.totalSales,
+            totalOrders: overview.totalOrders,
+            averageAov: overview.averageAov,
+            totalMarketingInvestment: overview.totalMarketingInvestment,
+            blendedRoas: overview.blendedRoas,
+            netPayoutPercent: overview.netPayoutPercent,
+          };
+        })
+      );
+      
+      res.json(weeklyData);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   app.get("/api/promotions", isAuthenticated, async (req, res) => {
     try {
       const { clientId } = req.query;

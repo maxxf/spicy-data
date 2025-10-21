@@ -89,6 +89,30 @@ export default function Dashboard() {
     queryKey: ["/api/analytics/client-performance"],
   });
 
+  const { data: weeklyTrend } = useQuery<Array<{
+    weekStart: string;
+    weekEnd: string;
+    weekLabel: string;
+    totalSales: number;
+    totalOrders: number;
+    averageAov: number;
+    totalMarketingInvestment: number;
+    blendedRoas: number;
+    netPayoutPercent: number;
+  }>>({
+    queryKey: ["/api/analytics/weekly-trend", selectedClientId, selectedLocationId, selectedPlatform],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (selectedClientId) params.append("clientId", selectedClientId);
+      if (selectedLocationId) params.append("locationId", selectedLocationId);
+      if (selectedPlatform) params.append("platform", selectedPlatform);
+      const queryString = params.toString() ? `?${params.toString()}` : "";
+      const response = await fetch(`/api/analytics/weekly-trend${queryString}`);
+      if (!response.ok) throw new Error("Failed to fetch weekly trend");
+      return response.json();
+    },
+  });
+
   if (overviewLoading) {
     return (
       <div className="p-8 space-y-8">
@@ -277,13 +301,16 @@ export default function Dashboard() {
     },
   };
 
-  // Mock weekly trend data - in production this would come from the API
-  const weeklyTrendData = [
-    { week: "Week 1", sales: 18000 },
-    { week: "Week 2", sales: 22000 },
-    { week: "Week 3", sales: 25000 },
-    { week: "Week 4", sales: 26500 },
-  ];
+  // Weekly trend data from API
+  const weeklyTrendData = weeklyTrend?.map((week, index) => ({
+    week: week.weekLabel,
+    weekStart: week.weekStart,
+    sales: week.totalSales,
+    orders: week.totalOrders,
+    aov: week.averageAov,
+    marketing: week.totalMarketingInvestment,
+    roas: week.blendedRoas,
+  })) || [];
 
   // Prepare client performance data for the chart
   const clientPerformanceData = clientPerformance?.map(client => ({
