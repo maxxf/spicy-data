@@ -115,8 +115,10 @@ export function FileUploadZone({
             <p className="text-sm font-medium mb-1">
               Drop CSV file here or click to browse
             </p>
-            <p className="text-xs text-muted-foreground">
-              Upload {platform === "ubereats" ? "Uber Eats" : platform === "doordash" ? "DoorDash" : "Grubhub"} payment data
+            <p className="text-xs text-muted-foreground text-center">
+              {platform === "ubereats" && "Upload Uber Eats Payment Report (CSV export from Manager > Payments)"}
+              {platform === "doordash" && "Upload DoorDash Store Statement (CSV export from Financials > Store Statements)"}
+              {platform === "grubhub" && "Upload Grubhub Transaction Report (CSV export from Reports > Transactions)"}
             </p>
             <input
               id={`file-input-${platform}`}
