@@ -298,6 +298,9 @@ export default function Dashboard() {
   // Calculate marketing sales and orders from platform breakdown
   const totalMarketingSales = overview?.platformBreakdown?.reduce((sum, p) => sum + p.marketingDrivenSales, 0) || 0;
   const totalMarketingOrders = overview?.platformBreakdown?.reduce((sum, p) => sum + p.ordersFromMarketing, 0) || 0;
+  
+  // Get comparison data from API
+  const comparison = overview?.comparison;
 
   return (
     <div className="p-8 space-y-8" data-testid="page-dashboard">
@@ -346,7 +349,7 @@ export default function Dashboard() {
             value={overview?.totalSales || 0}
             format="currency"
             icon={<DollarSign className="w-5 h-5" />}
-            change={6.8}
+            change={comparison?.totalSales}
             changeLabel="vs. previous period"
             data-testid="metric-portfolio-sales"
           />
@@ -363,7 +366,7 @@ export default function Dashboard() {
             value={overview?.blendedRoas || 0}
             format="multiplier"
             icon={<Target className="w-5 h-5" />}
-            change={5.6}
+            change={comparison?.blendedRoas}
             changeLabel="vs. previous"
             data-testid="metric-portfolio-roas"
           />
@@ -390,7 +393,7 @@ export default function Dashboard() {
               value={overview?.totalSales || 0}
               format="currency"
               icon={<DollarSign className="w-5 h-5" />}
-              change={6.8}
+              change={comparison?.totalSales}
               changeLabel="vs. previous period"
             />
             <MetricCard
@@ -405,7 +408,7 @@ export default function Dashboard() {
               value={overview?.totalOrders || 0}
               format="number"
               icon={<ShoppingCart className="w-5 h-5" />}
-              change={7.2}
+              change={comparison?.totalOrders}
               changeLabel="vs. previous period"
             />
             <MetricCard
@@ -420,7 +423,7 @@ export default function Dashboard() {
               value={overview?.averageAov || 0}
               format="currency"
               icon={<TrendingUp className="w-5 h-5" />}
-              change={-0.4}
+              change={comparison?.averageAov}
               changeLabel="vs. previous period"
             />
             <MetricCard
@@ -428,14 +431,15 @@ export default function Dashboard() {
               value={overview?.totalMarketingInvestment || 0}
               format="currency"
               icon={<TrendingDown className="w-5 h-5" />}
-              change={8.0}
-              changeLabel="of sales"
+              change={comparison?.totalMarketingInvestment}
+              changeLabel="vs. previous period"
             />
             <MetricCard
               label="Marketing ROAS"
               value={overview?.blendedRoas || 0}
               format="multiplier"
               icon={<Target className="w-5 h-5" />}
+              change={comparison?.blendedRoas}
               changeLabel="vs. previous period"
             />
             <MetricCard
@@ -443,7 +447,7 @@ export default function Dashboard() {
               value={(overview?.totalSales || 0) * ((overview?.netPayoutPercent || 0) / 100)}
               format="currency"
               icon={<DollarSign className="w-5 h-5" />}
-              change={6.5}
+              change={comparison?.netPayout}
               changeLabel="vs. previous period"
             />
           </div>
