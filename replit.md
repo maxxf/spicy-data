@@ -44,9 +44,14 @@ Preferred communication style: Simple, everyday language.
 ### File Upload Processing
 - **Transaction Data Upload**: Supports CSV upload by platform and client. Server-side parsing, validation, and transaction creation. Location matching uses a master sheet for canonical IDs and platform-specific keys (e.g., `merchant_store_id` for DoorDash, `Store Name` code for Uber Eats, `street_address` for Grubhub). Unmapped transactions are assigned to a special "Unmapped Locations" bucket per client; no new locations are auto-created. Duplicate prevention uses upsert logic with platform-specific unique constraints:
   - **Uber Eats**: Uses `workflowId` (unique transaction UUID from CSV) as the true unique identifier. Same Order ID can appear multiple times with different dates/locations (refunds, adjustments). Deduplication by `(clientId, workflowId)` prevents all duplicates.
-  - **DoorDash**: Uses `(clientId, transactionId)` for deduplication.
+  - **DoorDash**: Uses `(clientId, transactionId)` for deduplication. **IMPORTANT**: Must upload "Financial Report > Transactions Overview" CSV (select proper date range and locations in DoorDash portal).
   - **Grubhub**: Uses `(clientId, transactionId)` for deduplication.
 - **Marketing Data Upload**: Supports platform and data type selection, fuzzy location matching, and deduplication for campaign records and location metrics, creating or updating promotion or paid ad campaigns and their location-level metrics.
+
+### Required CSV Report Types by Platform
+- **Uber Eats**: Payment reports from Uber Eats Merchant Portal
+- **DoorDash**: Navigate to Financial Report > Transactions Overview (select date range and all locations before export)
+- **Grubhub**: Transaction reports from Grubhub for Restaurants portal
 
 ## External Dependencies
 
