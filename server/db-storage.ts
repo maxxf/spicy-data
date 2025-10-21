@@ -98,16 +98,27 @@ export function calculateDoorDashMetrics(txns: DoordashTransaction[]) {
   let netPayout = 0;
   let ordersFromMarketing = 0;
 
+  console.log(`[DoorDash Metrics] Processing ${txns.length} transactions`);
+
   txns.forEach((t) => {
     const isMarketplace = !t.channel || t.channel === "Marketplace";
-    const isCompleted = t.orderStatus === "Completed";
+    const isCompleted = t.orderStatus === "Delivered" || t.orderStatus === "Picked Up";
+    
+    if (totalOrders === 0 && isMarketplace && isCompleted) {
+      console.log('[DoorDash Metrics] First valid transaction:', {
+        channel: t.channel,
+        status: t.orderStatus,
+        sales: t.salesExclTax || t.orderSubtotal,
+        payout: t.totalPayout
+      });
+    }
     
     // Net payout for Marketplace orders only (all statuses)
     if (isMarketplace) {
       netPayout += t.totalPayout || t.netPayment || 0;
     }
     
-    // Only count Marketplace + Completed for sales and order metrics
+    // Only count Marketplace + (Delivered or Picked Up) for sales and order metrics
     if (isMarketplace && isCompleted) {
       totalOrders++;
       const sales = t.salesExclTax || t.orderSubtotal || 0;
