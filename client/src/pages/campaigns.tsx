@@ -54,7 +54,9 @@ export default function PromosPage() {
   const { data: promotions, isLoading: promotionsLoading } = useQuery<PromotionMetrics[]>({
     queryKey: ["/api/analytics/promotions", selectedClientId, selectedLocationId, selectedPlatform, selectedWeek],
     queryFn: async () => {
-      const response = await fetch(`/api/analytics/promotions${buildQueryParams()}`);
+      const response = await fetch(`/api/analytics/promotions${buildQueryParams()}`, {
+        credentials: "include",
+      });
       if (!response.ok) throw new Error("Failed to fetch promotions");
       return response.json();
     },
@@ -63,7 +65,9 @@ export default function PromosPage() {
   const { data: paidAds, isLoading: paidAdsLoading } = useQuery<PaidAdCampaignMetrics[]>({
     queryKey: ["/api/analytics/paid-ads", selectedClientId, selectedLocationId, selectedPlatform, selectedWeek],
     queryFn: async () => {
-      const response = await fetch(`/api/analytics/paid-ads${buildQueryParams()}`);
+      const response = await fetch(`/api/analytics/paid-ads${buildQueryParams()}`, {
+        credentials: "include",
+      });
       if (!response.ok) throw new Error("Failed to fetch campaigns");
       return response.json();
     },
