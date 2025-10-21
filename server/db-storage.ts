@@ -869,13 +869,16 @@ export class DbStorage implements IStorage {
       grubConditions.push(eq(grubhubTransactions.clientId, filters.clientId));
     }
 
+    // Add DoorDash Marketplace filter (exclude Storefront)
+    doorConditions.push(eq(doordashTransactions.channel, 'Marketplace'));
+
     // Add date range filtering
     if (filters?.weekStart && filters?.weekEnd) {
       doorConditions.push(
         and(
-          sql`${doordashTransactions.transactionDate} != ''`,
-          sql`CAST(${doordashTransactions.transactionDate} AS DATE) >= ${filters.weekStart}`,
-          sql`CAST(${doordashTransactions.transactionDate} AS DATE) <= ${filters.weekEnd}`
+          sql`COALESCE(${doordashTransactions.transactionDate}, ${doordashTransactions.orderDate}) IS NOT NULL`,
+          sql`CAST(COALESCE(${doordashTransactions.transactionDate}, ${doordashTransactions.orderDate}) AS DATE) >= ${filters.weekStart}`,
+          sql`CAST(COALESCE(${doordashTransactions.transactionDate}, ${doordashTransactions.orderDate}) AS DATE) <= ${filters.weekEnd}`
         )!
       );
       grubConditions.push(
@@ -913,8 +916,6 @@ export class DbStorage implements IStorage {
       }
 
       for (const { name: platform, txns } of platforms) {
-        if (txns.length === 0) continue;
-
         let totalOrders = 0;
         let totalSales = 0;
         let marketingDrivenSales = 0;
@@ -923,56 +924,59 @@ export class DbStorage implements IStorage {
         let netPayout = 0;
         let ordersFromMarketing = 0;
 
-        if (platform === "ubereats") {
-          // Filter by date for UberEats if needed
-          const filteredTxns = (filters?.weekStart && filters?.weekEnd)
-            ? txns.filter((t: any) => isUberEatsDateInRange(t.date, filters.weekStart!, filters.weekEnd!))
-            : txns;
-          
-          // Use shared helper for consistent UberEats attribution
-          const ueMetrics = calculateUberEatsMetrics(filteredTxns as UberEatsTransaction[]);
-          totalOrders = ueMetrics.totalOrders;
-          totalSales = ueMetrics.totalSales;
-          marketingDrivenSales = ueMetrics.marketingDrivenSales;
-          adSpend = ueMetrics.adSpend;
-          offerDiscountValue = ueMetrics.offerDiscountValue;
-          netPayout = ueMetrics.netPayout;
-          ordersFromMarketing = ueMetrics.ordersFromMarketing;
-        } else if (platform === "doordash") {
-          // Use shared helper for consistent DoorDash attribution
-          const ddMetrics = calculateDoorDashMetrics(txns as DoordashTransaction[]);
-          totalOrders = ddMetrics.totalOrders;
-          totalSales = ddMetrics.totalSales;
-          marketingDrivenSales = ddMetrics.marketingDrivenSales;
-          adSpend = ddMetrics.adSpend;
-          offerDiscountValue = ddMetrics.offerDiscountValue;
-          netPayout = ddMetrics.netPayout;
-          ordersFromMarketing = ddMetrics.ordersFromMarketing;
-        } else {
-          txns.forEach((t) => {
-            if (platform === "grubhub") {
-              // Grubhub Platform-Specific Status Handling:
-              // - Sales/Orders: Only count "Prepaid Order" transaction types (completed orders)
-              // - Net Payout: Include ALL transaction types for finance reconciliation
-              const isPrepaidOrder = t.transactionType === "Prepaid Order";
-              
-              // Always include net payout for ALL transaction types
-              netPayout += t.merchantNetTotal || 0;
-              
-              // Only count Prepaid Orders for sales and order metrics
-              if (isPrepaidOrder) {
-                totalOrders++;
-                totalSales += t.saleAmount;
-                const promoAmount = t.merchantFundedPromotion || 0;
-                // Grubhub promos are stored as negative values, use absolute value for tracking
-                if (promoAmount !== 0) {
-                  offerDiscountValue += Math.abs(promoAmount);
-                  marketingDrivenSales += t.saleAmount;
-                  ordersFromMarketing++;
+        // Process transactions only if we have data
+        if (txns.length > 0) {
+          if (platform === "ubereats") {
+            // Filter by date for UberEats if needed
+            const filteredTxns = (filters?.weekStart && filters?.weekEnd)
+              ? txns.filter((t: any) => isUberEatsDateInRange(t.date, filters.weekStart!, filters.weekEnd!))
+              : txns;
+            
+            // Use shared helper for consistent UberEats attribution
+            const ueMetrics = calculateUberEatsMetrics(filteredTxns as UberEatsTransaction[]);
+            totalOrders = ueMetrics.totalOrders;
+            totalSales = ueMetrics.totalSales;
+            marketingDrivenSales = ueMetrics.marketingDrivenSales;
+            adSpend = ueMetrics.adSpend;
+            offerDiscountValue = ueMetrics.offerDiscountValue;
+            netPayout = ueMetrics.netPayout;
+            ordersFromMarketing = ueMetrics.ordersFromMarketing;
+          } else if (platform === "doordash") {
+            // Use shared helper for consistent DoorDash attribution
+            const ddMetrics = calculateDoorDashMetrics(txns as DoordashTransaction[]);
+            totalOrders = ddMetrics.totalOrders;
+            totalSales = ddMetrics.totalSales;
+            marketingDrivenSales = ddMetrics.marketingDrivenSales;
+            adSpend = ddMetrics.adSpend;
+            offerDiscountValue = ddMetrics.offerDiscountValue;
+            netPayout = ddMetrics.netPayout;
+            ordersFromMarketing = ddMetrics.ordersFromMarketing;
+          } else {
+            txns.forEach((t) => {
+              if (platform === "grubhub") {
+                // Grubhub Platform-Specific Status Handling:
+                // - Sales/Orders: Only count "Prepaid Order" transaction types (completed orders)
+                // - Net Payout: Include ALL transaction types for finance reconciliation
+                const isPrepaidOrder = t.transactionType === "Prepaid Order";
+                
+                // Always include net payout for ALL transaction types
+                netPayout += t.merchantNetTotal || 0;
+                
+                // Only count Prepaid Orders for sales and order metrics
+                if (isPrepaidOrder) {
+                  totalOrders++;
+                  totalSales += t.saleAmount;
+                  const promoAmount = t.merchantFundedPromotion || 0;
+                  // Grubhub promos are stored as negative values, use absolute value for tracking
+                  if (promoAmount !== 0) {
+                    offerDiscountValue += Math.abs(promoAmount);
+                    marketingDrivenSales += t.saleAmount;
+                    ordersFromMarketing++;
+                  }
                 }
               }
-            }
-          });
+            });
+          }
         }
 
         const totalMarketingInvestment = adSpend + offerDiscountValue;
