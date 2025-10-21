@@ -1,6 +1,6 @@
 import { Pool, neonConfig } from "@neondatabase/serverless";
 import { drizzle } from "drizzle-orm/neon-serverless";
-import { eq, and, sql, desc, inArray, gte, lte } from "drizzle-orm";
+import { eq, and, or, sql, desc, inArray, gte, lte } from "drizzle-orm";
 import ws from "ws";
 
 neonConfig.webSocketConstructor = ws;
@@ -869,17 +869,13 @@ export class DbStorage implements IStorage {
       grubConditions.push(eq(grubhubTransactions.clientId, filters.clientId));
     }
 
-    // Add DoorDash Marketplace filter (exclude Storefront)
-    doorConditions.push(eq(doordashTransactions.channel, 'Marketplace'));
-
     // Add date range filtering
     if (filters?.weekStart && filters?.weekEnd) {
       doorConditions.push(
-        and(
-          sql`COALESCE(${doordashTransactions.transactionDate}, ${doordashTransactions.orderDate}) IS NOT NULL`,
-          sql`CAST(COALESCE(${doordashTransactions.transactionDate}, ${doordashTransactions.orderDate}) AS DATE) >= ${filters.weekStart}`,
-          sql`CAST(COALESCE(${doordashTransactions.transactionDate}, ${doordashTransactions.orderDate}) AS DATE) <= ${filters.weekEnd}`
-        )!
+        sql`CAST(${doordashTransactions.transactionDate} AS DATE) >= ${filters.weekStart}`
+      );
+      doorConditions.push(
+        sql`CAST(${doordashTransactions.transactionDate} AS DATE) <= ${filters.weekEnd}`
       );
       grubConditions.push(
         and(
