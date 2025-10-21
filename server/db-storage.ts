@@ -434,6 +434,7 @@ export class DbStorage implements IStorage {
             serviceFee: sql`EXCLUDED.service_fee`,
             offersOnItems: sql`EXCLUDED.offers_on_items`,
             deliveryOfferRedemptions: sql`EXCLUDED.delivery_offer_redemptions`,
+            offerRedemptionFee: sql`EXCLUDED.offer_redemption_fee`,
             marketingPromo: sql`EXCLUDED.marketing_promo`,
             marketingAmount: sql`EXCLUDED.marketing_amount`,
             otherPayments: sql`EXCLUDED.other_payments`,
@@ -465,6 +466,13 @@ export class DbStorage implements IStorage {
           sql`date <= ${endDate}`
         )
       );
+    return result.rowCount || 0;
+  }
+
+  async clearUberEatsTransactions(clientId: string): Promise<number> {
+    const result = await this.db
+      .delete(uberEatsTransactions)
+      .where(eq(uberEatsTransactions.clientId, clientId));
     return result.rowCount || 0;
   }
 
