@@ -144,11 +144,33 @@ export default function Dashboard() {
         }).format(value),
     },
     {
+      key: "totalMarketingInvestment",
+      label: "Marketing Spend",
+      sortable: true,
+      align: "right" as const,
+      render: (value: number) =>
+        new Intl.NumberFormat("en-US", {
+          style: "currency",
+          currency: "USD",
+        }).format(value),
+    },
+    {
       key: "marketingRoas",
       label: "ROAS",
       sortable: true,
       align: "right" as const,
       render: (value: number | null) => value != null ? `${value.toFixed(2)}x` : 'N/A',
+    },
+    {
+      key: "netPayout",
+      label: "Net Payout $",
+      sortable: true,
+      align: "right" as const,
+      render: (value: number) =>
+        new Intl.NumberFormat("en-US", {
+          style: "currency",
+          currency: "USD",
+        }).format(value),
     },
     {
       key: "netPayoutPercent",
