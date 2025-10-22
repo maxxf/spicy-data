@@ -175,8 +175,17 @@ export function TestLocationsReport({ clientId, isActive }: { clientId: string; 
       'Payout with COGS (46%)'
     ];
 
+    // Helper to escape CSV values (wrap in quotes if contains comma, quote, or newline)
+    const escapeCSV = (value: string | number): string => {
+      const str = String(value);
+      if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+        return `"${str.replace(/"/g, '""')}"`;
+      }
+      return str;
+    };
+
     const csvRows: string[] = [];
-    csvRows.push(['Location', 'Metric', ...displayWeeks.map(w => w)].join(','));
+    csvRows.push([escapeCSV('Location'), escapeCSV('Metric'), ...displayWeeks.map(w => escapeCSV(w))].join(','));
 
     data.locations.forEach(location => {
       metrics.forEach(metric => {
@@ -206,7 +215,7 @@ export function TestLocationsReport({ clientId, isActive }: { clientId: string; 
           }
         });
         
-        csvRows.push([location.locationName, metric, ...values].join(','));
+        csvRows.push([escapeCSV(location.locationName), escapeCSV(metric), ...values.map(v => escapeCSV(v))].join(','));
       });
     });
 
