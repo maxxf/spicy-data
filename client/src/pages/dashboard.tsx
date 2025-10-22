@@ -332,6 +332,15 @@ export default function Dashboard() {
   // Get comparison data from API
   const comparison = overview?.comparison;
 
+  // Format date range for display
+  const formatDateRange = () => {
+    if (!selectedWeek) return "Loading...";
+    const start = new Date(selectedWeek.weekStart);
+    const end = new Date(selectedWeek.weekEnd);
+    const formatter = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" });
+    return `${formatter.format(start)} - ${formatter.format(end)}, ${start.getFullYear()}`;
+  };
+
   return (
     <div className="p-8 space-y-8" data-testid="page-dashboard">
       <div className="flex justify-between items-start gap-4 flex-wrap">
@@ -371,6 +380,28 @@ export default function Dashboard() {
         </div>
       </div>
 
+      {/* Prominent Date Range Header */}
+      {selectedWeek && (
+        <Card className="bg-muted/30">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Reporting Period</p>
+                <p className="text-lg font-semibold" data-testid="text-date-range">{formatDateRange()}</p>
+              </div>
+              {comparison && (
+                <div className="text-right">
+                  <p className="text-xs text-muted-foreground">vs. Previous Week</p>
+                  <p className={`text-sm font-medium ${comparison.totalSales > 0 ? 'text-green-600 dark:text-green-500' : comparison.totalSales < 0 ? 'text-red-600 dark:text-red-500' : 'text-muted-foreground'}`}>
+                    {comparison.totalSales > 0 ? '+' : ''}{comparison.totalSales?.toFixed(1)}%
+                  </p>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Portfolio-Level Metrics - Only shown in "All Clients" view */}
       {isPortfolioView && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -399,6 +430,7 @@ export default function Dashboard() {
             change={comparison?.blendedRoas}
             changeLabel="vs. previous"
             data-testid="metric-portfolio-roas"
+            tooltip="Portfolio-wide Return on Ad Spend: Total marketing-attributed sales divided by total marketing investment across all clients."
           />
           <MetricCard
             label="Net Payout Rate"
@@ -432,6 +464,7 @@ export default function Dashboard() {
               format="currency"
               icon={<TrendingUp className="w-5 h-5" />}
               subtitle={`${(totalMarketingSales / (overview?.totalSales || 1) * 100).toFixed(0)}% of total sales`}
+              tooltip="Revenue generated from orders attributed to marketing activity (paid ads or promotions). Orders with any marketing investment are counted."
             />
             <MetricCard
               label="Total Orders"
@@ -456,6 +489,7 @@ export default function Dashboard() {
               icon={<Target className="w-5 h-5" />}
               change={comparison?.trueCpo}
               changeLabel="vs. previous period"
+              tooltip="True Cost Per Order: Total marketing investment (ads + promotions) divided by orders attributed to marketing. Shows actual cost to acquire each marketing-driven order."
             />
             <MetricCard
               label="Marketing Spend"
@@ -464,6 +498,7 @@ export default function Dashboard() {
               icon={<TrendingDown className="w-5 h-5" />}
               change={comparison?.totalMarketingInvestment}
               changeLabel="vs. previous period"
+              tooltip="Total marketing investment including paid advertising and promotional discounts across all platforms."
             />
             <MetricCard
               label="Marketing ROAS"
@@ -472,6 +507,7 @@ export default function Dashboard() {
               icon={<Target className="w-5 h-5" />}
               change={comparison?.blendedRoas}
               changeLabel="vs. previous period"
+              tooltip="Return on Ad Spend: Revenue generated from marketing-attributed orders divided by total marketing investment. Higher is better (e.g., 3.5x means every $1 spent generates $3.50 in sales)."
             />
             <MetricCard
               label="Net Payout"

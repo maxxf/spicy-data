@@ -1,5 +1,6 @@
 import { Card, CardContent } from "@/components/ui/card";
-import { ArrowUp, ArrowDown, Minus } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { ArrowUp, ArrowDown, Minus, HelpCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface MetricCardProps {
@@ -11,6 +12,7 @@ interface MetricCardProps {
   format?: "currency" | "number" | "percent" | "multiplier";
   icon?: React.ReactNode;
   className?: string;
+  tooltip?: string;
 }
 
 export function MetricCard({
@@ -22,6 +24,7 @@ export function MetricCard({
   format = "currency",
   icon,
   className,
+  tooltip,
 }: MetricCardProps) {
   const formatValue = (val: string | number) => {
     const numVal = typeof val === "string" ? parseFloat(val) : val;
@@ -60,9 +63,21 @@ export function MetricCard({
     <Card className={cn("overflow-hidden", className)} data-testid={`card-metric-${label.toLowerCase().replace(/\s+/g, "-")}`}>
       <CardContent className="p-6">
         <div className="flex items-start justify-between mb-2">
-          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground" data-testid={`text-label-${label.toLowerCase().replace(/\s+/g, "-")}`}>
-            {label}
-          </p>
+          <div className="flex items-center gap-1.5">
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground" data-testid={`text-label-${label.toLowerCase().replace(/\s+/g, "-")}`}>
+              {label}
+            </p>
+            {tooltip && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <HelpCircle className="w-3.5 h-3.5 text-muted-foreground/60 hover:text-muted-foreground cursor-help" data-testid={`icon-tooltip-${label.toLowerCase().replace(/\s+/g, "-")}`} />
+                </TooltipTrigger>
+                <TooltipContent className="max-w-xs">
+                  <p className="text-sm">{tooltip}</p>
+                </TooltipContent>
+              </Tooltip>
+            )}
+          </div>
           {icon && <div className="text-muted-foreground">{icon}</div>}
         </div>
         <div className="space-y-2">
