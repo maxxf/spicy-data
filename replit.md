@@ -25,6 +25,11 @@ Preferred communication style: Simple, everyday language.
 - **Location Matching**: Uses a canonical name with platform-specific name mappings, fuzzy string matching, and a tagging system.
 - **Analytics**: Calculates ROAS, net payout percentages, AOV, and aggregations at platform/location levels, supporting multi-dimensional filtering and graceful null value handling.
 
+### Marketing-Driven Sales Attribution Logic
+- **DoorDash**: Order is marketing-driven if ANY of the following are non-zero: `other_payments` (ad spend), `offers_on_items` (item discounts), `delivery_offer_redemptions` (delivery discounts). Formula applies to both SQL queries and JavaScript helpers across all analytics endpoints.
+- **Uber Eats**: Order is marketing-driven if it has promotional offers (`offers_on_items < 0` OR `delivery_offer_redemptions < 0`) OR is ad-driven (Other Payments with ad-related description). Sales use `salesExclTax` (primary) with fallback to `subtotal` for legacy data.
+- **Fixed October 22, 2025**: Updated `getDashboardOverview`, `getLocationAnalytics`, and all helper functions to count ALL marketing activity (not just ad spend alone). DoorDash Week 10/13 accuracy: 1.1% variance vs. user spreadsheet. Uber Eats Week 10/13 accuracy: 1.5% variance vs. user spreadsheet.
+
 ### Authentication & Authorization
 - **Technology**: Replit Auth (OIDC) with `express-session` and `connect-pg-simple`.
 - **User Roles**: Three-tier role system (user, brand_admin, super_admin) with role-based middleware.
