@@ -2151,8 +2151,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       testUberTxns.forEach(t => {
         if (!t.locationId) return;
         
-        // Skip non-completed orders
-        if (t.orderStatus !== 'Completed') return;
+        // Skip non-completed orders or invalid dates
+        if (t.orderStatus !== 'Completed' || !t.date || t.date === 'N/A') return;
         
         const weekStart = getMondayOfWeek(parseUberDate(t.date));
         
