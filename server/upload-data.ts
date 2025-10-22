@@ -391,7 +391,18 @@ async function uploadGrubhub(filePath: string, clientId: string) {
   for (const [key, data] of Array.from(locationMap.entries())) {
     const { locationName, address, storeNumber } = data;
     
-    // Match by normalized address
+    // 1. Match by store_number against locations.store_id (primary method for corp locations)
+    if (storeNumber && storeNumber.trim() !== "") {
+      const match = allLocations.find(loc => 
+        loc.storeId && loc.storeId.trim() === storeNumber.trim()
+      );
+      if (match) {
+        resolvedLocations.set(key, match.id);
+        continue;
+      }
+    }
+    
+    // 2. Match by normalized address (fallback)
     if (address) {
       const normalizedAddress = address.toLowerCase().trim();
       const match = allLocations.find(loc => 
@@ -402,9 +413,6 @@ async function uploadGrubhub(filePath: string, clientId: string) {
         continue;
       }
     }
-    
-    // Note: Store number matching not currently supported in schema
-    // Grubhub locations are matched primarily by address
     
     console.log(`Warning: No Grubhub location found for "${locationName}" (Address: ${address || 'N/A'}, Store#: ${storeNumber || 'N/A'})`);
   }
