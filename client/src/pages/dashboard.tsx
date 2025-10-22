@@ -306,7 +306,7 @@ export default function Dashboard() {
   };
 
   // Weekly trend data from API (reversed to show oldest to newest)
-  const weeklyTrendData = weeklyTrend?.map((week, index) => ({
+  const weeklyTrendData = (weeklyTrend?.map((week, index) => ({
     week: week.weekLabel,
     weekStart: week.weekStart,
     sales: week.totalSales,
@@ -314,7 +314,7 @@ export default function Dashboard() {
     aov: week.averageAov,
     marketing: week.totalMarketingInvestment,
     roas: week.blendedRoas,
-  })).reverse() || [];
+  })) ?? []).reverse();
 
   // Prepare client performance data for the chart
   const clientPerformanceData = clientPerformance?.map(client => ({
