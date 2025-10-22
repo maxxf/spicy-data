@@ -44,6 +44,8 @@ Preferred communication style: Simple, everyday language.
 - **Transaction Data Upload**: Supports CSV upload by platform and client. Server-side parsing, validation, and transaction creation. Location matching uses a master sheet; unmapped transactions are assigned to an "Unmapped Locations" bucket. Duplicate prevention uses upsert logic with platform-specific unique constraints (e.g., `workflowId` for Uber Eats, `(clientId, transactionId)` for DoorDash and Grubhub).
 - **DoorDash Storefront Filtering**: **CRITICAL** - Upload route filters out all DoorDash Storefront channel transactions during CSV processing. Only Marketplace orders are saved to the database. This ensures all analytics reflect Marketplace-only performance.
 - **Marketing Data Upload**: Supports platform and data type selection, fuzzy location matching, and deduplication for campaign records and location metrics.
+- **Uber Eats Mapping Fix**: Extracts store codes from "Capriotti's Sandwich Shop (STORECODE)" format and matches against `ubereats_store_label` field in locations table.
+- **Grubhub Mapping Fix**: Uses `store_number` as primary matching key instead of generic restaurant names to prevent location collapse.
 
 ### Required CSV Report Types by Platform
 - **Uber Eats**: Payment reports.
@@ -65,3 +67,41 @@ Preferred communication style: Simple, everyday language.
 - **Custom fonts**: FKGroteskNeue, Berkeley Mono.
 - **Platform-specific brand colors**: Uber Green, DoorDash Red, Grubhub Orange.
 - **Chart Palette**: 8-color scheme.
+
+## Data Quality Status (As of Oct 22, 2025)
+
+### Overall Transaction Coverage
+- **Total Transactions**: 313,567 across all platforms
+- **Mapped Transactions**: 168,897 (53.9%)
+- **Unmapped Transactions**: 144,670 (46.1%)
+
+### Platform-Specific Mapping Rates
+| Platform | Total | Mapped | Unmapped | Rate |
+|----------|-------|--------|----------|------|
+| Uber Eats | 186,363 | 43,404 | 142,959 | 23.3% ⚠️ |
+| DoorDash | 116,245 | 116,244 | 1 | 100.0% ✅ |
+| Grubhub | 10,959 | 9,249 | 1,710 | 84.4% ✅ |
+
+### Location Coverage
+- **Total Locations**: 445 in database
+- **With Uber Eats Data**: 132 locations (29.7%)
+- **With DoorDash Data**: 303 locations (68.1%)
+- **With Grubhub Data**: 150 locations (33.7%)
+- **All 3 Platforms**: 124 locations (27.9%)
+
+### Date Ranges
+- **DoorDash**: Aug 25 - Oct 19, 2025 (56 days)
+- **Grubhub**: Aug 25 - Oct 19, 2025 (49 days)
+- **Uber Eats**: Sept 1 - Oct 19, 2025 (62 unique dates)
+
+### Known Data Quality Issues
+1. **Uber Eats**: 141,367 transactions with blank location fields (cannot be mapped without source CSVs)
+2. **Uber Eats**: 1,592 transactions with unrecognized store codes (FL100238, CA425, TX444, etc.)
+3. **Grubhub**: 1,710 transactions with generic names missing store_number field
+4. **DoorDash**: Excellent data quality (99.999% mapping success)
+
+### Recent Fixes (Oct 22, 2025)
+- ✅ Fixed Uber Eats location extraction to parse store codes from parentheses format
+- ✅ Fixed Grubhub upload to use store_number instead of restaurant name for matching
+- ✅ Successfully mapped 23,400 previously unmapped Uber Eats transactions
+- ✅ Week 9/8 corporate locations data complete (27,348 transactions, 100% mapping)

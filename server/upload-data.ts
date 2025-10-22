@@ -125,11 +125,23 @@ async function findOrCreateLocation(
   const allLocations = await storage.getLocationsByClient(clientId);
   
   if (platform === "ubereats") {
+    // Extract store code from format "Capriotti's Sandwich Shop (STORECODE)"
+    const storeCodeMatch = locationName.match(/\(([^)]+)\)/);
+    const storeCode = storeCodeMatch ? storeCodeMatch[1].trim() : locationName.trim();
+    
+    // Try to match by extracted store code first
     const match = allLocations.find(loc => 
-      loc.uberEatsStoreLabel && loc.uberEatsStoreLabel.trim().toLowerCase() === locationName.trim().toLowerCase()
+      loc.uberEatsStoreLabel && loc.uberEatsStoreLabel.trim().toLowerCase() === storeCode.toLowerCase()
     );
     if (match) return match.id;
-    console.log(`Warning: No Uber Eats location found for "${locationName}"`);
+    
+    // Fallback: try full location name match (in case format is different)
+    const fullMatch = allLocations.find(loc => 
+      loc.uberEatsStoreLabel && loc.uberEatsStoreLabel.trim().toLowerCase() === locationName.trim().toLowerCase()
+    );
+    if (fullMatch) return fullMatch.id;
+    
+    console.log(`Warning: No Uber Eats location found for "${locationName}" (extracted code: "${storeCode}")`);
     return "";
   }
   
