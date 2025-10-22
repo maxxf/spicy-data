@@ -1002,7 +1002,7 @@ export class DbStorage implements IStorage {
           .groupBy(doordashTransactions.locationId);
 
       } else if (platform === "ubereats") {
-        // Uber Eats SQL aggregation
+        // Uber Eats - Date filtering happens in JavaScript due to M/D/YY format
         const uberConditions = [
           inArray(uberEatsTransactions.locationId, locationIds),
         ];
@@ -1010,31 +1010,9 @@ export class DbStorage implements IStorage {
         if (filters?.clientId) {
           uberConditions.push(eq(uberEatsTransactions.clientId, filters.clientId));
         }
-        // Note: Date filtering for Uber Eats happens in JavaScript due to M/D/YY format
 
-        platformMetrics = await this.db
-          .select({
-            locationId: uberEatsTransactions.locationId,
-            // Count only Completed orders
-            totalOrders: sql<number>`COUNT(CASE WHEN ${uberEatsTransactions.orderStatus} = 'Completed' THEN 1 END)::int`,
-            // Sum sales only for Completed
-            totalSales: sql<number>`COALESCE(SUM(CASE WHEN ${uberEatsTransactions.orderStatus} = 'Completed' THEN COALESCE(${uberEatsTransactions.subtotal}, 0) END), 0)`,
-            // Ad spend (can include NULL order_status rows)
-            adSpend: sql<number>`COALESCE(SUM(CASE WHEN ${uberEatsTransactions.otherPaymentsDescription} IS NOT NULL AND COALESCE(${uberEatsTransactions.otherPayments}, 0) > 0 AND LOWER(${uberEatsTransactions.otherPaymentsDescription}) ~ '\\y(ad|ads|advertising|paid\\s*promotion|ad\\s*spend|ad\\s*fee|ad\\s*campaign)\\y' AND LOWER(${uberEatsTransactions.otherPaymentsDescription}) !~ '\\y(adjust|added|upgrade)\\y' THEN ${uberEatsTransactions.otherPayments} END), 0)`,
-            // Offer discount value (for Completed orders)
-            offerDiscountValue: sql<number>`COALESCE(SUM(CASE WHEN ${uberEatsTransactions.orderStatus} = 'Completed' THEN ABS(COALESCE(${uberEatsTransactions.offersOnItems}, 0)) + ABS(COALESCE(${uberEatsTransactions.deliveryOfferRedemptions}, 0)) + COALESCE(${uberEatsTransactions.offerRedemptionFee}, 0) END), 0)`,
-            // Marketing-driven sales (Completed orders with offers or ads)
-            marketingDrivenSales: sql<number>`COALESCE(SUM(CASE WHEN ${uberEatsTransactions.orderStatus} = 'Completed' AND (COALESCE(${uberEatsTransactions.offersOnItems}, 0) != 0 OR COALESCE(${uberEatsTransactions.deliveryOfferRedemptions}, 0) != 0 OR COALESCE(${uberEatsTransactions.offerRedemptionFee}, 0) != 0) THEN COALESCE(${uberEatsTransactions.subtotal}, 0) END), 0)`,
-            // Orders from marketing
-            ordersFromMarketing: sql<number>`COUNT(CASE WHEN ${uberEatsTransactions.orderStatus} = 'Completed' AND (COALESCE(${uberEatsTransactions.offersOnItems}, 0) != 0 OR COALESCE(${uberEatsTransactions.deliveryOfferRedemptions}, 0) != 0 OR COALESCE(${uberEatsTransactions.offerRedemptionFee}, 0) != 0) THEN 1 END)::int`,
-            // Net payout for Completed orders
-            netPayout: sql<number>`COALESCE(SUM(CASE WHEN ${uberEatsTransactions.orderStatus} = 'Completed' THEN COALESCE(${uberEatsTransactions.netPayout}, 0) END), 0)`,
-          })
-          .from(uberEatsTransactions)
-          .where(and(...uberConditions))
-          .groupBy(uberEatsTransactions.locationId);
-
-        // Apply Uber Eats date filtering in JavaScript if needed
+        // If date filtering is needed, fetch raw data and process in JavaScript
+        // Otherwise, use SQL aggregation for better performance
         if (filters?.weekStart && filters?.weekEnd) {
           // Fetch raw data to filter by date
           const rawData = await this.db
@@ -1046,7 +1024,7 @@ export class DbStorage implements IStorage {
             isUberEatsDateInRange(t.date, filters.weekStart!, filters.weekEnd!)
           );
 
-          // Recalculate metrics with filtered data
+          // Calculate metrics with filtered data
           const metricsByLocation = new Map<string, any>();
           for (const t of filteredByDate) {
             if (!t.locationId) continue;
@@ -1093,6 +1071,29 @@ export class DbStorage implements IStorage {
           }
 
           platformMetrics = Array.from(metricsByLocation.values());
+        } else {
+          // No date filtering - use efficient SQL aggregation
+          platformMetrics = await this.db
+            .select({
+              locationId: uberEatsTransactions.locationId,
+              // Count only Completed orders
+              totalOrders: sql<number>`COUNT(CASE WHEN ${uberEatsTransactions.orderStatus} = 'Completed' THEN 1 END)::int`,
+              // Sum sales only for Completed
+              totalSales: sql<number>`COALESCE(SUM(CASE WHEN ${uberEatsTransactions.orderStatus} = 'Completed' THEN COALESCE(${uberEatsTransactions.subtotal}, 0) END), 0)`,
+              // Ad spend (can include NULL order_status rows)
+              adSpend: sql<number>`COALESCE(SUM(CASE WHEN ${uberEatsTransactions.otherPaymentsDescription} IS NOT NULL AND COALESCE(${uberEatsTransactions.otherPayments}, 0) > 0 AND LOWER(${uberEatsTransactions.otherPaymentsDescription}) ~ '\\y(ad|ads|advertising|paid\\s*promotion|ad\\s*spend|ad\\s*fee|ad\\s*campaign)\\y' AND LOWER(${uberEatsTransactions.otherPaymentsDescription}) !~ '\\y(adjust|added|upgrade)\\y' THEN ${uberEatsTransactions.otherPayments} END), 0)`,
+              // Offer discount value (for Completed orders)
+              offerDiscountValue: sql<number>`COALESCE(SUM(CASE WHEN ${uberEatsTransactions.orderStatus} = 'Completed' THEN ABS(COALESCE(${uberEatsTransactions.offersOnItems}, 0)) + ABS(COALESCE(${uberEatsTransactions.deliveryOfferRedemptions}, 0)) + COALESCE(${uberEatsTransactions.offerRedemptionFee}, 0) END), 0)`,
+              // Marketing-driven sales (Completed orders with offers or ads)
+              marketingDrivenSales: sql<number>`COALESCE(SUM(CASE WHEN ${uberEatsTransactions.orderStatus} = 'Completed' AND (COALESCE(${uberEatsTransactions.offersOnItems}, 0) != 0 OR COALESCE(${uberEatsTransactions.deliveryOfferRedemptions}, 0) != 0 OR COALESCE(${uberEatsTransactions.offerRedemptionFee}, 0) != 0) THEN COALESCE(${uberEatsTransactions.subtotal}, 0) END), 0)`,
+              // Orders from marketing
+              ordersFromMarketing: sql<number>`COUNT(CASE WHEN ${uberEatsTransactions.orderStatus} = 'Completed' AND (COALESCE(${uberEatsTransactions.offersOnItems}, 0) != 0 OR COALESCE(${uberEatsTransactions.deliveryOfferRedemptions}, 0) != 0 OR COALESCE(${uberEatsTransactions.offerRedemptionFee}, 0) != 0) THEN 1 END)::int`,
+              // Net payout for Completed orders
+              netPayout: sql<number>`COALESCE(SUM(CASE WHEN ${uberEatsTransactions.orderStatus} = 'Completed' THEN COALESCE(${uberEatsTransactions.netPayout}, 0) END), 0)`,
+            })
+            .from(uberEatsTransactions)
+            .where(and(...uberConditions))
+            .groupBy(uberEatsTransactions.locationId);
         }
 
       } else if (platform === "grubhub") {
