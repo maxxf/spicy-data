@@ -379,7 +379,11 @@ async function uploadGrubhub(filePath: string, clientId: string) {
     const storeNumber = getColumnValue(row, "store_number");
     
     if (locationName && locationName.trim() !== "") {
-      const key = locationName.trim().toLowerCase();
+      // Use store_number as key if available, otherwise use location name
+      // This ensures each unique store gets its own mapping entry
+      const key = storeNumber && storeNumber.trim() !== "" 
+        ? `store:${storeNumber.trim()}`
+        : `name:${locationName.trim().toLowerCase()}`;
       if (!locationMap.has(key)) {
         locationMap.set(key, { locationName, address, storeNumber });
       }
@@ -393,12 +397,19 @@ async function uploadGrubhub(filePath: string, clientId: string) {
     
     // 1. Match by store_number against locations.store_id (primary method for corp locations)
     if (storeNumber && storeNumber.trim() !== "") {
-      const match = allLocations.find(loc => 
-        loc.storeId && loc.storeId.trim() === storeNumber.trim()
-      );
+      console.log(`[DEBUG] Trying to match store_number="${storeNumber}" for "${locationName}"`);
+      const match = allLocations.find(loc => {
+        const hasStoreId = loc.storeId && loc.storeId.trim() === storeNumber.trim();
+        if (hasStoreId) {
+          console.log(`[DEBUG] ✓ Matched "${storeNumber}" to location "${loc.canonicalName}" (storeId: ${loc.storeId})`);
+        }
+        return hasStoreId;
+      });
       if (match) {
         resolvedLocations.set(key, match.id);
         continue;
+      } else {
+        console.log(`[DEBUG] ✗ No match found for store_number="${storeNumber}"`);
       }
     }
     
@@ -424,7 +435,12 @@ async function uploadGrubhub(filePath: string, clientId: string) {
     if (!orderNumber || orderNumber.trim() === "") continue;
 
     const locationName = getColumnValue(row, "store_name");
-    const locationKey = locationName.trim().toLowerCase();
+    const storeNumber = getColumnValue(row, "store_number");
+    
+    // Use same key format as locationMap: store_number if available, otherwise location name
+    const locationKey = storeNumber && storeNumber.trim() !== "" 
+      ? `store:${storeNumber.trim()}`
+      : `name:${locationName.trim().toLowerCase()}`;
     const locationId = resolvedLocations.get(locationKey) || null;
 
     const subtotal = parseFloat(getColumnValue(row, "subtotal")) || 0;
