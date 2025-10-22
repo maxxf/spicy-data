@@ -452,11 +452,11 @@ export class MemStorage implements IStorage {
     transactions.forEach((t) => {
       if (platform === "ubereats") {
         totalOrders++;
-        totalSales += t.subtotal;
+        totalSales += t.salesExclTax || 0;
         netPayout += t.netPayout;
         if (t.marketingPromo) {
           offerDiscountValue += t.marketingAmount;
-          marketingDrivenSales += t.subtotal;
+          marketingDrivenSales += t.salesExclTax || 0;
         }
       } else if (platform === "doordash") {
         // NEW ATTRIBUTION METHODOLOGY FOR DOORDASH

@@ -91,8 +91,8 @@ export function calculateUberEatsMetrics(txns: UberEatsTransaction[]) {
     
     totalOrders++;
     
-    // Sales Calculation: Use subtotal as primary metric for Uber Eats
-    const sales = t.subtotal || 0;
+    // Sales Calculation: Use sales_excl_tax (excluding tax) to match reporting methodology
+    const sales = t.salesExclTax || 0;
     totalSales += sales;
     
     // Net Payout: Sum all payouts
@@ -149,9 +149,12 @@ export function calculateDoorDashMetrics(txns: DoordashTransaction[]) {
     
     // Completion inference: prefer transactionType when available, fall back to orderStatus
     // "Order" transaction type = completed customer orders (from Transaction Report CSV)
+    // Empty/blank transaction type = also treated as Order (handles CSV data with missing type field)
     // "Delivered"/"Picked Up" status = completed orders (from Store Statement CSV)
     const isCompleted = 
       t.transactionType === "Order" || 
+      t.transactionType === "" ||
+      t.transactionType === null ||
       t.orderStatus === "Delivered" || 
       t.orderStatus === "Picked Up";
     
