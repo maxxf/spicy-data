@@ -2018,29 +2018,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "clientId is required" });
       }
 
-      // Test location store IDs
-      const testLocationStoreIds = [
+      // Get all database locations for this client
+      const allDbLocations = await storage.getLocationsByClient(clientId as string);
+      
+      // Explicit list of 16 corporate test location Store IDs (Nevada + Arizona)
+      const corpStoreIds = [
         'AZ900482', 'NV008', 'NV036', 'NV051', 'NV054', 'NV067', 'NV079',
         'NV103', 'NV111', 'NV121', 'NV126', 'NV151', 'NV152', 'NV191',
         'NV900467', 'NV900478'
       ];
-
-      // Get all locations for this client
-      const allLocations = await storage.getLocationsByClient(clientId as string);
       
-      // Filter to only test locations
-      const testLocations = allLocations.filter(loc => 
-        loc.storeId && testLocationStoreIds.some(testId => loc.storeId?.startsWith(testId))
-      );
+      // Filter to only the 16 corporate locations
+      const corpLocations = allDbLocations.filter(loc => {
+        if (!loc.storeId) return false;
+        const storeCode = loc.storeId.split(' ')[0];
+        return corpStoreIds.includes(storeCode);
+      });
+      
+      console.log(`[Corp Locations Report] Found ${corpLocations.length} corp locations out of ${allDbLocations.length} total (expected 16)`);
 
-      console.log(`[Test Locations Report] Found ${testLocations.length} test locations out of ${allLocations.length} total locations`);
-
-      if (testLocations.length === 0) {
-        console.log('[Test Locations Report] No test locations found, returning empty data');
+      if (corpLocations.length === 0) {
+        console.log('[Corp Locations Report] No corp locations found in database');
         return res.json({ weeks: [], locations: [] });
       }
 
-      const testLocationIds = new Set(testLocations.map(l => l.id));
+      // Create mappings for corp locations
+      const corpLocationDbIds = new Set(corpLocations.map(l => l.id));
+      const dbLocationIdToShopId = new Map(
+        corpLocations.map(loc => [loc.id, loc.storeId?.split(' ')[0] || loc.id])
+      );
+      const dbLocationIdToShopName = new Map(
+        corpLocations.map(loc => [loc.id, loc.storeId || loc.canonicalName])
+      );
+      
+      console.log(`[Corp Locations Report] Tracking ${corpLocationDbIds.size} corp location IDs`);
       
       // Fetch all transactions for the test locations
       const [uberTxns, doorTxns, grubTxns] = await Promise.all([
@@ -2049,18 +2060,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         storage.getGrubhubTransactionsByClient(clientId as string),
       ]);
 
-      // Filter to only test location transactions
-      const testUberTxns = uberTxns.filter(t => t.locationId && testLocationIds.has(t.locationId));
-      const testDoorTxns = doorTxns.filter(t => t.locationId && testLocationIds.has(t.locationId));
-      const testGrubTxns = grubTxns.filter(t => t.locationId && testLocationIds.has(t.locationId));
+      // Filter to only corp location transactions
+      const corpUberTxns = uberTxns.filter(t => t.locationId && corpLocationDbIds.has(t.locationId));
+      const corpDoorTxns = doorTxns.filter(t => t.locationId && corpLocationDbIds.has(t.locationId));
+      const corpGrubTxns = grubTxns.filter(t => t.locationId && corpLocationDbIds.has(t.locationId));
 
-      console.log(`[Test Locations Report] Transaction counts:`,{
+      console.log(`[Corp Locations Report] Transaction counts:`,{
         totalUber: uberTxns.length,
-        testUber: testUberTxns.length,
+        corpUber: corpUberTxns.length,
         totalDoor: doorTxns.length,
-        testDoor: testDoorTxns.length,
+        corpDoor: corpDoorTxns.length,
         totalGrub: grubTxns.length,
-        testGrub: testGrubTxns.length,
+        corpGrub: corpGrubTxns.length,
       });
 
       // Helper to get Monday of week for a date string
@@ -2079,7 +2090,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return `${fullYear}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
       };
 
-      // Aggregate metrics by location and week
+      // Aggregate metrics by canonical Shop ID and week
       interface WeeklyMetrics {
         sales: number;
         marketingSales: number;
@@ -2089,26 +2100,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
         marketingOrders: number;
       }
 
-      const metricsByLocationWeek = new Map<string, Map<string, WeeklyMetrics>>();
+      const metricsByShopIdWeek = new Map<string, Map<string, WeeklyMetrics>>();
 
       // Process DoorDash transactions
-      testDoorTxns.forEach(t => {
+      corpDoorTxns.forEach(t => {
         if (!t.locationId) return;
         
+        const shopId = dbLocationIdToShopId.get(t.locationId);
+        if (!shopId) return;
+        
         const isMarketplace = !t.channel || t.channel === "Marketplace";
-        const isCompleted = t.transactionType === "Order";
+        const isCompleted = t.transactionType === "Order" || 
+                          t.transactionType === "" ||
+                          t.transactionType === null;
         
         if (!isMarketplace || !isCompleted) return;
         
         const weekStart = getMondayOfWeek(t.transactionDate);
         
-        if (!metricsByLocationWeek.has(t.locationId)) {
-          metricsByLocationWeek.set(t.locationId, new Map());
+        if (!metricsByShopIdWeek.has(shopId)) {
+          metricsByShopIdWeek.set(shopId, new Map());
         }
-        const locationWeeks = metricsByLocationWeek.get(t.locationId)!;
+        const shopWeeks = metricsByShopIdWeek.get(shopId)!;
         
-        if (!locationWeeks.has(weekStart)) {
-          locationWeeks.set(weekStart, {
+        if (!shopWeeks.has(weekStart)) {
+          shopWeeks.set(weekStart, {
             sales: 0,
             marketingSales: 0,
             marketingSpend: 0,
@@ -2118,7 +2134,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
         }
         
-        const metrics = locationWeeks.get(weekStart)!;
+        const metrics = shopWeeks.get(weekStart)!;
         const sales = t.salesExclTax || t.orderSubtotal || 0;
         
         metrics.sales += sales;
@@ -2148,21 +2164,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       // Process Uber Eats transactions
-      testUberTxns.forEach(t => {
+      corpUberTxns.forEach(t => {
         if (!t.locationId) return;
+        
+        const shopId = dbLocationIdToShopId.get(t.locationId);
+        if (!shopId) return;
         
         // Skip non-completed orders or invalid dates
         if (t.orderStatus !== 'Completed' || !t.date || t.date === 'N/A') return;
         
         const weekStart = getMondayOfWeek(parseUberDate(t.date));
         
-        if (!metricsByLocationWeek.has(t.locationId)) {
-          metricsByLocationWeek.set(t.locationId, new Map());
+        if (!metricsByShopIdWeek.has(shopId)) {
+          metricsByShopIdWeek.set(shopId, new Map());
         }
-        const locationWeeks = metricsByLocationWeek.get(t.locationId)!;
+        const shopWeeks = metricsByShopIdWeek.get(shopId)!;
         
-        if (!locationWeeks.has(weekStart)) {
-          locationWeeks.set(weekStart, {
+        if (!shopWeeks.has(weekStart)) {
+          shopWeeks.set(weekStart, {
             sales: 0,
             marketingSales: 0,
             marketingSpend: 0,
@@ -2172,8 +2191,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
         }
         
-        const metrics = locationWeeks.get(weekStart)!;
-        const sales = t.subtotal || 0;
+        const metrics = shopWeeks.get(weekStart)!;
+        // CRITICAL FIX: Use salesExclTax instead of subtotal for accurate sales calculation
+        const sales = t.salesExclTax || 0;
         
         metrics.sales += sales;
         metrics.payout += t.netPayout || 0;
@@ -2203,21 +2223,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       // Process Grubhub transactions
-      testGrubTxns.forEach(t => {
+      corpGrubTxns.forEach(t => {
         if (!t.locationId) return;
+        
+        const shopId = dbLocationIdToShopId.get(t.locationId);
+        if (!shopId) return;
         
         const isPrepaidOrder = !t.transactionType || t.transactionType === "Prepaid Order";
         if (!isPrepaidOrder) return;
         
         const weekStart = getMondayOfWeek(t.orderDate);
         
-        if (!metricsByLocationWeek.has(t.locationId)) {
-          metricsByLocationWeek.set(t.locationId, new Map());
+        if (!metricsByShopIdWeek.has(shopId)) {
+          metricsByShopIdWeek.set(shopId, new Map());
         }
-        const locationWeeks = metricsByLocationWeek.get(t.locationId)!;
+        const shopWeeks = metricsByShopIdWeek.get(shopId)!;
         
-        if (!locationWeeks.has(weekStart)) {
-          locationWeeks.set(weekStart, {
+        if (!shopWeeks.has(weekStart)) {
+          shopWeeks.set(weekStart, {
             sales: 0,
             marketingSales: 0,
             marketingSpend: 0,
@@ -2227,7 +2250,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
         }
         
-        const metrics = locationWeeks.get(weekStart)!;
+        const metrics = shopWeeks.get(weekStart)!;
         const sales = t.saleAmount || 0;
         
         metrics.sales += sales;
@@ -2244,24 +2267,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Get unique weeks
       const weekSet = new Set<string>();
-      metricsByLocationWeek.forEach(locationWeeks => {
-        locationWeeks.forEach((_, week) => weekSet.add(week));
+      metricsByShopIdWeek.forEach(shopWeeks => {
+        shopWeeks.forEach((_, week) => weekSet.add(week));
       });
       const weeks = Array.from(weekSet).sort();
 
-      // Create location name lookup
-      const locationNameMap = new Map(testLocations.map(loc => [
-        loc.id, 
-        loc.storeId || loc.canonicalName
-      ]));
+      // Create Shop ID to Shop Name lookup from corp locations
+      const shopIdToName = new Map<string, string>();
+      for (const loc of corpLocations) {
+        if (loc.storeId) {
+          const shopId = loc.storeId.split(' ')[0];
+          shopIdToName.set(shopId, loc.storeId);
+        }
+      }
 
       // Format response
       const response = {
         weeks,
-        locations: Array.from(metricsByLocationWeek.entries())
-          .map(([locationId, weeklyData]) => ({
-            locationId,
-            locationName: locationNameMap.get(locationId) || 'Unknown',
+        locations: Array.from(metricsByShopIdWeek.entries())
+          .map(([shopId, weeklyData]) => ({
+            locationId: shopId,
+            locationName: shopIdToName.get(shopId) || shopId,
             weeklyMetrics: weeks.map(week => {
               const data = weeklyData.get(week);
               if (!data) return null;

@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/chart";
 import { PieChart, Pie, Cell, LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, BarChart, Bar, Legend } from "recharts";
 import type { DashboardOverview, ConsolidatedLocationMetrics } from "@shared/schema";
+import { formatWeekRange } from "@shared/week-utils";
 
 interface ClientPerformance {
   clientId: string;
@@ -332,14 +333,10 @@ export default function Dashboard() {
   // Get comparison data from API
   const comparison = overview?.comparison;
 
-  // Format date range for display
-  const formatDateRange = () => {
-    if (!selectedWeek) return "Loading...";
-    const start = new Date(selectedWeek.weekStart);
-    const end = new Date(selectedWeek.weekEnd);
-    const formatter = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" });
-    return `${formatter.format(start)} - ${formatter.format(end)}, ${start.getFullYear()}`;
-  };
+  // Format date range for display (UTC-safe)
+  const formattedDateRange = selectedWeek 
+    ? formatWeekRange(selectedWeek.weekStart, selectedWeek.weekEnd)
+    : "Loading...";
 
   return (
     <div className="p-8 space-y-8" data-testid="page-dashboard">
@@ -387,7 +384,7 @@ export default function Dashboard() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Reporting Period</p>
-                <p className="text-lg font-semibold" data-testid="text-date-range">{formatDateRange()}</p>
+                <p className="text-lg font-semibold" data-testid="text-date-range">{formattedDateRange}</p>
               </div>
               {comparison && (
                 <div className="text-right">
