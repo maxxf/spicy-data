@@ -73,25 +73,14 @@ export function calculateUberEatsMetrics(txns: UberEatsTransaction[]) {
   let netPayout = 0;
   let ordersFromMarketing = 0;
 
-  // Dedupe ad spend by workflow_id to handle multiple CSV imports
-  // Uber Eats exports contain duplicate ad charges across different report types
-  // However, workflow_ids differ across exports, so we use semantic dedupe based on charge attributes
-  const seenAdCharges = new Set<string>();
-  
   txns.forEach((t) => {
     // Ad Spend: Process FIRST (Uber Eats uses CPC model - ad spend applies regardless of order completion)
     // Check "Other payments" for advertising charges (positive values only)
     // Note: Ad spend rows typically have NULL order_status as they're campaign-level charges
+    // Database has been cleaned of duplicate imports (Oct 22, 2025)
     if (t.otherPaymentsDescription && (t.otherPayments || 0) > 0) {
       if (isUberEatsAdRelatedDescription(t.otherPaymentsDescription)) {
-        // Dedupe using semantic key: date + location + rounded amount + description
-        // Round to 2 decimals to handle floating-point inconsistencies across CSV exports
-        const roundedAmount = Math.round((t.otherPayments || 0) * 100) / 100;
-        const chargeKey = `${t.date}-${t.locationId || 'null'}-${roundedAmount}-${t.otherPaymentsDescription}`;
-        if (!seenAdCharges.has(chargeKey)) {
-          adSpend += t.otherPayments;
-          seenAdCharges.add(chargeKey);
-        }
+        adSpend += t.otherPayments;
       }
     }
     
