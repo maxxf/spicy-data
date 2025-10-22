@@ -1652,17 +1652,19 @@ export class DbStorage implements IStorage {
   }
 
   async getAvailableWeeks(): Promise<Array<{ weekStart: string; weekEnd: string }>> {
+    // Use SQL to get distinct dates efficiently without loading all transactions
     const allDates: Date[] = [];
 
-    // Collect dates from Uber Eats transactions
-    const uberTxns = await this.db.select().from(uberEatsTransactions);
-    uberTxns.forEach(t => {
+    // Get distinct dates from Uber Eats using SQL
+    const uberDates = await this.db
+      .selectDistinct({ date: uberEatsTransactions.date })
+      .from(uberEatsTransactions)
+      .where(sql`${uberEatsTransactions.date} IS NOT NULL AND ${uberEatsTransactions.date} != 'N/A' AND ${uberEatsTransactions.date} != ''`);
+    
+    uberDates.forEach(t => {
       if (!t.date || t.date.trim() === '') return;
       const [month, day, year] = t.date.split('/');
       if (!month || !day || !year) return;
-      // Convert 2-digit year to 4-digit
-      // For years 00-29, assume 2000-2029; for 30-99, assume 1930-1999
-      // But since we filter >= 2020, effectively only 20-29 will pass
       let fullYear = year;
       if (year.length === 2) {
         const yearNum = parseInt(year, 10);
@@ -1674,9 +1676,13 @@ export class DbStorage implements IStorage {
       }
     });
 
-    // Collect dates from DoorDash transactions
-    const doorDashTxns = await this.db.select().from(doordashTransactions);
-    doorDashTxns.forEach(t => {
+    // Get distinct dates from DoorDash using SQL
+    const doorDashDates = await this.db
+      .selectDistinct({ transactionDate: doordashTransactions.transactionDate })
+      .from(doordashTransactions)
+      .where(sql`${doordashTransactions.transactionDate} IS NOT NULL AND ${doordashTransactions.transactionDate} != ''`);
+    
+    doorDashDates.forEach(t => {
       if (!t.transactionDate || t.transactionDate.trim() === '') return;
       const date = new Date(t.transactionDate);
       if (!isNaN(date.getTime()) && date.getFullYear() >= 2020) {
@@ -1684,9 +1690,13 @@ export class DbStorage implements IStorage {
       }
     });
 
-    // Collect dates from Grubhub transactions
-    const grubhubTxns = await this.db.select().from(grubhubTransactions);
-    grubhubTxns.forEach(t => {
+    // Get distinct dates from Grubhub using SQL
+    const grubhubDates = await this.db
+      .selectDistinct({ orderDate: grubhubTransactions.orderDate })
+      .from(grubhubTransactions)
+      .where(sql`${grubhubTransactions.orderDate} IS NOT NULL AND ${grubhubTransactions.orderDate} != ''`);
+    
+    grubhubDates.forEach(t => {
       if (!t.orderDate || t.orderDate.trim() === '') return;
       const date = new Date(t.orderDate);
       if (!isNaN(date.getTime()) && date.getFullYear() >= 2020) {
