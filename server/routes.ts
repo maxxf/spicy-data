@@ -2028,11 +2028,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
         'NV900467', 'NV900478'
       ];
       
-      // Filter to only the 16 corporate locations
+      // Canonical name patterns to match (handles duplicates without store_id) - must be very specific!
+      const corpLocationPatterns = [
+        { pattern: /Broadway.*Tucson|Tucson.*Broadway/i, shopId: 'AZ900482', shopName: 'AZ900482 Tucson Broadway' },
+        { pattern: /Sahara.*Las Vegas(?!.*West)/i, shopId: 'NV008', shopName: 'NV008 Las Vegas Sahara' },
+        { pattern: /Silverado/i, shopId: 'NV036', shopName: 'NV036 Las Vegas Silverado' },
+        { pattern: /Horizon(?!.*Ridge)/i, shopId: 'NV051', shopName: 'NV051 Henderson Horizon' },
+        { pattern: /Stanford/i, shopId: 'NV054', shopName: 'NV054 Sparks Stanford' },
+        { pattern: /Meadows.*Reno|Reno.*Meadows/i, shopId: 'NV067', shopName: 'NV067 Reno Meadows' },
+        { pattern: /Sierra St/i, shopId: 'NV079', shopName: 'NV079 Reno Sierra St' },
+        { pattern: /Boulder.*Hwy(?!.*City)|North Boulder/i, shopId: 'NV103', shopName: 'NV103 Henderson Boulder Hwy' },
+        { pattern: /Craig.*Mitchell|Mitchell.*Craig|East Craig(?!.*031)/i, shopId: 'NV111', shopName: 'NV111 NLV Craig and Mitchell' },
+        { pattern: /Downtown.*Summerlin|Summerlin.*Downtown/i, shopId: 'NV121', shopName: 'NV121 LV Downtown Summerlin' },
+        { pattern: /Aliante.*Pkwy|Aliante.*Nature Park(?!.*Casino)/i, shopId: 'NV126', shopName: 'NV126 NLV Aliante Pkwy and Nature Park' },
+        { pattern: /Maryland.*Pkwy/i, shopId: 'NV151', shopName: 'NV151 LV Maryland Pkwy' },
+        { pattern: /Plumb/i, shopId: 'NV152', shopName: 'NV152 Reno Plumb Virginia' },
+        { pattern: /Carson.*William|William.*Carson/i, shopId: 'NV191', shopName: 'NV191 Carson City William' },
+        { pattern: /Los Altos/i, shopId: 'NV900467', shopName: 'NV900467 Sparks Los Altos' },
+        { pattern: /S Las Vegas|South Las Vegas(?!.*Blvd)/i, shopId: 'NV900478', shopName: 'NV900478 LV S Las Vegas' },
+      ];
+      
+      // Filter to only the 16 corporate locations (by store_id OR canonical name pattern)
       const corpLocations = allDbLocations.filter(loc => {
-        if (!loc.storeId) return false;
-        const storeCode = loc.storeId.split(' ')[0];
-        return corpStoreIds.includes(storeCode);
+        // If location has a store_id, ONLY check if it's in the corp list
+        if (loc.storeId) {
+          const storeCode = loc.storeId.split(' ')[0];
+          return corpStoreIds.includes(storeCode);
+        }
+        
+        // For locations WITHOUT store_id (duplicates), match by canonical name pattern
+        if (loc.canonicalName) {
+          return corpLocationPatterns.some(p => p.pattern.test(loc.canonicalName || ''));
+        }
+        
+        return false;
       });
       
       console.log(`[Corp Locations Report] Found ${corpLocations.length} corp locations out of ${allDbLocations.length} total (expected 16)`);
@@ -2044,12 +2073,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Create mappings for corp locations
       const corpLocationDbIds = new Set(corpLocations.map(l => l.id));
-      const dbLocationIdToShopId = new Map(
-        corpLocations.map(loc => [loc.id, loc.storeId?.split(' ')[0] || loc.id])
-      );
-      const dbLocationIdToShopName = new Map(
-        corpLocations.map(loc => [loc.id, loc.storeId || loc.canonicalName])
-      );
+      
+      // Map location IDs to canonical Shop IDs (handles duplicates)
+      const dbLocationIdToShopId = new Map<string, string>();
+      const dbLocationIdToShopName = new Map<string, string>();
+      
+      corpLocations.forEach(loc => {
+        // Determine canonical Shop ID from store_id or canonical name pattern
+        let shopId: string;
+        let shopName: string;
+        
+        if (loc.storeId) {
+          shopId = loc.storeId.split(' ')[0];
+          shopName = loc.canonicalName || loc.storeId;
+        } else {
+          // Map duplicate locations to their canonical Store ID by pattern
+          const name = loc.canonicalName || '';
+          const match = corpLocationPatterns.find(p => p.pattern.test(name));
+          if (match) {
+            shopId = match.shopId;
+            shopName = match.shopName;
+          } else {
+            // Fallback to location ID if no pattern matches
+            shopId = loc.id;
+            shopName = name;
+          }
+        }
+        
+        dbLocationIdToShopId.set(loc.id, shopId);
+        dbLocationIdToShopName.set(loc.id, shopName);
+      });
       
       console.log(`[Corp Locations Report] Tracking ${corpLocationDbIds.size} corp location IDs`);
       
@@ -2157,16 +2210,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       // Process Uber Eats transactions
+      let uberProcessed = 0;
+      let uberSkipped = { noLocation: 0, noShopId: 0, notCompleted: 0, noDate: 0 };
+      
       corpUberTxns.forEach(t => {
-        if (!t.locationId) return;
+        if (!t.locationId) { uberSkipped.noLocation++; return; }
         
         const shopId = dbLocationIdToShopId.get(t.locationId);
-        if (!shopId) return;
+        if (!shopId) { uberSkipped.noShopId++; return; }
         
         // Skip non-completed orders or invalid dates
-        if (t.orderStatus !== 'Completed' || !t.date || t.date === 'N/A') return;
+        if (t.orderStatus !== 'Completed') { uberSkipped.notCompleted++; return; }
+        if (!t.date || t.date === 'N/A') { uberSkipped.noDate++; return; }
         
         const weekStart = getMondayOfWeek(parseUberDate(t.date));
+        uberProcessed++;
         
         if (!metricsByShopIdWeek.has(shopId)) {
           metricsByShopIdWeek.set(shopId, new Map());
@@ -2213,6 +2271,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
           metrics.marketingSales += sales;
           metrics.marketingOrders += 1;
         }
+      });
+      
+      // Sample some Uber dates and their parsed values for debugging
+      const sampleUberDates = corpUberTxns.filter(t => t.date && t.date !== 'N/A').slice(0, 10)
+        .map(t => ({ original: t.date, parsed: parseUberDate(t.date), weekStart: getMondayOfWeek(parseUberDate(t.date)) }));
+      
+      console.log(`[Corp Locations Report] Uber Eats processing:`, {
+        total: corpUberTxns.length,
+        processed: uberProcessed,
+        skipped: uberSkipped,
+        sampleDates: sampleUberDates
       });
 
       // Process Grubhub transactions
