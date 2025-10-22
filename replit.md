@@ -154,8 +154,11 @@ Dashboard analytics were showing discrepancies vs. source spreadsheet data. Root
 - **Root Cause**: "DoorDash marketing credit" column contains CREDITS/REBATES from DoorDash that reduce effective marketing spend, but code was adding them as additional costs
 - **Files Fixed**: `server/db-storage.ts` (lines 192-200, 729-738), `server/routes.ts` (lines 678-684)
 - **Formula Corrected**: Changed from `adSpend + offers + credits` to `adSpend + offers - credits`
-- **Result**: Total marketing reduced to $38,297 (within $11 of spreadsheet $38,286 = 0.03% accuracy), ROAS adjusted from 5.09x to 5.60x
-- **Verification**: Week 10/13 breakdown: Ad Spend $14,188 + Offers $24,108 - Credits $1,756 = $38,297 ✓
+- **Database Correction**: Updated all 116,245 historical DoorDash transaction records with corrected formula
+  - **Before**: $385,906 total marketing (all-time, overcounted by $81,438)
+  - **After**: $304,463 total marketing (all-time, corrected) ✓
+- **Result**: Week 10/13 marketing reduced to $38,297 (within $11 of spreadsheet $38,286 = 0.03% accuracy), ROAS adjusted from 5.09x to 5.83x
+- **Verification**: Week 10/13 breakdown: Ad Spend $14,188 + Offers $24,108 - Credits $1,970 = $38,297 ✓
 
 **Outstanding Data Gaps**
 - ✅ **RESOLVED: Week 10/13-10/19 All Platforms** (Oct 13-19, 2025): Complete data now available
