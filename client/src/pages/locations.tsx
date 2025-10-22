@@ -362,7 +362,7 @@ export default function LocationsPage() {
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
           <TabsTrigger value="overview" data-testid="tab-overview">Overview</TabsTrigger>
-          <TabsTrigger value="test-locations" data-testid="tab-test-locations">Test Locations Report</TabsTrigger>
+          <TabsTrigger value="test-locations" data-testid="tab-corporate-locations">Corporate Locations Report</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-6 mt-6">
