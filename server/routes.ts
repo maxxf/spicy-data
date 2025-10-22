@@ -385,11 +385,26 @@ async function findOrCreateLocation(
   }
   
   // Uber Eats: Extract code from Store Name (e.g., "Capriotti's (IA069)" → "IA069")
-  // then match to uberEatsStoreLabel (Column E)
+  // then match to uberEatsStoreLabel (Column E) by comparing codes
   if (platform === "ubereats") {
     const extractedCode = extractCodeFromParentheses(locationName);
     if (extractedCode) {
-      const locationByCode = allLocations.find(l => l.uberEatsStoreLabel === extractedCode);
+      // Normalize CSV code for comparison
+      const normalizedCsvCode = extractedCode.trim().toUpperCase();
+      
+      // Match by comparing extracted codes from both CSV and database
+      const locationByCode = allLocations.find(l => {
+        if (!l.uberEatsStoreLabel) return false;
+        
+        // Extract code from database value, handling both formats:
+        // - "Capriotti's Sandwich Shop (NV008)" → "NV008"
+        // - "NV008" → "NV008" (already just the code)
+        const dbCode = extractCodeFromParentheses(l.uberEatsStoreLabel) || l.uberEatsStoreLabel;
+        const normalizedDbCode = dbCode.trim().toUpperCase();
+        
+        return normalizedDbCode === normalizedCsvCode;
+      });
+      
       if (locationByCode) {
         // Update Uber Eats display name if not set
         if (!locationByCode.uberEatsName) {
