@@ -1097,8 +1097,13 @@ export class DbStorage implements IStorage {
                                 (t.offerRedemptionFee || 0);
               m.offerDiscountValue += offersValue;
 
-              if (offersValue > 0) {
-                m.marketingDrivenSales += sales; // Now uses salesExclTax
+              // Marketing attribution: ad-driven OR promotional offers
+              const isAdDriven = (t.otherPayments || 0) > 0 && 
+                                 isUberEatsAdRelatedDescription(t.otherPaymentsDescription);
+              const hasPromotionalOffer = (t.offersOnItems < 0) || (t.deliveryOfferRedemptions < 0);
+              
+              if (isAdDriven || hasPromotionalOffer) {
+                m.marketingDrivenSales += sales;
                 m.ordersFromMarketing++;
               }
             }

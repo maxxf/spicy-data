@@ -2216,8 +2216,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         metrics.marketingSpend += adSpend + offersValue;
         
-        // Marketing Attribution: Consistent with DoorDash metrics calculation
-        const hasMarketing = (t.otherPayments || 0) > 0;
+        // Marketing Attribution: Order has ANY marketing activity (ad spend OR offers/discounts)
+        const hasMarketing = (Math.abs(t.otherPayments || 0) > 0) || 
+                             (Math.abs(t.offersOnItems || 0) > 0) || 
+                             (Math.abs(t.deliveryOfferRedemptions || 0) > 0);
         
         if (hasMarketing) {
           metrics.marketingSales += sales;
@@ -2259,8 +2261,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
         
         const metrics = shopWeeks.get(weekStart)!;
-        // CRITICAL FIX: Use salesExclTax instead of subtotal for accurate sales calculation
-        const sales = t.salesExclTax || 0;
+        // Use salesExclTax (primary, excl. tax), fallback to subtotal (incl. tax)
+        const sales = t.salesExclTax || t.subtotal || 0;
         
         metrics.sales += sales;
         metrics.payout += t.netPayout || 0;

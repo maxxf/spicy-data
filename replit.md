@@ -26,9 +26,15 @@ Preferred communication style: Simple, everyday language.
 - **Analytics**: Calculates ROAS, net payout percentages, AOV, and aggregations at platform/location levels, supporting multi-dimensional filtering and graceful null value handling.
 
 ### Marketing-Driven Sales Attribution Logic
-- **DoorDash**: Order is marketing-driven if ANY of the following are non-zero: `other_payments` (ad spend), `offers_on_items` (item discounts), `delivery_offer_redemptions` (delivery discounts). Formula applies to both SQL queries and JavaScript helpers across all analytics endpoints.
-- **Uber Eats**: Order is marketing-driven if it has promotional offers (`offers_on_items < 0` OR `delivery_offer_redemptions < 0`) OR is ad-driven (Other Payments with ad-related description). Sales use `salesExclTax` (primary) with fallback to `subtotal` for legacy data.
-- **Fixed October 22, 2025**: Updated `getDashboardOverview`, `getLocationAnalytics`, and all helper functions to count ALL marketing activity (not just ad spend alone). DoorDash Week 10/13 accuracy: 1.1% variance vs. user spreadsheet. Uber Eats Week 10/13 accuracy: 1.5% variance vs. user spreadsheet.
+- **DoorDash**: Order is marketing-driven if ANY of the following are non-zero: `other_payments` (ad spend), `offers_on_items` (item discounts), `delivery_offer_redemptions` (delivery discounts). Formula applies consistently across all 7 calculation locations.
+- **Uber Eats**: Order is marketing-driven if it has promotional offers (`offers_on_items < 0` OR `delivery_offer_redemptions < 0`) OR is ad-driven (Other Payments with ad-related description). Sales use `salesExclTax` (primary) with fallback to `subtotal` for legacy data across all SQL and JavaScript calculations.
+- **Fixed October 22, 2025**: Comprehensive update across 7 locations in codebase:
+  - `getDashboardOverview` SQL (DoorDash & Uber Eats)
+  - `getLocationMetrics` SQL (all platforms) + JavaScript date-filtered path
+  - `calculateDoorDashMetrics` helper function
+  - `calculateUberEatsMetrics` helper function  
+  - Corp locations weekly report (DoorDash & Uber Eats)
+- **Accuracy**: DoorDash Week 10/13: 1.1% variance (6,729 orders, $223,443). Uber Eats Week 10/13: 1.5% variance (854 orders, $38,237). All historical data automatically corrected via query-level fixes.
 
 ### Authentication & Authorization
 - **Technology**: Replit Auth (OIDC) with `express-session` and `connect-pg-simple`.
