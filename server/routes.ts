@@ -672,12 +672,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
             "third_party_contribution"
           ));
           
-          // Calculate total marketing spend: ad fees + all customer discounts
+          // Calculate total marketing spend: ad fees + customer discounts - marketing credits
+          // Marketing credits are CREDITS from DoorDash that reduce effective marketing spend
           const totalMarketingSpend = Math.abs(marketingFees) + 
             Math.abs(offersOnItems) + 
             Math.abs(deliveryOfferRedemptions) + 
-            marketingCredits + 
-            thirdPartyContribution;
+            thirdPartyContribution -
+            marketingCredits; // Subtract credits (they reduce spend)
           
           // Use the Net total from CSV directly (DoorDash calculates this correctly)
           const netTotal = parseNegativeFloat(getColumnValue(row, "Net total", "Net Total"));

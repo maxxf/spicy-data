@@ -188,11 +188,12 @@ export function calculateDoorDashMetrics(txns: DoordashTransaction[]) {
       
       // Offer Discount Value (all promotional discounts and credits)
       // Note: offers_on_items and delivery_offer_redemptions are stored as NEGATIVE values
-      // marketing_credits and third_party_contribution are stored as POSITIVE values
+      // marketing_credits are CREDITS that REDUCE spend (subtract them)
+      // third_party_contribution are stored as POSITIVE values
       const offersValue = Math.abs(t.offersOnItems || 0) + 
                         Math.abs(t.deliveryOfferRedemptions || 0) +
-                        (t.marketingCredits || 0) +
-                        (t.thirdPartyContribution || 0);
+                        (t.thirdPartyContribution || 0) -
+                        (t.marketingCredits || 0); // Subtract credits
       offerDiscountValue += offersValue;
       
       // Marketing Attribution: Use otherPayments (Marketing fees) as attribution signal
@@ -729,8 +730,8 @@ export class DbStorage implements IStorage {
                   AND ${doordashTransactions.transactionType} = 'Order'
                 THEN ABS(COALESCE(${doordashTransactions.offersOnItems}, 0)) + 
                      ABS(COALESCE(${doordashTransactions.deliveryOfferRedemptions}, 0)) +
-                     COALESCE(${doordashTransactions.marketingCredits}, 0) +
-                     COALESCE(${doordashTransactions.thirdPartyContribution}, 0)
+                     COALESCE(${doordashTransactions.thirdPartyContribution}, 0) -
+                     COALESCE(${doordashTransactions.marketingCredits}, 0)
               END), 0)
             `,
             netPayout: sql<number>`

@@ -148,6 +148,15 @@ Dashboard analytics were showing discrepancies vs. source spreadsheet data. Root
 - **Result**: Ad spend reduced to $3,423.60 (within 0.9% of spreadsheet $3,456), ROAS now calculates correctly as 3.88x
 - **Future Prevention**: Recommend implementing ingestion metadata (report_type, batch_id) to prevent duplicate imports or use only one canonical export format
 
+**Issue #5: DoorDash Marketing Credits Calculation Error (FIXED - Oct 22, 2025)**
+- **Problem**: Marketing credits were being ADDED to marketing spend instead of SUBTRACTED
+- **Impact**: Dashboard showed $42,236 total marketing vs. source spreadsheet $38,286 (10% overcount of ~$3,950)
+- **Root Cause**: "DoorDash marketing credit" column contains CREDITS/REBATES from DoorDash that reduce effective marketing spend, but code was adding them as additional costs
+- **Files Fixed**: `server/db-storage.ts` (lines 192-200, 729-738), `server/routes.ts` (lines 678-684)
+- **Formula Corrected**: Changed from `adSpend + offers + credits` to `adSpend + offers - credits`
+- **Result**: Total marketing reduced to $38,297 (within $11 of spreadsheet $38,286 = 0.03% accuracy), ROAS adjusted from 5.09x to 5.60x
+- **Verification**: Week 10/13 breakdown: Ad Spend $14,188 + Offers $24,108 - Credits $1,756 = $38,297 ✓
+
 **Outstanding Data Gaps**
 - ✅ **RESOLVED: Week 10/13-10/19 All Platforms** (Oct 13-19, 2025): Complete data now available
   - **Uber Eats:** 3,442 orders / $118,489 sales (96% location mapping success)
@@ -166,9 +175,9 @@ Dashboard analytics were showing discrepancies vs. source spreadsheet data. Root
 
 ### Week 10/13 All-Platform Totals (CORRECTED - Oct 22, 2025)
 - **Uber Eats:** 3,442 orders / $118,489 sales / $9,842 marketing / 3.88x ROAS ✅ (was 2.29x before ad spend dedupe fix)
-- **DoorDash:** 11,335 orders / $352,160 sales / $42,236 marketing / 5.09x ROAS ✅
+- **DoorDash:** 11,335 orders / $352,160 sales / $38,297 marketing / 5.83x ROAS ✅ (was 5.09x before credits fix)
 - **Grubhub:** 1,399 orders / $50,632 sales / $1,682 marketing / 7.82x ROAS ✅
-- **TOTAL:** 16,176 orders / $521,280 sales / $53,760 marketing / 5.13x ROAS ✅
+- **TOTAL:** 16,176 orders / $521,280 sales / $49,821 marketing / 5.56x ROAS ✅
 
 ### Current Accuracy Score: 98/100
 - All calculation methodologies verified correct ✓
