@@ -91,8 +91,8 @@ export function calculateUberEatsMetrics(txns: UberEatsTransaction[]) {
     
     totalOrders++;
     
-    // Sales Calculation: Use sales_excl_tax (excluding tax) to match reporting methodology
-    const sales = t.salesExclTax || 0;
+    // Sales Calculation: Use salesExclTax (primary, excl. tax), fallback to subtotal (incl. tax)
+    const sales = t.salesExclTax || t.subtotal || 0;
     totalSales += sales;
     
     // Net Payout: Sum all payouts
@@ -196,12 +196,14 @@ export function calculateDoorDashMetrics(txns: DoordashTransaction[]) {
                         (t.marketingCredits || 0); // Subtract credits
       offerDiscountValue += offersValue;
       
-      // Marketing Attribution: Use otherPayments (Marketing fees) as attribution signal
-      // Per DoorDash methodology (stored as absolute values):
-      //   - otherPayments = 0.99 → order from offer redemption
-      //   - otherPayments = larger value → order from ads
-      //   - otherPayments = null/0 → organic order (no marketing attribution)
-      const hasMarketing = (t.otherPayments || 0) > 0;
+      // Marketing Attribution: Order has ANY marketing activity (ad spend OR offers/discounts)
+      // Per updated methodology:
+      //   - otherPayments > 0 → ad spend attribution
+      //   - offers_on_items OR delivery_offer_redemptions → discount/offer attribution
+      //   - ANY of the above → marketing-driven order
+      const hasMarketing = (Math.abs(t.otherPayments || 0) > 0) || 
+                           (Math.abs(t.offersOnItems || 0) > 0) || 
+                           (Math.abs(t.deliveryOfferRedemptions || 0) > 0);
       
       if (hasMarketing) {
         marketingDrivenSales += sales;
@@ -705,7 +707,9 @@ export class DbStorage implements IStorage {
               COALESCE(SUM(CASE 
                 WHEN (${doordashTransactions.channel} = 'Marketplace' OR ${doordashTransactions.channel} IS NULL)
                   AND ${doordashTransactions.transactionType} = 'Order'
-                  AND COALESCE(${doordashTransactions.otherPayments}, 0) > 0
+                  AND (ABS(COALESCE(${doordashTransactions.otherPayments}, 0)) > 0 
+                       OR ABS(COALESCE(${doordashTransactions.offersOnItems}, 0)) > 0 
+                       OR ABS(COALESCE(${doordashTransactions.deliveryOfferRedemptions}, 0)) > 0)
                 THEN COALESCE(${doordashTransactions.salesExclTax}, ${doordashTransactions.orderSubtotal}, 0)
               END), 0)
             `,
@@ -713,7 +717,9 @@ export class DbStorage implements IStorage {
               COUNT(CASE 
                 WHEN (${doordashTransactions.channel} = 'Marketplace' OR ${doordashTransactions.channel} IS NULL)
                   AND ${doordashTransactions.transactionType} = 'Order'
-                  AND COALESCE(${doordashTransactions.otherPayments}, 0) > 0
+                  AND (ABS(COALESCE(${doordashTransactions.otherPayments}, 0)) > 0 
+                       OR ABS(COALESCE(${doordashTransactions.offersOnItems}, 0)) > 0 
+                       OR ABS(COALESCE(${doordashTransactions.deliveryOfferRedemptions}, 0)) > 0)
                 THEN 1 
               END)::int
             `,
