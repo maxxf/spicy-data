@@ -473,21 +473,21 @@ async function uploadGrubhub(filePath: string, clientId: string) {
 async function main() {
   const clientId = "83506705-b408-4f0a-a9b0-e5b585db3b7d"; // Capriotti's
   
-  console.log("\n🚀 Starting data upload for week Oct 13-19, 2025...\n");
+  console.log("\n🚀 Starting data upload for week Sept 8-14, 2025...\n");
   
   try {
     const uberCount = await uploadUberEats(
-      "attached_assets/305f864c-ba6b-4e69-be00-f8482f56ea5b-united_states_1761001541535.csv",
+      "attached_assets/8b03ddef-cfc0-4821-8219-abe7664064f9-united_states_1761099884745.csv",
       clientId
     );
     
     const doordashCount = await uploadDoorDash(
-      "attached_assets/financials_simplified_transactions_us_2025-10-13_2025-10-19_ZIfyv_2025-10-20T21-05-04Z_1761001541536.csv",
+      "attached_assets/financials_simplified_transactions_us_2025-09-08_2025-09-14_Hqdxm_2025-10-21T15-58-24Z_1761099884746.csv",
       clientId
     );
     
     const grubhubCount = await uploadGrubhub(
-      "attached_assets/caps_-_10_13_1761001541536.csv",
+      "attached_assets/caps_-_9_8_1761099884745.csv",
       clientId
     );
     
