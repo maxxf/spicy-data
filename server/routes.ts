@@ -2053,24 +2053,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log(`[Corp Locations Report] Tracking ${corpLocationDbIds.size} corp location IDs`);
       
-      // Fetch all transactions for the test locations
-      const [uberTxns, doorTxns, grubTxns] = await Promise.all([
-        storage.getUberEatsTransactionsByClient(clientId as string),
-        storage.getDoordashTransactionsByClient(clientId as string),
-        storage.getGrubhubTransactionsByClient(clientId as string),
+      // Fetch ONLY corp location transactions (optimized to avoid memory issues)
+      const locationIdsArray = Array.from(corpLocationDbIds);
+      const [corpUberTxns, corpDoorTxns, corpGrubTxns] = await Promise.all([
+        storage.getUberEatsTransactionsByLocations(locationIdsArray),
+        storage.getDoordashTransactionsByLocations(locationIdsArray),
+        storage.getGrubhubTransactionsByLocations(locationIdsArray),
       ]);
 
-      // Filter to only corp location transactions
-      const corpUberTxns = uberTxns.filter(t => t.locationId && corpLocationDbIds.has(t.locationId));
-      const corpDoorTxns = doorTxns.filter(t => t.locationId && corpLocationDbIds.has(t.locationId));
-      const corpGrubTxns = grubTxns.filter(t => t.locationId && corpLocationDbIds.has(t.locationId));
-
       console.log(`[Corp Locations Report] Transaction counts:`,{
-        totalUber: uberTxns.length,
         corpUber: corpUberTxns.length,
-        totalDoor: doorTxns.length,
         corpDoor: corpDoorTxns.length,
-        totalGrub: grubTxns.length,
         corpGrub: corpGrubTxns.length,
       });
 
@@ -2277,7 +2270,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       for (const loc of corpLocations) {
         if (loc.storeId) {
           const shopId = loc.storeId.split(' ')[0];
-          shopIdToName.set(shopId, loc.storeId);
+          // Use canonical name for display (e.g., "Capriotti's Las Vegas NV 008")
+          shopIdToName.set(shopId, loc.canonicalName || loc.storeId);
         }
       }
 

@@ -465,6 +465,14 @@ export class DbStorage implements IStorage {
       .where(eq(uberEatsTransactions.clientId, clientId));
   }
 
+  async getUberEatsTransactionsByLocations(locationIds: string[]): Promise<UberEatsTransaction[]> {
+    if (locationIds.length === 0) return [];
+    return await this.db
+      .select()
+      .from(uberEatsTransactions)
+      .where(inArray(uberEatsTransactions.locationId, locationIds));
+  }
+
   async deleteUberEatsTransactionsByDateRange(clientId: string, startDate: string, endDate: string): Promise<number> {
     const result = await this.db
       .delete(uberEatsTransactions)
@@ -545,6 +553,14 @@ export class DbStorage implements IStorage {
       .where(eq(doordashTransactions.clientId, clientId));
   }
 
+  async getDoordashTransactionsByLocations(locationIds: string[]): Promise<DoordashTransaction[]> {
+    if (locationIds.length === 0) return [];
+    return await this.db
+      .select()
+      .from(doordashTransactions)
+      .where(inArray(doordashTransactions.locationId, locationIds));
+  }
+
   async deleteDoordashTransactionsByDateRange(clientId: string, startDate: string, endDate: string): Promise<number> {
     const result = await this.db
       .delete(doordashTransactions)
@@ -609,6 +625,14 @@ export class DbStorage implements IStorage {
       .select()
       .from(grubhubTransactions)
       .where(eq(grubhubTransactions.clientId, clientId));
+  }
+
+  async getGrubhubTransactionsByLocations(locationIds: string[]): Promise<GrubhubTransaction[]> {
+    if (locationIds.length === 0) return [];
+    return await this.db
+      .select()
+      .from(grubhubTransactions)
+      .where(inArray(grubhubTransactions.locationId, locationIds));
   }
 
   async deleteGrubhubTransactionsByDateRange(clientId: string, startDate: string, endDate: string): Promise<number> {

@@ -53,16 +53,19 @@ export interface IStorage {
   createUberEatsTransaction(transaction: InsertUberEatsTransaction): Promise<UberEatsTransaction>;
   createUberEatsTransactionsBatch(transactions: InsertUberEatsTransaction[]): Promise<void>;
   getUberEatsTransactionsByClient(clientId: string): Promise<UberEatsTransaction[]>;
+  getUberEatsTransactionsByLocations(locationIds: string[]): Promise<UberEatsTransaction[]>;
   deleteUberEatsTransactionsByDateRange(clientId: string, startDate: string, endDate: string): Promise<number>;
   
   createDoordashTransaction(transaction: InsertDoordashTransaction): Promise<DoordashTransaction>;
   createDoordashTransactionsBatch(transactions: InsertDoordashTransaction[]): Promise<void>;
   getDoordashTransactionsByClient(clientId: string): Promise<DoordashTransaction[]>;
+  getDoordashTransactionsByLocations(locationIds: string[]): Promise<DoordashTransaction[]>;
   deleteDoordashTransactionsByDateRange(clientId: string, startDate: string, endDate: string): Promise<number>;
 
   createGrubhubTransaction(transaction: InsertGrubhubTransaction): Promise<GrubhubTransaction>;
   createGrubhubTransactionsBatch(transactions: InsertGrubhubTransaction[]): Promise<void>;
   getGrubhubTransactionsByClient(clientId: string): Promise<GrubhubTransaction[]>;
+  getGrubhubTransactionsByLocations(locationIds: string[]): Promise<GrubhubTransaction[]>;
   deleteGrubhubTransactionsByDateRange(clientId: string, startDate: string, endDate: string): Promise<number>;
 
   getDashboardOverview(filters?: AnalyticsFilters): Promise<DashboardOverview>;
@@ -251,6 +254,13 @@ export class MemStorage implements IStorage {
     );
   }
 
+  async getUberEatsTransactionsByLocations(locationIds: string[]): Promise<UberEatsTransaction[]> {
+    const locationSet = new Set(locationIds);
+    return Array.from(this.uberEatsTransactions.values()).filter(
+      (t) => t.locationId && locationSet.has(t.locationId)
+    );
+  }
+
   async deleteUberEatsTransactionsByDateRange(clientId: string, startDate: string, endDate: string): Promise<number> {
     const transactions = Array.from(this.uberEatsTransactions.values());
     let count = 0;
@@ -299,6 +309,13 @@ export class MemStorage implements IStorage {
     );
   }
 
+  async getDoordashTransactionsByLocations(locationIds: string[]): Promise<DoordashTransaction[]> {
+    const locationSet = new Set(locationIds);
+    return Array.from(this.doordashTransactions.values()).filter(
+      (t) => t.locationId && locationSet.has(t.locationId)
+    );
+  }
+
   async deleteDoordashTransactionsByDateRange(clientId: string, startDate: string, endDate: string): Promise<number> {
     const transactions = Array.from(this.doordashTransactions.values());
     let count = 0;
@@ -344,6 +361,13 @@ export class MemStorage implements IStorage {
   async getGrubhubTransactionsByClient(clientId: string): Promise<GrubhubTransaction[]> {
     return Array.from(this.grubhubTransactions.values()).filter(
       (t) => t.clientId === clientId
+    );
+  }
+
+  async getGrubhubTransactionsByLocations(locationIds: string[]): Promise<GrubhubTransaction[]> {
+    const locationSet = new Set(locationIds);
+    return Array.from(this.grubhubTransactions.values()).filter(
+      (t) => t.locationId && locationSet.has(t.locationId)
     );
   }
 
