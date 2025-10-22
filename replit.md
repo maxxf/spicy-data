@@ -152,13 +152,29 @@ Dashboard analytics were showing discrepancies vs. source spreadsheet data. Root
 - **Problem**: Marketing credits were being ADDED to marketing spend instead of SUBTRACTED
 - **Impact**: Dashboard showed $42,236 total marketing vs. source spreadsheet $38,286 (10% overcount of ~$3,950)
 - **Root Cause**: "DoorDash marketing credit" column contains CREDITS/REBATES from DoorDash that reduce effective marketing spend, but code was adding them as additional costs
-- **Files Fixed**: `server/db-storage.ts` (lines 192-200, 729-738), `server/routes.ts` (lines 678-684)
+- **Files Fixed**: `server/db-storage.ts` (lines 192-200, 729-738, 1023), `server/routes.ts` (lines 678-684)
 - **Formula Corrected**: Changed from `adSpend + offers + credits` to `adSpend + offers - credits`
 - **Database Correction**: Updated all 116,245 historical DoorDash transaction records with corrected formula
   - **Before**: $385,906 total marketing (all-time, overcounted by $81,438)
   - **After**: $304,463 total marketing (all-time, corrected) ✓
 - **Result**: Week 10/13 marketing reduced to $38,297 (within $11 of spreadsheet $38,286 = 0.03% accuracy), ROAS adjusted from 5.09x to 5.83x
 - **Verification**: Week 10/13 breakdown: Ad Spend $14,188 + Offers $24,108 - Credits $1,970 = $38,297 ✓
+
+**Issue #6: Marketing-Driven Sales Calculation Errors (FIXED - Oct 22, 2025)**
+- **Problem 1 (DoorDash)**: Only counting orders with ad spend, missing orders with offers-only (no ad spend)
+  - **Impact**: Week 10/13 showed $215,098 vs. spreadsheet $220,915 (2.6% undercount, missing 271 orders)
+  - **Root Cause**: Code only counted `other_payments > 0`, excluding offer-only transactions
+- **Problem 2 (Uber Eats)**: Using `subtotal` (sales incl. tax) instead of `salesExclTax` (sales excl. tax)
+  - **Impact**: Week 10/13 showed $41,057 vs. spreadsheet $38,831 (5.7% overcount)
+  - **Root Cause**: Marketing-driven sales used wrong sales field (subtotal includes tax)
+- **Files Fixed**: `server/db-storage.ts` (lines 1025-1027, 1088-1098, 1113, 1119)
+- **Formulas Corrected**:
+  - **DoorDash**: Changed from `other_payments > 0` to `other_payments > 0 OR offers > 0 OR delivery_offers > 0`
+  - **Uber Eats**: Changed from `subtotal` to `salesExclTax` (with fallback to subtotal)
+- **Result**: Marketing-driven sales now match spreadsheet within 1-2% variance
+  - **DoorDash Week 10/13**: $223,443 vs. spreadsheet $220,915 (1.1% variance) ✓
+  - **Uber Eats Week 10/13**: $38,237 vs. spreadsheet $38,831 (1.5% variance) ✓
+- **Verification**: Corrections apply automatically to ALL historical weeks via query code
 
 **Outstanding Data Gaps**
 - ✅ **RESOLVED: Week 10/13-10/19 All Platforms** (Oct 13-19, 2025): Complete data now available
