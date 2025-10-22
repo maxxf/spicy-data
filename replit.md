@@ -140,6 +140,14 @@ Dashboard analytics were showing discrepancies vs. source spreadsheet data. Root
 - **Result**: Corp locations report now shows exactly 16 locations with accurate transaction aggregation
 - **Verification**: Week 10/13 shows 16/16 locations with data (was showing 21+ before)
 
+**Issue #4: Uber Eats Ad Spend Triple-Counting (FIXED - Oct 22, 2025)**
+- **Problem**: Multiple CSV imports contained duplicate ad charges, inflating ad spend by 3x
+- **Impact**: Database showed $10,270.80 ad spend vs. source spreadsheet $3,456 (ROAS incorrectly calculated as 2.29x instead of ~3.95x)
+- **Root Cause**: Imported same billing period from 3 different Uber Eats export formats (detailed, simplified, summarized) - each export contained identical charges with different workflow_ids
+- **Fix**: Executed one-time database cleanup - deleted 11,631 duplicate ad spend rows, retaining only 1 copy of each unique charge (identified by date/location/amount)
+- **Result**: Ad spend reduced to $3,423.60 (within 0.9% of spreadsheet $3,456), ROAS now calculates correctly as 3.88x
+- **Future Prevention**: Recommend implementing ingestion metadata (report_type, batch_id) to prevent duplicate imports or use only one canonical export format
+
 **Outstanding Data Gaps**
 - ✅ **RESOLVED: Week 10/13-10/19 All Platforms** (Oct 13-19, 2025): Complete data now available
   - **Uber Eats:** 3,442 orders / $118,489 sales (96% location mapping success)
@@ -156,11 +164,11 @@ Dashboard analytics were showing discrepancies vs. source spreadsheet data. Root
 | **DoorDash** | Oct 19, 2025 | ✅ Complete | 302/445 locations (67.9%) |
 | **Grubhub** | Oct 19, 2025 | ✅ Complete | 260/445 locations (58.4%) |
 
-### Week 10/13 All-Platform Totals
-- **Uber Eats:** 3,442 orders / $118,489 sales / $16,690 marketing / 2.29x ROAS ✅
+### Week 10/13 All-Platform Totals (CORRECTED - Oct 22, 2025)
+- **Uber Eats:** 3,442 orders / $118,489 sales / $9,842 marketing / 3.88x ROAS ✅ (was 2.29x before ad spend dedupe fix)
 - **DoorDash:** 11,335 orders / $352,160 sales / $42,236 marketing / 5.09x ROAS ✅
 - **Grubhub:** 1,399 orders / $50,632 sales / $1,682 marketing / 7.82x ROAS ✅
-- **TOTAL:** 16,176 orders / $521,280 sales / $60,608 marketing / 4.47x ROAS ✅
+- **TOTAL:** 16,176 orders / $521,280 sales / $53,760 marketing / 5.13x ROAS ✅
 
 ### Current Accuracy Score: 98/100
 - All calculation methodologies verified correct ✓
