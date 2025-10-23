@@ -69,7 +69,10 @@ export function LocationSelector({
             <SelectItem value="all">All Locations</SelectItem>
           )}
           {locations
-            ?.filter((location) => location.canonicalName !== "Unmapped Locations")
+            ?.filter((location) => 
+              location.canonicalName !== "Unmapped Locations" &&
+              location.locationTag === "master"
+            )
             .map((location) => (
               <SelectItem key={location.id} value={location.id}>
                 {location.canonicalName}

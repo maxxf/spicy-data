@@ -52,7 +52,13 @@ Preferred communication style: Simple, everyday language.
 - **Design**: Drizzle ORM with PostgreSQL dialect, Zod schemas for validation.
 - **Current State**: Using DbStorage (Neon PostgreSQL) with sessions table for authentication.
 - **Tables**: users, sessions, clients, locations, transactions (Uber Eats, DoorDash, Grubhub), promotions, paid ad campaigns, campaign location metrics, location weekly financials.
-- **Location Name Standardization (October 23, 2025)**: Standardized 119 locations from Uber Eats format `"Capriotti's Sandwich Shop (CODE)"` to clean `"STORECODE"` format. Database now has 279 properly formatted locations (63%) and 165 legacy locations without store codes (37%).
+- **Location Name Standardization & Master Location System (October 23, 2025)**: 
+  - Standardized all 444 locations to use "Caps - " prefix for client branding
+  - Implemented master location system: 160 canonical master locations (tagged with `location_tag='master'`) appear in dropdowns
+  - Platform-specific location names (doordash_name, uber_eats_name, grubhub_name) serve as mapping aliases only, not separate dropdown entries
+  - Master location format: `"Caps - STORECODE LocationName"` (e.g., "Caps - NV008 Las Vegas Sahara")
+  - Dropdown filtering: `LocationSelector` shows only locations where `locationTag === "master"` to prevent duplicates and ensure users select canonical locations
+  - 284 non-master locations (legacy names without store codes, platform duplicates) hidden from dropdowns but retained for transaction mapping
 
 ### File Upload Processing
 - **Transaction Data Upload**: Supports CSV upload by platform and client. Server-side parsing, validation, and transaction creation. Location matching uses a master sheet; unmapped transactions are assigned to an "Unmapped Locations" bucket. Duplicate prevention uses upsert logic with platform-specific unique constraints.

@@ -1855,38 +1855,58 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Update location names from master sheet
-  app.post("/api/diagnostic/update-location-names", async (req, res) => {
+  // Sync master locations from Google Sheets
+  app.post("/api/diagnostic/sync-master-locations", async (req, res) => {
     try {
       const { fetchMasterLocations } = await import('./google-sheets.js');
       const masterLocations = await fetchMasterLocations();
       
+      const clientId = '83506705-b408-4f0a-a9b0-e5b585db3b7d';
+      let createdCount = 0;
       let updatedCount = 0;
       
-      // Update each location that needs a proper name
+      // Get all existing locations
+      const dbLocations = await storage.getLocationsByClient(clientId);
+      
+      // Process each master location
       for (const masterLoc of masterLocations) {
         if (!masterLoc.storeId || !masterLoc.shopName) continue;
         
-        // Find location in database by store_id
-        const dbLocations = await storage.getLocationsByClient('83506705-b408-4f0a-a9b0-e5b585db3b7d');
-        const dbLoc = dbLocations.find(l => l.storeId === masterLoc.storeId);
+        // Find existing location by store_id
+        const existing = dbLocations.find(l => l.storeId === masterLoc.storeId);
         
-        if (dbLoc && dbLoc.canonicalName === `Caps - ${masterLoc.storeId}`) {
-          // Location needs updating - it's just "Caps - STORECODE"
-          await storage.updateLocation(dbLoc.id, {
-            canonicalName: `Caps - ${masterLoc.shopName}`
+        if (existing) {
+          // Update existing location to master format
+          await storage.updateLocation(existing.id, {
+            canonicalName: `Caps - ${masterLoc.shopName}`,
+            isVerified: true,
+            locationTag: 'master'
           });
           updatedCount++;
+        } else {
+          // Create new master location
+          await storage.createLocation({
+            clientId,
+            storeId: masterLoc.storeId,
+            canonicalName: `Caps - ${masterLoc.shopName}`,
+            address: masterLoc.address,
+            doorDashStoreKey: masterLoc.doorDashStoreKey,
+            uberEatsStoreLabel: masterLoc.uberEatsStoreLabel,
+            isVerified: true,
+            locationTag: 'master'
+          });
+          createdCount++;
         }
       }
       
       res.json({
         success: true,
+        createdCount,
         updatedCount,
         totalMasterLocations: masterLocations.length
       });
     } catch (error: any) {
-      console.error("Update location names error:", error);
+      console.error("Sync master locations error:", error);
       res.status(500).json({ error: error.message });
     }
   });
