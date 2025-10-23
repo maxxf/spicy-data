@@ -68,11 +68,13 @@ export function LocationSelector({
           {showAllOption && (
             <SelectItem value="all">All Locations</SelectItem>
           )}
-          {locations?.map((location) => (
-            <SelectItem key={location.id} value={location.id}>
-              {location.canonicalName}
-            </SelectItem>
-          ))}
+          {locations
+            ?.filter((location) => location.canonicalName !== "Unmapped Locations")
+            .map((location) => (
+              <SelectItem key={location.id} value={location.id}>
+                {location.canonicalName}
+              </SelectItem>
+            ))}
         </SelectContent>
       </Select>
     </div>

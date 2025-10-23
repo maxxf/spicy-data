@@ -122,6 +122,25 @@ export default function Dashboard() {
     },
   });
 
+  const { data: dataQuality } = useQuery<{
+    unmappedTransactions: {
+      ubereats: number;
+      doordash: number;
+      grubhub: number;
+    };
+  }>({
+    queryKey: ["/api/analytics/data-quality", selectedClientId],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (selectedClientId) params.append("clientId", selectedClientId);
+      const queryString = params.toString() ? `?${params.toString()}` : "";
+      const response = await fetch(`/api/analytics/data-quality${queryString}`);
+      if (!response.ok) throw new Error("Failed to fetch data quality");
+      return response.json();
+    },
+    enabled: !!selectedClientId,
+  });
+
   if (overviewLoading) {
     return (
       <div className="p-8 space-y-8">
@@ -310,8 +329,8 @@ export default function Dashboard() {
     },
   };
 
-  // Weekly trend data from API (reversed to show oldest to newest)
-  const weeklyTrendData = (weeklyTrend?.map((week, index) => ({
+  // Weekly trend data from API (in chronological order, oldest to newest)
+  const weeklyTrendData = weeklyTrend?.map((week, index) => ({
     week: week.weekLabel,
     weekStart: week.weekStart,
     sales: week.totalSales,
@@ -319,7 +338,7 @@ export default function Dashboard() {
     aov: week.averageAov,
     marketing: week.totalMarketingInvestment,
     roas: week.blendedRoas,
-  })) ?? []).reverse();
+  })) ?? [];
 
   // Prepare client performance data for the chart
   const clientPerformanceData = clientPerformance?.map(client => ({
@@ -671,6 +690,58 @@ export default function Dashboard() {
           )}
         </CardContent>
       </Card>
+
+      {/* Data Quality Issues */}
+      {selectedClientId && dataQuality && (
+        dataQuality.unmappedTransactions.ubereats > 0 || 
+        dataQuality.unmappedTransactions.doordash > 0 || 
+        dataQuality.unmappedTransactions.grubhub > 0
+      ) && (
+        <Card className="border-yellow-500/50 bg-yellow-50/50 dark:bg-yellow-950/20" data-testid="card-data-quality">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-yellow-700 dark:text-yellow-500">
+              <TrendingDown className="w-5 h-5" />
+              Data Quality Issues
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              <p className="text-sm text-muted-foreground">
+                The following transactions could not be matched to master locations and are assigned to "Unmapped Locations":
+              </p>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {dataQuality.unmappedTransactions.ubereats > 0 && (
+                  <div className="flex items-center justify-between p-3 rounded-md bg-background border" data-testid="unmapped-ubereats">
+                    <div className="flex items-center gap-2">
+                      <PlatformBadge platform="ubereats" />
+                      <span className="text-sm">Unmapped</span>
+                    </div>
+                    <span className="text-sm font-semibold">{dataQuality.unmappedTransactions.ubereats.toLocaleString()}</span>
+                  </div>
+                )}
+                {dataQuality.unmappedTransactions.doordash > 0 && (
+                  <div className="flex items-center justify-between p-3 rounded-md bg-background border" data-testid="unmapped-doordash">
+                    <div className="flex items-center gap-2">
+                      <PlatformBadge platform="doordash" />
+                      <span className="text-sm">Unmapped</span>
+                    </div>
+                    <span className="text-sm font-semibold">{dataQuality.unmappedTransactions.doordash.toLocaleString()}</span>
+                  </div>
+                )}
+                {dataQuality.unmappedTransactions.grubhub > 0 && (
+                  <div className="flex items-center justify-between p-3 rounded-md bg-background border" data-testid="unmapped-grubhub">
+                    <div className="flex items-center gap-2">
+                      <PlatformBadge platform="grubhub" />
+                      <span className="text-sm">Unmapped</span>
+                    </div>
+                    <span className="text-sm font-semibold">{dataQuality.unmappedTransactions.grubhub.toLocaleString()}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

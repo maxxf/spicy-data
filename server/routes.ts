@@ -1835,6 +1835,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/analytics/data-quality", async (req, res) => {
+    try {
+      const { clientId } = req.query;
+      
+      // Guard: Return empty metrics if no clientId provided
+      if (!clientId) {
+        return res.json({
+          unmappedTransactions: {
+            ubereats: 0,
+            doordash: 0,
+            grubhub: 0,
+          }
+        });
+      }
+      
+      // Get unmapped location bucket
+      const allLocations = await storage.getLocationsByClient(clientId as string);
+      const unmappedBucket = allLocations.find(l => 
+        l.canonicalName === "Unmapped Locations" && l.locationTag === "unmapped_bucket"
+      );
+      
+      if (!unmappedBucket) {
+        return res.json({
+          unmappedTransactions: {
+            ubereats: 0,
+            doordash: 0,
+            grubhub: 0,
+          }
+        });
+      }
+      
+      // Get transaction counts for unmapped bucket
+      const unmappedCounts = await storage.getTransactionCounts(clientId as string, unmappedBucket.id);
+      
+      res.json({
+        unmappedTransactions: {
+          ubereats: unmappedCounts.uberEatsCount || 0,
+          doordash: unmappedCounts.doordashCount || 0,
+          grubhub: unmappedCounts.grubhubCount || 0,
+        }
+      });
+    } catch (error: any) {
+      console.error("Data quality metrics error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   app.get("/api/promotions", isAuthenticated, async (req, res) => {
     try {
       const { clientId } = req.query;
