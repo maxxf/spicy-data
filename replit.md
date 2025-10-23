@@ -54,11 +54,13 @@ Preferred communication style: Simple, everyday language.
 - **Tables**: users, sessions, clients, locations, transactions (Uber Eats, DoorDash, Grubhub), promotions, paid ad campaigns, campaign location metrics, location weekly financials.
 - **Location Name Standardization & Master Location System (October 23, 2025)**: 
   - Standardized all 444 locations to use "Caps - " prefix for client branding
-  - Implemented master location system: 160 canonical master locations (tagged with `location_tag='master'`) appear in dropdowns
-  - Platform-specific location names (doordash_name, uber_eats_name, grubhub_name) serve as mapping aliases only, not separate dropdown entries
-  - Master location format: `"Caps - STORECODE LocationName"` (e.g., "Caps - NV008 Las Vegas Sahara")
-  - Dropdown filtering: `LocationSelector` shows only locations where `locationTag === "master"` to prevent duplicates and ensure users select canonical locations
-  - 284 non-master locations (legacy names without store codes, platform duplicates) hidden from dropdowns but retained for transaction mapping
+  - Implemented master location system: **323 master locations** (tagged with `location_tag='master'`) appear in dropdowns
+    - **160 verified master locations**: Full format "Caps - STORECODE LocationName" (e.g., "Caps - NV008 Las Vegas Sahara") with `is_verified=true`
+    - **163 unverified master locations**: Legacy DoorDash names (e.g., "Caps - North Union St") + 3 orphan code-only locations with `is_verified=false`
+  - **Transaction Consolidation**: Migrated 22,877 transactions (21,696 Uber Eats + 1,181 Grubhub) from 119 duplicate code-only locations to their matching master locations
+  - **Result**: ALL 162,995 transactions now mapped to 323 master locations (0 transactions on non-master locations)
+  - Dropdown filtering: `LocationSelector` shows only locations where `locationTag === "master"` 
+  - 121 non-master locations hidden from dropdowns (116 merged duplicates + 5 with no transactions) but retained for data integrity
 
 ### File Upload Processing
 - **Transaction Data Upload**: Supports CSV upload by platform and client. Server-side parsing, validation, and transaction creation. Location matching uses a master sheet; unmapped transactions are assigned to an "Unmapped Locations" bucket. Duplicate prevention uses upsert logic with platform-specific unique constraints.
