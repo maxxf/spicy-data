@@ -54,13 +54,19 @@ Preferred communication style: Simple, everyday language.
 - **Tables**: users, sessions, clients, locations, transactions (Uber Eats, DoorDash, Grubhub), promotions, paid ad campaigns, campaign location metrics, location weekly financials.
 - **Location Name Standardization & Master Location System (October 23, 2025)**: 
   - Standardized all 444 locations to use "Caps - " prefix for client branding
-  - Implemented master location system: **323 master locations** (tagged with `location_tag='master'`) appear in dropdowns
+  - Implemented master location system: **279 master locations** (tagged with `location_tag='master'`) appear in dropdowns
     - **160 verified master locations**: Full format "Caps - STORECODE LocationName" (e.g., "Caps - NV008 Las Vegas Sahara") with `is_verified=true`
-    - **163 unverified master locations**: Legacy DoorDash names (e.g., "Caps - North Union St") + 3 orphan code-only locations with `is_verified=false`
-  - **Transaction Consolidation**: Migrated 22,877 transactions (21,696 Uber Eats + 1,181 Grubhub) from 119 duplicate code-only locations to their matching master locations
-  - **Result**: ALL 162,995 transactions now mapped to 323 master locations (0 transactions on non-master locations)
-  - Dropdown filtering: `LocationSelector` shows only locations where `locationTag === "master"` 
-  - 121 non-master locations hidden from dropdowns (116 merged duplicates + 5 with no transactions) but retained for data integrity
+    - **119 unverified master locations**: Legacy DoorDash names (e.g., "Caps - North Union St") still containing 70,369 DoorDash transactions with `is_verified=false`
+  - **Transaction Consolidation History**:
+    - **Phase 1**: Migrated 22,877 transactions (21,696 Uber Eats + 1,181 Grubhub) from 119 duplicate code-only locations to their matching master locations
+    - **Phase 2**: Pattern-matched 46 legacy DoorDash locations to verified masters, migrating 23,142 DoorDash transactions and removing master tag from 44 empty legacy locations
+  - **DoorDash Coverage**: 45,706 transactions on verified masters + 70,369 on unverified masters + 169 in unmapped bucket = 116,244/116,245 total (99.9%)
+  - **CRITICAL DATA QUALITY ISSUE**: 
+    - **142,213 Uber Eats transactions (79.6%)** have NULL location_id - invisible in analytics
+    - **258 Grubhub transactions (2.1%)** have NULL location_id - invisible in analytics
+    - These unmapped transactions represent significant missing revenue data requiring location mapping fixes
+  - Dropdown filtering: `LocationSelector` shows only locations where `locationTag === "master"` (279 total: 160 verified + 119 unverified)
+  - 165 non-master locations hidden from dropdowns (migrated/empty locations) but retained for data integrity
 
 ### File Upload Processing
 - **Transaction Data Upload**: Supports CSV upload by platform and client. Server-side parsing, validation, and transaction creation. Location matching uses a master sheet; unmapped transactions are assigned to an "Unmapped Locations" bucket. Duplicate prevention uses upsert logic with platform-specific unique constraints.
