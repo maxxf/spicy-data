@@ -122,6 +122,7 @@ async function findOrCreateLocation(
   platform: "ubereats" | "doordash" | "grubhub",
   storeId?: string
 ): Promise<string> {
+  const UNMAPPED_BUCKET_ID = "f534a2cf-12f6-4052-9d3e-d885211183ee";
   const allLocations = await storage.getLocationsByClient(clientId);
   
   if (platform === "ubereats") {
@@ -141,8 +142,8 @@ async function findOrCreateLocation(
     );
     if (fullMatch) return fullMatch.id;
     
-    console.log(`Warning: No Uber Eats location found for "${locationName}" (extracted code: "${storeCode}")`);
-    return "";
+    console.log(`Warning: No Uber Eats location found for "${locationName}" (extracted code: "${storeCode}") - assigning to Unmapped Locations`);
+    return UNMAPPED_BUCKET_ID;
   }
   
   if (platform === "doordash") {
@@ -178,11 +179,11 @@ async function findOrCreateLocation(
     });
     if (fuzzyMatch) return fuzzyMatch.id;
     
-    console.log(`Warning: No DoorDash location found for "${locationName}" (Store ID: ${storeId || 'N/A'})`);
-    return "";
+    console.log(`Warning: No DoorDash location found for "${locationName}" (Store ID: ${storeId || 'N/A'}) - assigning to Unmapped Locations`);
+    return UNMAPPED_BUCKET_ID;
   }
   
-  return "";
+  return UNMAPPED_BUCKET_ID;
 }
 
 async function uploadUberEats(filePath: string, clientId: string) {
@@ -437,7 +438,10 @@ async function uploadGrubhub(filePath: string, clientId: string) {
       }
     }
     
-    console.log(`Warning: No Grubhub location found for "${locationName}" (Address: ${address || 'N/A'}, Store#: ${storeNumber || 'N/A'})`);
+    // No match found - assign to unmapped bucket
+    const UNMAPPED_BUCKET_ID = "f534a2cf-12f6-4052-9d3e-d885211183ee";
+    console.log(`Warning: No Grubhub location found for "${locationName}" (Address: ${address || 'N/A'}, Store#: ${storeNumber || 'N/A'}) - assigning to Unmapped Locations`);
+    resolvedLocations.set(key, UNMAPPED_BUCKET_ID);
   }
   
   const transactions: any[] = [];
