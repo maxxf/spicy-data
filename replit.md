@@ -19,6 +19,11 @@ Preferred communication style: Simple, everyday language.
 - **Technology**: Express.js with TypeScript, RESTful API.
 - **Data Processing**: CSV parsing with platform-specific logic for Uber Eats, DoorDash, and Grubhub, including transaction validation, data normalization, and string similarity for location reconciliation. Handles platform-specific transaction statuses.
 - **API Endpoints**: Manages clients, locations, file uploads (transaction & marketing data), analytics, promotions, and paid ads, supporting multi-dimensional filtering.
+- **Performance Optimizations (October 23, 2025)**:
+  - **Memory Management**: Replaced array `.length` calls with SQL `COUNT(*)` aggregations to prevent loading 100K+ transactions into memory. Diagnostic endpoint now uses `getTransactionCounts()` method.
+  - **Week Calculation**: Rewrote `getAvailableWeeks()` to use SQL `DATE_TRUNC` with database-level aggregation instead of loading all transactions. Reduced execution time from 66.5s (crash) to 2.6s (25x faster).
+  - **Date Validation**: Added multi-layer validation for Uber Eats M/D/YY format with regex patterns, two-digit year normalization (25→2025), SQL year ≥ 2020 filtering, and JavaScript safety filter (2020-2030) to eliminate phantom dates (e.g., 2000-12-25).
+  - **CSV Export**: Fixed RFC 4180 compliance by properly escaping comma-containing values with double quotes.
 
 ### Data Model
 - **Core Entities**: Clients, Locations, Transactions, Promotions, Paid Ad Campaigns, Campaign Location Metrics.
