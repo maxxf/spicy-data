@@ -1695,25 +1695,40 @@ export class DbStorage implements IStorage {
     
     const weeks = new Set<string>();
 
-    // Get distinct weeks from Uber Eats (date format: M/D/YY)
+    // Get distinct weeks from Uber Eats (date format: M/D/YY or M/D/YYYY)
     const uberWeeks = await this.db.execute(sql`
-      SELECT DISTINCT 
-        DATE_TRUNC('week', 
+      WITH parsed_dates AS (
+        SELECT 
+          SPLIT_PART(${uberEatsTransactions.date}, '/', 1) AS month,
+          SPLIT_PART(${uberEatsTransactions.date}, '/', 2) AS day,
+          SPLIT_PART(${uberEatsTransactions.date}, '/', 3) AS year
+        FROM ${uberEatsTransactions}
+        WHERE ${uberEatsTransactions.date} IS NOT NULL 
+          AND ${uberEatsTransactions.date} != 'N/A' 
+          AND ${uberEatsTransactions.date} != ''
+          AND ${uberEatsTransactions.date} ~ '^[0-9]{1,2}/[0-9]{1,2}/[0-9]{2,4}$'
+      )
+      SELECT DISTINCT DATE_TRUNC('week', parsed_date)::date AS week_start
+      FROM (
+        SELECT 
           TO_DATE(
             CASE 
-              WHEN LENGTH(SPLIT_PART(${uberEatsTransactions.date}, '/', 3)) = 2 
-              THEN '20' || SPLIT_PART(${uberEatsTransactions.date}, '/', 3)
-              ELSE SPLIT_PART(${uberEatsTransactions.date}, '/', 3)
+              WHEN LENGTH(year) = 2 AND CAST(year AS INT) < 30 THEN '20' || year
+              WHEN LENGTH(year) = 2 AND CAST(year AS INT) >= 30 THEN '19' || year
+              ELSE year
             END || '-' || 
-            LPAD(SPLIT_PART(${uberEatsTransactions.date}, '/', 1), 2, '0') || '-' || 
-            LPAD(SPLIT_PART(${uberEatsTransactions.date}, '/', 2), 2, '0'),
+            LPAD(month, 2, '0') || '-' || 
+            LPAD(day, 2, '0'),
             'YYYY-MM-DD'
-          )
-        )::date AS week_start
-      FROM ${uberEatsTransactions}
-      WHERE ${uberEatsTransactions.date} IS NOT NULL 
-        AND ${uberEatsTransactions.date} != 'N/A' 
-        AND ${uberEatsTransactions.date} != ''
+          ) AS parsed_date
+        FROM parsed_dates
+        WHERE month ~ '^[0-9]+$' 
+          AND day ~ '^[0-9]+$' 
+          AND year ~ '^[0-9]+$'
+          AND CAST(month AS INT) BETWEEN 1 AND 12
+          AND CAST(day AS INT) BETWEEN 1 AND 31
+      ) valid_dates
+      WHERE EXTRACT(YEAR FROM parsed_date) >= 2020
       ORDER BY week_start
     `);
     
@@ -1727,6 +1742,8 @@ export class DbStorage implements IStorage {
       FROM ${doordashTransactions}
       WHERE ${doordashTransactions.transactionDate} IS NOT NULL 
         AND ${doordashTransactions.transactionDate} != ''
+        AND ${doordashTransactions.transactionDate} ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$'
+        AND EXTRACT(YEAR FROM CAST(${doordashTransactions.transactionDate} AS DATE)) >= 2020
       ORDER BY week_start
     `);
     
@@ -1740,6 +1757,8 @@ export class DbStorage implements IStorage {
       FROM ${grubhubTransactions}
       WHERE ${grubhubTransactions.orderDate} IS NOT NULL 
         AND ${grubhubTransactions.orderDate} != ''
+        AND ${grubhubTransactions.orderDate} ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$'
+        AND EXTRACT(YEAR FROM CAST(${grubhubTransactions.orderDate} AS DATE)) >= 2020
       ORDER BY week_start
     `);
     
@@ -1751,8 +1770,12 @@ export class DbStorage implements IStorage {
       return [];
     }
 
-    // Convert SQL week starts (Mondays) to our week format
+    // Convert SQL week starts (Mondays) to our week format and filter out invalid weeks
     return Array.from(weeks)
+      .filter(weekStart => {
+        const year = new Date(weekStart).getFullYear();
+        return year >= 2020 && year <= 2030; // Safety check for phantom/invalid dates
+      })
       .sort()
       .map(weekStart => {
         const start = new Date(weekStart);
