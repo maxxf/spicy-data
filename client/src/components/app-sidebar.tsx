@@ -16,6 +16,8 @@ import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { ClientSelector } from "@/components/client-selector";
+import { useClientContext } from "@/contexts/client-context";
 import logoImage from "@assets/a5b36301-f70a-4a41-907e-9f34a1a70b80_1760998717264.png";
 
 const navigation = [
@@ -49,6 +51,7 @@ const navigation = [
 export function AppSidebar() {
   const [location] = useLocation();
   const { user } = useAuth();
+  const { selectedClientId, setSelectedClientId } = useClientContext();
 
   const userInitials = user?.firstName && user?.lastName
     ? `${user.firstName[0]}${user.lastName[0]}`
@@ -78,6 +81,16 @@ export function AppSidebar() {
         </div>
       </SidebarHeader>
       <SidebarContent>
+        <SidebarGroup>
+          <SidebarGroupLabel>Client</SidebarGroupLabel>
+          <SidebarGroupContent className="px-4 py-2">
+            <ClientSelector
+              selectedClientId={selectedClientId}
+              onClientChange={setSelectedClientId}
+              showAllOption={true}
+            />
+          </SidebarGroupContent>
+        </SidebarGroup>
         <SidebarGroup>
           <SidebarGroupLabel>Navigation</SidebarGroupLabel>
           <SidebarGroupContent>

@@ -5,9 +5,9 @@ import { DataTable } from "@/components/data-table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { PlatformBadge } from "@/components/platform-badge";
-import { ClientSelector } from "@/components/client-selector";
 import { LocationSelector } from "@/components/location-selector";
 import { PlatformSelector } from "@/components/platform-selector";
+import { useClientContext } from "@/contexts/client-context";
 import { WeekSelector } from "@/components/week-selector";
 import { CheckCircle2, AlertCircle, Link as LinkIcon, MapPin, Download } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -20,9 +20,9 @@ import { TestLocationsReport } from "@/components/test-locations-report";
 export default function LocationsPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { selectedClientId, setSelectedClientId } = useClientContext();
 
   const [activeTab, setActiveTab] = useState("overview");
-  const [selectedClientId, setSelectedClientId] = useState<string | null>("83506705-b408-4f0a-a9b0-e5b585db3b7d");
   const [selectedLocationId, setSelectedLocationId] = useState<string | null>(null);
   const [selectedPlatform, setSelectedPlatform] = useState<string | null>(null);
   const [selectedWeek, setSelectedWeek] = useState<{ weekStart: string; weekEnd: string } | null>(null);
@@ -38,6 +38,11 @@ export default function LocationsPage() {
       setSelectedWeek(weeks[0]); // First week is most recent (sorted desc)
     }
   }, [weeks, selectedWeek]);
+
+  // Reset location when client changes
+  useEffect(() => {
+    setSelectedLocationId(null);
+  }, [selectedClientId]);
 
   // Build query params for filters
   const buildQueryParams = () => {
@@ -368,14 +373,6 @@ export default function LocationsPage() {
         <TabsContent value="overview" className="space-y-6 mt-6">
           {weeks && weeks.length > 0 ? (
             <div className="flex flex-wrap gap-4">
-              <ClientSelector
-                selectedClientId={selectedClientId}
-                onClientChange={(clientId) => {
-                  setSelectedClientId(clientId);
-                  setSelectedLocationId(null); // Reset location when client changes
-                }}
-                showAllOption={false}
-              />
               <LocationSelector
                 clientId={selectedClientId}
                 selectedLocationId={selectedLocationId}

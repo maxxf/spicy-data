@@ -1,10 +1,10 @@
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { MetricCard } from "@/components/metric-card";
-import { ClientSelector } from "@/components/client-selector";
 import { LocationSelector } from "@/components/location-selector";
 import { PlatformSelector } from "@/components/platform-selector";
 import { WeekSelector } from "@/components/week-selector";
+import { useClientContext } from "@/contexts/client-context";
 import { DataTable } from "@/components/data-table";
 import { PlatformBadge } from "@/components/platform-badge";
 import {
@@ -39,7 +39,7 @@ interface ClientPerformance {
 }
 
 export default function Dashboard() {
-  const [selectedClientId, setSelectedClientId] = useState<string | null>("83506705-b408-4f0a-a9b0-e5b585db3b7d");
+  const { selectedClientId, setSelectedClientId } = useClientContext();
   const [selectedLocationId, setSelectedLocationId] = useState<string | null>(null);
   const [selectedPlatform, setSelectedPlatform] = useState<string | null>(null);
   const [selectedWeek, setSelectedWeek] = useState<{ weekStart: string; weekEnd: string } | null>(null);
@@ -56,6 +56,11 @@ export default function Dashboard() {
       setSelectedWeek(weeks[0]); // First week is most recent (sorted desc)
     }
   }, [weeks, selectedWeek]);
+
+  // Reset location when client changes
+  useEffect(() => {
+    setSelectedLocationId(null);
+  }, [selectedClientId]);
 
   // Build query params for filters
   const buildQueryParams = () => {
@@ -355,14 +360,6 @@ export default function Dashboard() {
             selectedWeek={selectedWeek}
             onWeekChange={setSelectedWeek}
             showAllOption={false}
-          />
-          <ClientSelector
-            selectedClientId={selectedClientId}
-            onClientChange={(clientId) => {
-              setSelectedClientId(clientId);
-              setSelectedLocationId(null); // Reset location when client changes
-            }}
-            showAllOption={true}
           />
           <LocationSelector
             clientId={selectedClientId}

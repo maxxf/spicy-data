@@ -1,8 +1,8 @@
 import { useState, useMemo, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { ClientSelector } from "@/components/client-selector";
 import { LocationSelector } from "@/components/location-selector";
 import { PlatformSelector } from "@/components/platform-selector";
+import { useClientContext } from "@/contexts/client-context";
 import { WeekSelector } from "@/components/week-selector";
 import { MetricCard } from "@/components/metric-card";
 import { Button } from "@/components/ui/button";
@@ -21,7 +21,7 @@ const statusColors = {
 };
 
 export default function PromosPage() {
-  const [selectedClientId, setSelectedClientId] = useState<string | null>("83506705-b408-4f0a-a9b0-e5b585db3b7d");
+  const { selectedClientId, setSelectedClientId } = useClientContext();
   const [selectedLocationId, setSelectedLocationId] = useState<string | null>(null);
   const [selectedPlatform, setSelectedPlatform] = useState<string | null>(null);
   const [selectedStatus, setSelectedStatus] = useState<string>("all");
@@ -38,6 +38,11 @@ export default function PromosPage() {
       setSelectedWeek(weeks[0]);
     }
   }, [weeks, selectedWeek]);
+
+  // Reset location when client changes
+  useEffect(() => {
+    setSelectedLocationId(null);
+  }, [selectedClientId]);
 
   const buildQueryParams = () => {
     const params = new URLSearchParams();
@@ -190,14 +195,6 @@ export default function PromosPage() {
             selectedWeek={selectedWeek}
             onWeekChange={setSelectedWeek}
             showAllOption={false}
-          />
-          <ClientSelector
-            selectedClientId={selectedClientId}
-            onClientChange={(clientId) => {
-              setSelectedClientId(clientId);
-              setSelectedLocationId(null); // Reset location when client changes
-            }}
-            showAllOption={true}
           />
           <LocationSelector
             clientId={selectedClientId}
