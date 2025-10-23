@@ -1835,6 +1835,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Temporary diagnostic endpoint to check master sheet
+  app.get("/api/diagnostic/master-locations", async (req, res) => {
+    try {
+      const { fetchMasterLocations } = await import('./google-sheets.js');
+      const masterLocations = await fetchMasterLocations();
+      
+      res.json({
+        totalMasterLocations: masterLocations.length,
+        sampleLocations: masterLocations.slice(0, 10).map(loc => ({
+          storeId: loc.storeId,
+          shopName: loc.shopName,
+          state: loc.state
+        }))
+      });
+    } catch (error: any) {
+      console.error("Master locations fetch error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   app.get("/api/analytics/data-quality", async (req, res) => {
     try {
       const { clientId } = req.query;
