@@ -965,6 +965,32 @@ export class DbStorage implements IStorage {
     };
   }
 
+  async getTransactionCounts(clientId: string): Promise<{ platform: string; count: number }[]> {
+    const [uberCount, doorCount, grubCount] = await Promise.all([
+      this.db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(uberEatsTransactions)
+        .where(eq(uberEatsTransactions.clientId, clientId))
+        .then(result => result[0]?.count || 0),
+      this.db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(doordashTransactions)
+        .where(eq(doordashTransactions.clientId, clientId))
+        .then(result => result[0]?.count || 0),
+      this.db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(grubhubTransactions)
+        .where(eq(grubhubTransactions.clientId, clientId))
+        .then(result => result[0]?.count || 0),
+    ]);
+
+    return [
+      { platform: "Uber Eats", count: uberCount },
+      { platform: "DoorDash", count: doorCount },
+      { platform: "Grubhub", count: grubCount },
+    ];
+  }
+
   async getLocationMetrics(filters?: AnalyticsFilters): Promise<LocationMetrics[]> {
     // Build base location query for getting location names
     const locationConditions = [];
@@ -1664,63 +1690,79 @@ export class DbStorage implements IStorage {
   }
 
   async getAvailableWeeks(): Promise<Array<{ weekStart: string; weekEnd: string }>> {
-    // Use SQL to get distinct dates efficiently without loading all transactions
-    const allDates: Date[] = [];
-
-    // Get distinct dates from Uber Eats using SQL
-    const uberDates = await this.db
-      .selectDistinct({ date: uberEatsTransactions.date })
-      .from(uberEatsTransactions)
-      .where(sql`${uberEatsTransactions.date} IS NOT NULL AND ${uberEatsTransactions.date} != 'N/A' AND ${uberEatsTransactions.date} != ''`);
+    // Use SQL to calculate weeks directly - MUCH more memory efficient!
+    // This calculates the Monday of each week in SQL rather than loading all dates into memory
     
-    uberDates.forEach(t => {
-      if (!t.date || t.date.trim() === '') return;
-      const [month, day, year] = t.date.split('/');
-      if (!month || !day || !year) return;
-      let fullYear = year;
-      if (year.length === 2) {
-        const yearNum = parseInt(year, 10);
-        fullYear = yearNum < 30 ? `20${year}` : `19${year}`;
-      }
-      const date = new Date(`${fullYear}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`);
-      if (!isNaN(date.getTime()) && date.getFullYear() >= 2020) {
-        allDates.push(date);
-      }
+    const weeks = new Set<string>();
+
+    // Get distinct weeks from Uber Eats (date format: M/D/YY)
+    const uberWeeks = await this.db.execute(sql`
+      SELECT DISTINCT 
+        DATE_TRUNC('week', 
+          TO_DATE(
+            CASE 
+              WHEN LENGTH(SPLIT_PART(${uberEatsTransactions.date}, '/', 3)) = 2 
+              THEN '20' || SPLIT_PART(${uberEatsTransactions.date}, '/', 3)
+              ELSE SPLIT_PART(${uberEatsTransactions.date}, '/', 3)
+            END || '-' || 
+            LPAD(SPLIT_PART(${uberEatsTransactions.date}, '/', 1), 2, '0') || '-' || 
+            LPAD(SPLIT_PART(${uberEatsTransactions.date}, '/', 2), 2, '0'),
+            'YYYY-MM-DD'
+          )
+        )::date AS week_start
+      FROM ${uberEatsTransactions}
+      WHERE ${uberEatsTransactions.date} IS NOT NULL 
+        AND ${uberEatsTransactions.date} != 'N/A' 
+        AND ${uberEatsTransactions.date} != ''
+      ORDER BY week_start
+    `);
+    
+    uberWeeks.rows.forEach((row: any) => {
+      if (row.week_start) weeks.add(row.week_start);
     });
 
-    // Get distinct dates from DoorDash using SQL
-    const doorDashDates = await this.db
-      .selectDistinct({ transactionDate: doordashTransactions.transactionDate })
-      .from(doordashTransactions)
-      .where(sql`${doordashTransactions.transactionDate} IS NOT NULL AND ${doordashTransactions.transactionDate} != ''`);
+    // Get distinct weeks from DoorDash (ISO format: YYYY-MM-DD)
+    const doorWeeks = await this.db.execute(sql`
+      SELECT DISTINCT DATE_TRUNC('week', CAST(${doordashTransactions.transactionDate} AS DATE))::date AS week_start
+      FROM ${doordashTransactions}
+      WHERE ${doordashTransactions.transactionDate} IS NOT NULL 
+        AND ${doordashTransactions.transactionDate} != ''
+      ORDER BY week_start
+    `);
     
-    doorDashDates.forEach(t => {
-      if (!t.transactionDate || t.transactionDate.trim() === '') return;
-      const date = new Date(t.transactionDate);
-      if (!isNaN(date.getTime()) && date.getFullYear() >= 2020) {
-        allDates.push(date);
-      }
+    doorWeeks.rows.forEach((row: any) => {
+      if (row.week_start) weeks.add(row.week_start);
     });
 
-    // Get distinct dates from Grubhub using SQL
-    const grubhubDates = await this.db
-      .selectDistinct({ orderDate: grubhubTransactions.orderDate })
-      .from(grubhubTransactions)
-      .where(sql`${grubhubTransactions.orderDate} IS NOT NULL AND ${grubhubTransactions.orderDate} != ''`);
+    // Get distinct weeks from Grubhub (ISO format: YYYY-MM-DD)
+    const grubWeeks = await this.db.execute(sql`
+      SELECT DISTINCT DATE_TRUNC('week', CAST(${grubhubTransactions.orderDate} AS DATE))::date AS week_start
+      FROM ${grubhubTransactions}
+      WHERE ${grubhubTransactions.orderDate} IS NOT NULL 
+        AND ${grubhubTransactions.orderDate} != ''
+      ORDER BY week_start
+    `);
     
-    grubhubDates.forEach(t => {
-      if (!t.orderDate || t.orderDate.trim() === '') return;
-      const date = new Date(t.orderDate);
-      if (!isNaN(date.getTime()) && date.getFullYear() >= 2020) {
-        allDates.push(date);
-      }
+    grubWeeks.rows.forEach((row: any) => {
+      if (row.week_start) weeks.add(row.week_start);
     });
 
-    if (allDates.length === 0) {
+    if (weeks.size === 0) {
       return [];
     }
 
-    // Use shared utility to get unique weeks (Monday to Sunday, UTC-safe)
-    return getUniqueWeeks(allDates);
+    // Convert SQL week starts (Mondays) to our week format
+    return Array.from(weeks)
+      .sort()
+      .map(weekStart => {
+        const start = new Date(weekStart);
+        const end = new Date(start);
+        end.setDate(end.getDate() + 6); // Sunday
+        
+        return {
+          weekStart: start.toISOString().split('T')[0],
+          weekEnd: end.toISOString().split('T')[0],
+        };
+      });
   }
 }

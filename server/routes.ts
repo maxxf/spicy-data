@@ -1606,28 +1606,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const promotions = await storage.getPromotionMetrics(filters);
       const paidAds = await storage.getPaidAdCampaignMetrics(filters);
       
-      // Calculate transaction counts (only if clientId provided, otherwise skip platform breakdown)
+      // Calculate transaction counts using SQL (efficient, no memory loading)
       let platformBreakdown: Array<{ platform: string; transactionCount: number }> = [];
       
       if (clientId) {
-        const allUberTransactions = await storage.getUberEatsTransactionsByClient(clientId as string);
-        const allDoorTransactions = await storage.getDoordashTransactionsByClient(clientId as string);
-        const allGrubTransactions = await storage.getGrubhubTransactionsByClient(clientId as string);
-        
-        platformBreakdown = [
-          {
-            platform: "Uber Eats",
-            transactionCount: allUberTransactions.length,
-          },
-          {
-            platform: "DoorDash",
-            transactionCount: allDoorTransactions.length,
-          },
-          {
-            platform: "Grubhub",
-            transactionCount: allGrubTransactions.length,
-          },
-        ];
+        const counts = await storage.getTransactionCounts(clientId as string);
+        platformBreakdown = counts.map(c => ({
+          platform: c.platform,
+          transactionCount: c.count,
+        }));
       }
       const duplicateLocations = await storage.getDuplicateLocations(clientId as string | undefined);
       
