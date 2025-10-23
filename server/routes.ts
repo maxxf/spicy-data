@@ -2904,6 +2904,60 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Diagnostic endpoint to match DoorDash legacy locations to verified master locations
+  app.get("/api/diagnostic/match-legacy-locations", async (req, res) => {
+    try {
+      const allLocations = await storage.getAllLocations();
+      
+      // Get unverified master locations (legacy DoorDash + orphans)
+      const legacyLocations = allLocations.filter(l => 
+        l.locationTag === 'master' && 
+        l.isVerified === false &&
+        l.canonicalName !== 'Unmapped Locations'
+      );
+      
+      // Get verified master locations
+      const verifiedMasters = allLocations.filter(l => 
+        l.locationTag === 'master' && 
+        l.isVerified === true
+      );
+      
+      // For each legacy location, find best match
+      const matches = [];
+      for (const legacy of legacyLocations) {
+        let bestMatch: { location: any; confidence: number } | null = null;
+        
+        for (const master of verifiedMasters) {
+          // Calculate similarity between names
+          const confidence = calculateStringSimilarity(
+            legacy.canonicalName.replace('Caps - ', ''),
+            master.canonicalName.replace('Caps - ', '')
+          );
+          
+          if (confidence >= 0.4 && (!bestMatch || confidence > bestMatch.confidence)) {
+            bestMatch = { location: master, confidence };
+          }
+        }
+        
+        matches.push({
+          legacyId: legacy.id,
+          legacyName: legacy.canonicalName,
+          matchedId: bestMatch?.location.id || null,
+          matchedName: bestMatch?.location.canonicalName || null,
+          matchedStoreId: bestMatch?.location.storeId || null,
+          confidence: bestMatch?.confidence || 0
+        });
+      }
+      
+      // Sort by confidence descending
+      matches.sort((a, b) => b.confidence - a.confidence);
+      
+      res.json(matches);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   const httpServer = createServer(app);
 
   return httpServer;
