@@ -1855,6 +1855,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Update location names from master sheet
+  app.post("/api/diagnostic/update-location-names", async (req, res) => {
+    try {
+      const { fetchMasterLocations } = await import('./google-sheets.js');
+      const masterLocations = await fetchMasterLocations();
+      
+      let updatedCount = 0;
+      
+      // Update each location that needs a proper name
+      for (const masterLoc of masterLocations) {
+        if (!masterLoc.storeId || !masterLoc.shopName) continue;
+        
+        // Find location in database by store_id
+        const dbLocations = await storage.getLocationsByClient('83506705-b408-4f0a-a9b0-e5b585db3b7d');
+        const dbLoc = dbLocations.find(l => l.storeId === masterLoc.storeId);
+        
+        if (dbLoc && dbLoc.canonicalName === `Caps - ${masterLoc.storeId}`) {
+          // Location needs updating - it's just "Caps - STORECODE"
+          await storage.updateLocation(dbLoc.id, {
+            canonicalName: `Caps - ${masterLoc.shopName}`
+          });
+          updatedCount++;
+        }
+      }
+      
+      res.json({
+        success: true,
+        updatedCount,
+        totalMasterLocations: masterLocations.length
+      });
+    } catch (error: any) {
+      console.error("Update location names error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   app.get("/api/analytics/data-quality", async (req, res) => {
     try {
       const { clientId } = req.query;
