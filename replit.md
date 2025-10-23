@@ -54,19 +54,25 @@ Preferred communication style: Simple, everyday language.
 - **Tables**: users, sessions, clients, locations, transactions (Uber Eats, DoorDash, Grubhub), promotions, paid ad campaigns, campaign location metrics, location weekly financials.
 - **Location Name Standardization & Master Location System (October 23, 2025)**: 
   - Standardized all 444 locations to use "Caps - " prefix for client branding
-  - Implemented master location system: **279 master locations** (tagged with `location_tag='master'`) appear in dropdowns
+  - Implemented master location system: **194 master locations** (tagged with `location_tag='master'`) appear in dropdowns
     - **160 verified master locations**: Full format "Caps - STORECODE LocationName" (e.g., "Caps - NV008 Las Vegas Sahara") with `is_verified=true`
-    - **119 unverified master locations**: Legacy DoorDash names (e.g., "Caps - North Union St") still containing 70,369 DoorDash transactions with `is_verified=false`
+    - **34 unverified master locations**: Legacy DoorDash names (e.g., "Caps - North Union St") containing 18,691 DoorDash transactions with `is_verified=false`
   - **Transaction Consolidation History**:
     - **Phase 1**: Migrated 22,877 transactions (21,696 Uber Eats + 1,181 Grubhub) from 119 duplicate code-only locations to their matching master locations
-    - **Phase 2**: Pattern-matched 46 legacy DoorDash locations to verified masters, migrating 23,142 DoorDash transactions and removing master tag from 44 empty legacy locations
-  - **DoorDash Coverage**: 45,706 transactions on verified masters + 70,369 on unverified masters + 169 in unmapped bucket = 116,244/116,245 total (99.9%)
-  - **CRITICAL DATA QUALITY ISSUE**: 
-    - **142,213 Uber Eats transactions (79.6%)** have NULL location_id - invisible in analytics
-    - **258 Grubhub transactions (2.1%)** have NULL location_id - invisible in analytics
-    - These unmapped transactions represent significant missing revenue data requiring location mapping fixes
-  - Dropdown filtering: `LocationSelector` shows only locations where `locationTag === "master"` (279 total: 160 verified + 119 unverified)
-  - 165 non-master locations hidden from dropdowns (migrated/empty locations) but retained for data integrity
+    - **Phase 2**: Migrated 23,142 DoorDash transactions from 46 legacy locations to verified masters using substring matching
+    - **Phase 3**: Migrated 18,657 DoorDash transactions from 26 legacy locations using word-level and single-word unique matching
+    - **Phase 4**: Migrated 33,021 DoorDash transactions from 7 legacy locations using fuzzy string similarity (≥0.90 threshold)
+    - **Total**: Migrated 74,820 DoorDash transactions across 85 locations using 4 pattern-matching strategies
+  - **DoorDash Coverage**: 97,384 transactions (83.8%) on verified masters + 18,691 (16.1%) on unverified masters + 170 (0.1%) in unmapped bucket = 116,245 total (100%)
+  - **Unmapped Transactions (Fixed October 23, 2025)**: 
+    - **CSV Upload Bug**: Fixed `findOrCreateLocation` function returning empty string instead of unmapped bucket ID (`f534a2cf-12f6-4052-9d3e-d885211183ee`), which caused NULL location_ids
+    - **Retroactive Fix**: Updated 142,472 NULL location_id transactions to unmapped bucket:
+      - Uber Eats: 142,213 transactions → 142,368 total in unmapped (79.7% of 178,597 total)
+      - Grubhub: 258 transactions → 1,027 total in unmapped (8.2% of 12,469 total)
+      - DoorDash: 1 transaction → 170 total in unmapped (0.1% of 116,245 total)
+    - **All platforms now have 0 NULL location_ids** - transactions properly assigned to master locations or unmapped bucket
+  - Dropdown filtering: `LocationSelector` shows only locations where `locationTag === "master"` (194 total: 160 verified + 34 unverified)
+  - 250 non-master locations hidden from dropdowns (migrated/empty locations) but retained for data integrity
 
 ### File Upload Processing
 - **Transaction Data Upload**: Supports CSV upload by platform and client. Server-side parsing, validation, and transaction creation. Location matching uses a master sheet; unmapped transactions are assigned to an "Unmapped Locations" bucket. Duplicate prevention uses upsert logic with platform-specific unique constraints.
