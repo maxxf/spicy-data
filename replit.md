@@ -56,22 +56,25 @@ Preferred communication style: Simple, everyday language.
   - Standardized all 444 locations to use "Caps - " prefix for client branding
   - Implemented master location system: **194 master locations** (tagged with `location_tag='master'`) appear in dropdowns
     - **160 verified master locations**: Full format "Caps - STORECODE LocationName" (e.g., "Caps - NV008 Las Vegas Sahara") with `is_verified=true`
-    - **34 unverified master locations**: Legacy DoorDash names (e.g., "Caps - North Union St") containing 18,691 DoorDash transactions with `is_verified=false`
+    - **10 unverified master locations**: Legacy DoorDash names (e.g., "University Ave") containing 4,168 DoorDash transactions with `is_verified=false`
   - **Transaction Consolidation History**:
     - **Phase 1**: Migrated 22,877 transactions (21,696 Uber Eats + 1,181 Grubhub) from 119 duplicate code-only locations to their matching master locations
     - **Phase 2**: Migrated 23,142 DoorDash transactions from 46 legacy locations to verified masters using substring matching
     - **Phase 3**: Migrated 18,657 DoorDash transactions from 26 legacy locations using word-level and single-word unique matching
     - **Phase 4**: Migrated 33,021 DoorDash transactions from 7 legacy locations using fuzzy string similarity (≥0.90 threshold)
-    - **Total**: Migrated 74,820 DoorDash transactions across 85 locations using 4 pattern-matching strategies
-  - **DoorDash Coverage**: 97,384 transactions (83.8%) on verified masters + 18,691 (16.1%) on unverified masters + 170 (0.1%) in unmapped bucket = 116,245 total (100%)
+    - **Phase 5 (October 23, 2025)**: Created 6 new verified master locations for Uber Eats using web search (FL100238 Land O'Lakes, CA100455 Murrieta, NJ100518 Princeton, CA100467 Rancho Mirage, TX100529 Abilene, NV100530 Las Vegas Southern Highlands), migrated 1,001 unmapped transactions → **Uber Eats 100% mapped (0 unmapped)**
+    - **Phase 6 (October 23, 2025)**: Used web search to find addresses for 24 DoorDash unverified masters, migrated 14,615 transactions to verified masters → **DoorDash 96.27% verified (111,907/116,245), reduced unverified from 34 to 10 locations**
+    - **Total**: Migrated 112,313 transactions across all platforms using 6 pattern-matching strategies
+  - **Current Platform Coverage**:
+    - **Uber Eats**: 36,484 verified (98.00%) + 746 unverified (2.00%) + 0 unmapped = 37,230 total (100% mapped)
+    - **DoorDash**: 111,907 verified (96.27%) + 4,168 unverified (3.59%) + 170 unmapped (0.15%) = 116,245 total
+    - **Grubhub**: 11,437 verified (91.72%) + 0 unverified + 1,027 unmapped (8.24%) = 12,469 total
+  - **Remaining DoorDash Unverified Masters (10 locations, 4,168 txns)**: University Ave (716), Collier Pkwy-Lutz (671), San Luis Obispo (530), Frisco (489), West Avera Dr (471), West Flamingo Road (436), E Robindale Road (376), South Eastern Ave (226), Plantation (178), Regional Justice Ctr (75)
   - **Unmapped Transactions (Fixed October 23, 2025)**: 
     - **CSV Upload Bug**: Fixed `findOrCreateLocation` function returning empty string instead of unmapped bucket ID (`f534a2cf-12f6-4052-9d3e-d885211183ee`), which caused NULL location_ids
-    - **Retroactive Fix**: Updated 142,472 NULL location_id transactions to unmapped bucket:
-      - Uber Eats: 142,213 transactions → 142,368 total in unmapped (79.7% of 178,597 total)
-      - Grubhub: 258 transactions → 1,027 total in unmapped (8.2% of 12,469 total)
-      - DoorDash: 1 transaction → 170 total in unmapped (0.1% of 116,245 total)
-    - **All platforms now have 0 NULL location_ids** - transactions properly assigned to master locations or unmapped bucket
-  - Dropdown filtering: `LocationSelector` shows only locations where `locationTag === "master"` (194 total: 160 verified + 34 unverified)
+    - **Retroactive Fix**: Updated 142,472 NULL location_id transactions to unmapped bucket
+    - **All platforms now have 0 NULL location_ids, 0 duplicates, 0 orphaned transactions** - referential integrity validated
+  - Dropdown filtering: `LocationSelector` shows only locations where `locationTag === "master"` (170 total: 160 verified + 10 unverified)
   - 250 non-master locations hidden from dropdowns (migrated/empty locations) but retained for data integrity
 
 ### File Upload Processing
