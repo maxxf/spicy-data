@@ -6,7 +6,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Label } from "@/components/ui/label";
 import type { Client } from "@shared/schema";
 
 interface ClientSelectorProps {
@@ -22,35 +21,28 @@ export function ClientSelector({ selectedClientId, onClientChange, showAllOption
 
   if (isLoading) {
     return (
-      <div className="flex items-center gap-2">
-        <Label className="text-sm text-muted-foreground">Loading clients...</Label>
-      </div>
+      <div className="text-sm text-muted-foreground">Loading clients...</div>
     );
   }
 
   return (
-    <div className="flex items-center gap-2">
-      <Label htmlFor="client-select" className="text-sm font-medium whitespace-nowrap">
-        Client:
-      </Label>
-      <Select
-        value={selectedClientId || "all"}
-        onValueChange={(value) => onClientChange(value === "all" ? null : value)}
-      >
-        <SelectTrigger id="client-select" className="w-[200px]" data-testid="select-client-filter">
-          <SelectValue placeholder="Select client" />
-        </SelectTrigger>
-        <SelectContent>
-          {showAllOption && (
-            <SelectItem value="all">All Clients (Portfolio)</SelectItem>
-          )}
-          {clients?.map((client) => (
-            <SelectItem key={client.id} value={client.id}>
-              {client.name}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-    </div>
+    <Select
+      value={selectedClientId || "all"}
+      onValueChange={(value) => onClientChange(value === "all" ? null : value)}
+    >
+      <SelectTrigger id="client-select" className="w-full" data-testid="select-client-filter">
+        <SelectValue placeholder="Select client" />
+      </SelectTrigger>
+      <SelectContent>
+        {showAllOption && (
+          <SelectItem value="all">All Clients (Portfolio)</SelectItem>
+        )}
+        {clients?.map((client) => (
+          <SelectItem key={client.id} value={client.id}>
+            {client.name}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   );
 }
