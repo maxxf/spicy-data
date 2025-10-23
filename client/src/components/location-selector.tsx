@@ -70,11 +70,30 @@ export function LocationSelector({
           )}
           {locations
             ?.filter((location) => location.canonicalName !== "Unmapped Locations")
-            .map((location) => (
-              <SelectItem key={location.id} value={location.id}>
-                {location.canonicalName}
-              </SelectItem>
-            ))}
+            .map((location) => {
+              // Format display: If location has a store code and canonical name doesn't start with it,
+              // prepend it. Otherwise use canonical name as-is.
+              let displayName = location.canonicalName;
+              
+              if (location.storeId && !location.canonicalName.startsWith(location.storeId)) {
+                // Extract location name from formats like "Capriotti's Sandwich Shop (CODE)" or just use canonical
+                const match = location.canonicalName.match(/Capriotti's Sandwich Shop \(([^)]+)\)/);
+                if (match) {
+                  // For Uber Eats format, we need a better location name
+                  // Use the storeId only since we don't have a clean name
+                  displayName = location.storeId;
+                } else {
+                  // Prepend store code to canonical name
+                  displayName = `${location.storeId} ${location.canonicalName}`;
+                }
+              }
+              
+              return (
+                <SelectItem key={location.id} value={location.id}>
+                  {displayName}
+                </SelectItem>
+              );
+            })}
         </SelectContent>
       </Select>
     </div>
