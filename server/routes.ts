@@ -1889,11 +1889,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get transaction counts for unmapped bucket
       const unmappedCounts = await storage.getTransactionCounts(clientId as string, unmappedBucket.id);
       
+      // Find counts for each platform
+      const ubereatsCount = unmappedCounts.find(c => c.platform === 'ubereats')?.count || 0;
+      const doordashCount = unmappedCounts.find(c => c.platform === 'doordash')?.count || 0;
+      const grubhubCount = unmappedCounts.find(c => c.platform === 'grubhub')?.count || 0;
+      
       res.json({
         unmappedTransactions: {
-          ubereats: unmappedCounts.uberEatsCount || 0,
-          doordash: unmappedCounts.doordashCount || 0,
-          grubhub: unmappedCounts.grubhubCount || 0,
+          ubereats: ubereatsCount,
+          doordash: doordashCount,
+          grubhub: grubhubCount,
         }
       });
     } catch (error: any) {
