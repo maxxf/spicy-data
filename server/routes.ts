@@ -182,14 +182,12 @@ async function findOrCreateLocationByAddress(
           grubhubName: locationName
         });
       }
-      console.log(`[grubhub] Matched by store_number fallback: "${cleanStoreNumber}" → "${locationByStoreNumber.canonicalName}"`);
       return locationByStoreNumber.id;
     }
   }
 
   // NO FUZZY MATCHING - NO AUTO-CREATION
   // If we didn't find a match, return the unmapped bucket
-  console.warn(`[grubhub] No master location match for: "${locationName}" (address: ${address || 'none'}, store_number: ${storeNumber || 'none'})`);
   return getUnmappedLocationBucket(clientId);
 }
 
@@ -293,7 +291,6 @@ async function findOrCreateLocation(
       );
       
       if (locationByEdgeCase) {
-        console.log(`[doordash] Matched by edge case mapping: "${locationName}" → "${locationByEdgeCase.canonicalName}"`);
         // Update DoorDash display name if not set
         if (!locationByEdgeCase.doordashName) {
           await storage.updateLocation(locationByEdgeCase.id, {
@@ -340,9 +337,6 @@ async function findOrCreateLocation(
                  normalizedLocationName.includes(descriptivePart);
         });
         
-        if (locationByKey) {
-          console.log(`[doordash] Matched by store_name fallback (numeric ID ${platformKey}): "${locationName}" → "${locationByKey.canonicalName}"`);
-        }
       }
       
       // Strategy 3: If still no match, try exact match against doordashName
@@ -352,10 +346,6 @@ async function findOrCreateLocation(
         locationByKey = allLocations.find(l => 
           l.doordashName && l.doordashName.toLowerCase().trim() === normalizedLocationName
         );
-        
-        if (locationByKey) {
-          console.log(`[doordash] Matched by doordashName exact match (numeric ID ${platformKey}): "${locationName}" → "${locationByKey.canonicalName}"`);
-        }
       }
     }
     
@@ -379,7 +369,6 @@ async function findOrCreateLocation(
     );
     
     if (locationByName) {
-      console.log(`[doordash] Matched by doordashName (no platformKey): "${locationName}" → "${locationByName.canonicalName}"`);
       return locationByName.id;
     }
   }
@@ -419,7 +408,6 @@ async function findOrCreateLocation(
 
   // NO FUZZY MATCHING - NO AUTO-CREATION
   // If we didn't find a match, return the unmapped bucket
-  console.warn(`[${platform}] No master location match for: "${locationName}" (key: ${platformKey || 'none'})`);
   return getUnmappedLocationBucket(clientId);
 }
 
@@ -574,7 +562,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
         
         const deduplicatedTransactions = Array.from(uniqueTransactions.values());
-        console.log(`Uber Eats: Reduced ${transactions.length} rows to ${deduplicatedTransactions.length} unique transactions`);
         
         // Step 4: Insert deduplicated transactions in batch
         await storage.createUberEatsTransactionsBatch(deduplicatedTransactions);
@@ -743,7 +730,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
         
         const deduplicatedTransactions = Array.from(uniqueTransactions.values());
-        console.log(`DoorDash: Reduced ${transactions.length} rows to ${deduplicatedTransactions.length} unique transactions`);
         
         // Step 4: Insert deduplicated transactions in batch
         await storage.createDoordashTransactionsBatch(deduplicatedTransactions);
@@ -1055,7 +1041,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Use Campaign UUID as the primary identifier (not Location UUID)
           const campaignId = row["Campaign UUID"];
           if (!campaignId) {
-            console.warn("Skipping row without Campaign UUID");
             continue;
           }
           
@@ -2194,11 +2179,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         return false;
       });
-      
-      console.log(`[Corp Locations Report] Found ${corpLocations.length} corp locations out of ${allDbLocations.length} total (expected 16)`);
 
       if (corpLocations.length === 0) {
-        console.log('[Corp Locations Report] No corp locations found in database');
         return res.json({ weeks: [], locations: [] });
       }
 
@@ -2235,8 +2217,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         dbLocationIdToShopName.set(loc.id, shopName);
       });
       
-      console.log(`[Corp Locations Report] Tracking ${corpLocationDbIds.size} corp location IDs`);
-      
       // Fetch ONLY corp location transactions (optimized to avoid memory issues)
       const locationIdsArray = Array.from(corpLocationDbIds);
       const [corpUberTxns, corpDoorTxns, corpGrubTxns] = await Promise.all([
@@ -2244,12 +2224,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         storage.getDoordashTransactionsByLocations(locationIdsArray),
         storage.getGrubhubTransactionsByLocations(locationIdsArray),
       ]);
-
-      console.log(`[Corp Locations Report] Transaction counts:`,{
-        corpUber: corpUberTxns.length,
-        corpDoor: corpDoorTxns.length,
-        corpGrub: corpGrubTxns.length,
-      });
 
       // Helper to get Monday of week for a date string
       const getMondayOfWeek = (dateStr: string): string => {
@@ -2404,17 +2378,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           metrics.marketingSales += sales;
           metrics.marketingOrders += 1;
         }
-      });
-      
-      // Sample some Uber dates and their parsed values for debugging
-      const sampleUberDates = corpUberTxns.filter(t => t.date && t.date !== 'N/A').slice(0, 10)
-        .map(t => ({ original: t.date, parsed: parseUberDate(t.date), weekStart: getMondayOfWeek(parseUberDate(t.date)) }));
-      
-      console.log(`[Corp Locations Report] Uber Eats processing:`, {
-        total: corpUberTxns.length,
-        processed: uberProcessed,
-        skipped: uberSkipped,
-        sampleDates: sampleUberDates
       });
 
       // Process Grubhub transactions

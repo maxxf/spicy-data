@@ -7,6 +7,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
+import { AlertCircle } from "lucide-react";
 import type { Location } from "@shared/schema";
 
 interface LocationSelectorProps {
@@ -23,7 +24,7 @@ export function LocationSelector({
   showAllOption = true 
 }: LocationSelectorProps) {
   // Only fetch locations when a specific client is selected
-  const { data: locations, isLoading } = useQuery<Location[]>({
+  const { data: locations, isLoading, isError } = useQuery<Location[]>({
     queryKey: ["/api/locations", clientId],
     queryFn: async () => {
       if (!clientId) return [];
@@ -47,9 +48,19 @@ export function LocationSelector({
     );
   }
 
-  // Don't render if there are no locations
+  // Don't render if there are no locations (successful query with zero results)
   if (!locations || locations.length === 0) {
     return null;
+  }
+
+  // Show error only if query actually failed (not just empty results)
+  if (isError) {
+    return (
+      <div className="flex items-center gap-2 text-sm text-destructive" data-testid="error-location-selector">
+        <AlertCircle className="w-4 h-4" />
+        <span>Failed to load locations. Please try again.</span>
+      </div>
+    );
   }
 
   return (
