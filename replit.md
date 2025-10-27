@@ -52,31 +52,31 @@ Preferred communication style: Simple, everyday language.
 - **Design**: Drizzle ORM with PostgreSQL dialect, Zod schemas for validation.
 - **Current State**: Using DbStorage (Neon PostgreSQL) with sessions table for authentication.
 - **Tables**: users, sessions, clients, locations, transactions (Uber Eats, DoorDash, Grubhub), promotions, paid ad campaigns, campaign location metrics, location weekly financials.
-- **Location Name Standardization & Master Location System (October 23, 2025)**: 
+- **Location Name Standardization & Master Location System (October 27, 2025)**: 
   - Standardized all 444 locations to use "Caps - " prefix for client branding
-  - Implemented master location system: **194 master locations** (tagged with `location_tag='master'`) appear in dropdowns
-    - **160 verified master locations**: Full format "Caps - STORECODE LocationName" (e.g., "Caps - NV008 Las Vegas Sahara") with `is_verified=true`
-    - **7 unverified master locations**: Legacy DoorDash names (e.g., "Frisco", "Plantation") containing 2,486 DoorDash transactions with `is_verified=false`
+  - Implemented master location system: **191 master locations** (tagged with `location_tag='master'`) appear in dropdowns
+    - **164 verified master locations**: Full format "Caps - STORECODE LocationName" (e.g., "Caps - NV008 Las Vegas Sahara") with `is_verified=true`
+    - **27 unverified master locations**: Primarily Grubhub locations with partial data
   - **Transaction Consolidation History**:
     - **Phase 1**: Migrated 22,877 transactions (21,696 Uber Eats + 1,181 Grubhub) from 119 duplicate code-only locations to their matching master locations
     - **Phase 2**: Migrated 23,142 DoorDash transactions from 46 legacy locations to verified masters using substring matching
     - **Phase 3**: Migrated 18,657 DoorDash transactions from 26 legacy locations using word-level and single-word unique matching
     - **Phase 4**: Migrated 33,021 DoorDash transactions from 7 legacy locations using fuzzy string similarity (≥0.90 threshold)
     - **Phase 5 (October 23, 2025)**: Created 6 new verified master locations for Uber Eats using web search (FL100238 Land O'Lakes, CA100455 Murrieta, NJ100518 Princeton, CA100467 Rancho Mirage, TX100529 Abilene, NV100530 Las Vegas Southern Highlands), migrated 1,001 unmapped transactions → **Uber Eats 100% mapped (0 unmapped)**
-    - **Phase 6 (October 23, 2025)**: Used web search to find addresses for 24 DoorDash unverified masters, migrated 14,615 transactions to verified masters → **DoorDash 96.27% verified (111,907/116,245), reduced unverified from 34 to 10 locations**
-    - **Phase 7 (October 23, 2025)**: Used web search to find addresses for 10 remaining unverified masters, matched 3 to existing verified masters (San Luis Obispo→CA200 SLO Foothill, West Flamingo Road→NV023 Las Vegas Decatur, University Ave→IA190 Clive University), migrated 1,682 transactions → **DoorDash 97.72% verified (113,589/116,245), reduced unverified from 10 to 7 locations**
-    - **Total**: Migrated 113,995 transactions across all platforms using 6 pattern-matching strategies
-  - **Current Platform Coverage**:
-    - **Uber Eats**: 36,484 verified (98.00%) + 746 unverified (2.00%) + 0 unmapped = 37,230 total (100% mapped)
-    - **DoorDash**: 113,589 verified (97.72%) + 2,486 unverified (2.14%) + 170 unmapped (0.15%) = 116,245 total
-    - **Grubhub**: 11,437 verified (91.72%) + 0 unverified + 1,027 unmapped (8.24%) = 12,469 total
-  - **Remaining DoorDash Unverified Masters (7 locations, 2,486 txns)**: Collier Pkwy-Lutz (671), Frisco (489), West Avera Dr (471), E Robindale Road (376), South Eastern Ave (226), Plantation (178), Regional Justice Ctr (75)
+    - **Phase 6 (October 23, 2025)**: Used web search to find addresses for 24 DoorDash unverified masters, migrated 14,615 transactions to verified masters → **DoorDash 96.27% verified (111,907/116,245)**
+    - **Phase 7 (October 23, 2025)**: Used web search to find addresses for 10 remaining unverified masters, matched 3 to existing verified masters (San Luis Obispo→CA200 SLO Foothill, West Flamingo Road→NV023 Las Vegas Decatur, University Ave→IA190 Clive University), migrated 1,682 transactions → **DoorDash 97.72% verified (113,589/116,245)**
+    - **Phase 8 (October 27, 2025)**: User-provided mappings for final 7 DoorDash unverified masters. Created 3 new verified locations via web search (FL238 Lutz Collier Pkwy, TX379 Frisco FM 423, NV478 Las Vegas Robindale). Migrated 2,308 transactions from 6 unverified masters to verified locations. Moved 178 transactions from closed Plantation location to unmapped bucket → **DoorDash 100% verified (115,897 at real locations + 348 unmapped = 116,245 total)**
+    - **Total**: Migrated 116,303 transactions across all platforms using 6 pattern-matching strategies + user-provided mappings
+  - **Current Platform Coverage (October 27, 2025)**:
+    - **Uber Eats**: 36,484 verified (98.00%) + 746 unverified (2.00%) + 0 unmapped = 37,230 total → **100% mapped**
+    - **DoorDash**: 115,897 verified (99.70%) + 0 unverified + 348 unmapped (0.30%) = 116,245 total → **100% at verified locations, 99.70% mapped**
+    - **Grubhub**: 11,437 verified (91.72%) + 5 unverified (0.04%) + 1,027 unmapped (8.24%) = 12,469 total → **99.96% at verified locations, 91.76% mapped**
   - **Unmapped Transactions (Fixed October 23, 2025)**: 
     - **CSV Upload Bug**: Fixed `findOrCreateLocation` function returning empty string instead of unmapped bucket ID (`f534a2cf-12f6-4052-9d3e-d885211183ee`), which caused NULL location_ids
     - **Retroactive Fix**: Updated 142,472 NULL location_id transactions to unmapped bucket
     - **All platforms now have 0 NULL location_ids, 0 duplicates, 0 orphaned transactions** - referential integrity validated
-  - Dropdown filtering: `LocationSelector` shows only locations where `locationTag === "master"` (167 total: 160 verified + 7 unverified)
-  - 250 non-master locations hidden from dropdowns (migrated/empty locations) but retained for data integrity
+  - Dropdown filtering: `LocationSelector` shows only locations where `locationTag === "master"` (191 total: 164 verified + 27 unverified)
+  - 250+ non-master locations hidden from dropdowns (migrated/empty locations) but retained for data integrity
 
 ### File Upload Processing
 - **Transaction Data Upload**: Supports CSV upload by platform and client. Server-side parsing, validation, and transaction creation. Location matching uses a master sheet; unmapped transactions are assigned to an "Unmapped Locations" bucket. Duplicate prevention uses upsert logic with platform-specific unique constraints.
