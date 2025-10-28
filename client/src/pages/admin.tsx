@@ -39,12 +39,21 @@ export default function AdminPage() {
 
   const uploadMutation = useMutation({
     mutationFn: async ({ file, platform, clientId }: { file: File; platform: Platform; clientId: string }) => {
+      console.log(`Starting upload for ${platform}:`, file.name, file.size);
       const formData = new FormData();
       formData.append("file", file);
       formData.append("platform", platform);
       formData.append("clientId", clientId);
 
-      return apiRequest("POST", "/api/upload", formData);
+      try {
+        const response = await apiRequest("POST", "/api/upload", formData);
+        const data = await response.json();
+        console.log(`Upload response for ${platform}:`, data);
+        return data;
+      } catch (error) {
+        console.error(`Upload error for ${platform}:`, error);
+        throw error;
+      }
     },
     onSuccess: () => {
       toast({
@@ -57,6 +66,7 @@ export default function AdminPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/locations/suggestions"] });
     },
     onError: (error: any) => {
+      console.error("Upload mutation error:", error);
       toast({
         title: "Upload failed",
         description: error.message || "Failed to process file",
