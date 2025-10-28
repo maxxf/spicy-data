@@ -24,6 +24,11 @@ Preferred communication style: Simple, everyday language.
   - **Week Calculation**: Rewrote `getAvailableWeeks()` to use SQL `DATE_TRUNC` with database-level aggregation instead of loading all transactions. Reduced execution time from 66.5s (crash) to 2.6s (25x faster).
   - **Date Validation**: Added multi-layer validation for Uber Eats M/D/YY format with regex patterns, two-digit year normalization (25→2025), SQL year ≥ 2020 filtering, and JavaScript safety filter (2020-2030) to eliminate phantom dates (e.g., 2000-12-25).
   - **CSV Export**: Fixed RFC 4180 compliance by properly escaping comma-containing values with double quotes.
+- **Dashboard Debugging & Security (October 28, 2025)**:
+  - **Percentage Calculation Verification**: Investigated reported +1,545,968.8% bug. Local development shows correct +4.04% change (Oct 20-26: $542,361 vs Oct 13-19: $521,315). Production deployment may have cached data or older code.
+  - **Date Filtering Validation**: Verified `isUberEatsDateInRange` function correctly filters M/D/YY format dates. Previous week returns accurate $521,315 in sales.
+  - **Security Enhancement**: Added `NODE_ENV` guards to debug logging to prevent sensitive financial data exposure in production logs. Removed verbose logging from storage layer.
+  - **Uber Eats Sales Discrepancy**: Investigated $2,150 difference between expected $117,075 and actual $114,925 (Completed orders, salesExclTax). No database field combination matches expected value; discrepancy likely due to different source data or calculation method.
 
 ### Data Model
 - **Core Entities**: Clients, Locations, Transactions, Promotions, Paid Ad Campaigns, Campaign Location Metrics.
