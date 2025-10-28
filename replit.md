@@ -10,6 +10,13 @@ Preferred communication style: Simple, everyday language.
 
 ### UI/UX Decisions
 The frontend is built with React 18+, TypeScript, and Vite, utilizing `shadcn/ui` (Radix UI) with Tailwind CSS for a custom "New York" design system. It features a data-dense layout, a custom color palette (teal brand, light/dark modes), and is responsive for data visualization. Navigation is handled by a sidebar, leading to key pages like Dashboard, Campaigns, Upload, Locations, Admin, and Income Statement, all supporting comprehensive filtering by week, client, location, platform, and location tags.
+- **Weekly Performance Trends Chart (October 28, 2025)**: Enhanced the Weekly Sales Trend chart to display three key metrics simultaneously:
+  - **Sales** (left Y-axis): Total weekly sales in dollars
+  - **ROAS** (right Y-axis): Return on Ad Spend multiplier
+  - **Payout %** (right Y-axis): Net payout percentage
+  - Dual-axis configuration with custom formatters for each metric (currency, multiplier, percentage)
+  - Color-coded lines with legend for easy differentiation
+  - Interactive tooltips showing all three metrics for each week
 
 ### Technical Implementations
 The backend uses Express.js with TypeScript, providing a RESTful API. It handles robust CSV parsing with platform-specific logic for Uber Eats, DoorDash, and Grubhub, including transaction validation, data normalization, and string similarity for location reconciliation. Data processing is optimized for memory usage and speed using SQL aggregations. Marketing-driven sales attribution logic is consistently applied across platforms. Authentication and authorization are managed via Replit Auth (OIDC) with `express-session`, implementing a three-tier role system and secure session management. A robust data migration system for production deployments ensures data integrity with Zod schema validation, checksum verification, and database transactions.
