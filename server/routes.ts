@@ -1706,6 +1706,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         const previousOverview = await storage.getDashboardOverview(previousFilters);
         
+        // Debug logging to trace percentage calculation bug
+        console.log('[DEBUG - Overview Comparison]', {
+          current: {
+            week: `${weekStart} to ${weekEnd}`,
+            totalSales: overview.totalSales,
+            totalOrders: overview.totalOrders,
+            platforms: overview.platformBreakdown?.map(p => ({ platform: p.platform, sales: p.totalSales, orders: p.totalOrders })) || []
+          },
+          previous: {
+            week: `${previousFilters.weekStart} to ${previousFilters.weekEnd}`,
+            totalSales: previousOverview.totalSales,
+            totalOrders: previousOverview.totalOrders,
+            platforms: previousOverview.platformBreakdown?.map(p => ({ platform: p.platform, sales: p.totalSales, orders: p.totalOrders })) || []
+          }
+        });
+        
         // Calculate net payout for current week
         const currentNetPayout = overview.totalSales * (overview.netPayoutPercent / 100);
         const previousNetPayout = previousOverview.totalSales * (previousOverview.netPayoutPercent / 100);
