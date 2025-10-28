@@ -267,7 +267,9 @@ export class DbStorage implements IStorage {
     } else {
       // Check if this is the first user in the database
       const userCount = await this.db.select({ count: sql<number>`count(*)` }).from(users);
-      if (userCount[0].count === 0) {
+      // PostgreSQL returns count as a string, so convert to number
+      const count = Number(userCount[0].count);
+      if (count === 0) {
         // First user becomes super_admin
         role = "super_admin";
       }
