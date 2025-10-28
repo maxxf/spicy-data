@@ -253,6 +253,26 @@ export class DbStorage implements IStorage {
     // Normalize email to lowercase for consistency
     const normalizedEmail = userData.email?.toLowerCase() || null;
     
+    // Check if user already exists
+    const existingUser = await this.getUser(userData.id!);
+    
+    // Determine role: preserve existing role, or make first user super_admin
+    let role = "user";
+    if (existingUser) {
+      // Preserve existing role on re-login
+      role = existingUser.role;
+    } else if (userData.role) {
+      // Use provided role if specified
+      role = userData.role;
+    } else {
+      // Check if this is the first user in the database
+      const userCount = await this.db.select({ count: sql<number>`count(*)` }).from(users);
+      if (userCount[0].count === 0) {
+        // First user becomes super_admin
+        role = "super_admin";
+      }
+    }
+    
     const [user] = await this.db
       .insert(users)
       .values({
@@ -261,7 +281,7 @@ export class DbStorage implements IStorage {
         firstName: userData.firstName || null,
         lastName: userData.lastName || null,
         profileImageUrl: userData.profileImageUrl || null,
-        role: userData.role || "user",
+        role,
         clientId: userData.clientId || null,
       })
       .onConflictDoUpdate({

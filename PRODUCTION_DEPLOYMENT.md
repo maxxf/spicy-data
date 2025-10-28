@@ -36,81 +36,83 @@
 - [x] **Weekly Reports**: Performance trends and comparisons
 - [x] **CSV Export**: All reports exportable
 
-## 🚀 Deployment Process
+## 🚀 Quick Start: Getting Your Production App Running
 
-### Step 1: Verify Development Environment
+### Step 1: Publish Your App
+1. Click the **"Publish"** button in Replit
+2. Choose **"Autoscale"** deployment (recommended)
+3. Wait for deployment to complete (~2-3 minutes)
+4. You'll get your production URL (e.g., `https://your-app.replit.app`)
+
+### Step 2: First Login (Automatic Super Admin)
+1. Navigate to your production URL
+2. Click **"Login with Replit"** 
+3. Sign in with your Replit account
+4. **You're automatically made super_admin** (first user privilege)
+5. You can now upload data and manage everything
+
+### Step 3: Upload Your Data
+You have two options:
+
+#### Option A: Upload CSVs Directly (Recommended for Getting Started)
+1. Go to **Admin** page in your app
+2. Select **"Capriotti's Sandwich Shop"** as the client
+3. Upload your CSV files:
+   - **Uber Eats**: Transaction export CSVs
+   - **DoorDash**: Marketplace transaction CSVs (Storefront auto-filtered)
+   - **Grubhub**: Transaction export CSVs
+4. Watch as data is processed and locations are automatically matched
+5. Go to **Dashboard** to see your analytics!
+
+#### Option B: Bulk Import Development Data (If You Have Existing Data)
+If you've already uploaded data to your development environment and want to move it to production:
+
+1. In development workspace, run the export script:
 ```bash
-# Ensure all dependencies are installed
-npm install
-
-# Verify database schema is up to date
-npm run db:push
-
-# Test the application locally
-npm run dev
+npx tsx scripts/export-production-data.ts
 ```
 
-### Step 2: Pre-Deployment Testing
-1. **Login**: Verify Replit Auth works
-2. **Upload Test**: Upload a small CSV file for each platform
-3. **Dashboard**: Confirm data displays correctly
-4. **Income Statement**: Verify financial calculations
-5. **Export**: Test CSV export functionality
+2. This creates a `production-export/` folder with your data (162K+ transactions)
 
-### Step 3: Publish to Production
+3. Copy the `production-export/` folder to your production deployment
 
-1. **Click "Publish" in Replit**
-   - Choose "Autoscale" or "Reserved VM" deployment
-   - Configure machine power (recommended: 1 vCPU, 2GB RAM minimum)
-   - Set max instances (Autoscale: 2-5 instances recommended)
+4. In production, run the import script:
+```bash
+npx tsx scripts/import-production-data.ts
+```
 
-2. **Environment Configuration**
-   - Verify DATABASE_URL is set (auto-configured by Replit)
-   - Verify SESSION_SECRET is set (auto-configured by Replit)
-   - Port: Application binds to 0.0.0.0:5000 (correct for Replit)
+5. Verify the import completed successfully
 
-3. **Database Sync**
-   - Development schema changes automatically applied to production
-   - Monitor deployment logs for any migration errors
+### That's It!
 
-4. **Initial Production Data**
-   - Use `/api/admin/import-data` endpoint (super admin only)
-   - Or manually upload via Admin Upload page after deployment
+Your production app is now running with:
+- ✅ Automatic authentication (first user = super admin)
+- ✅ Secure session management  
+- ✅ All data uploaded and ready to analyze
+- ✅ Multi-platform analytics (Uber Eats, DoorDash, Grubhub)
+- ✅ Weekly performance tracking
+- ✅ Income statement reporting
 
-### Step 4: Post-Deployment Verification
+## 📋 Detailed Deployment Reference
 
-#### Authentication Check
-1. Navigate to production URL
-2. Verify redirect to Replit Auth login
-3. Login with authorized email
-4. Confirm role assignment (super_admin, brand_admin, or user)
+### Authentication System
+- **First User Privilege**: The first person to log in becomes `super_admin` automatically
+- **Role Preservation**: Your role persists across logins (won't be downgraded)
+- **Session Storage**: Sessions automatically created in production database
+- **Three Tiers**: super_admin (full access) → brand_admin (client-level) → user (read-only)
 
-#### Upload Functionality Check
-1. **Transaction Upload**:
-   - Navigate to Upload page
-   - Select client
-   - Choose platform (Uber Eats, DoorDash, or Grubhub)
-   - Upload test CSV
-   - Verify success message and transaction count
+### Upload Functionality
+All uploads are protected and require authentication:
+- `/api/upload` - Transaction CSV uploads (requires login)
+- `/api/upload/marketing` - Marketing data uploads (requires login)  
+- `/api/admin/import-data` - Bulk data import (requires super_admin)
 
-2. **Marketing Upload**:
-   - Navigate to Campaigns page
-   - Click "Upload Marketing Data"
-   - Select platform and data type
-   - Upload test CSV
-   - Verify campaigns/metrics created
-
-3. **Admin Import** (Super Admin only):
-   - Navigate to Admin page
-   - Use "Import Production Data" feature
-   - Upload migration JSON file
-   - Verify checksum validation and import success
-
-#### Analytics Verification
-1. **Dashboard**: Check weekly trends, ROAS, sales data
-2. **Income Statement**: Verify financial breakdown
-3. **Locations**: Confirm location mapping accuracy
-4. **Campaigns**: Check marketing analytics
+### Analytics Verification
+After uploading data, verify everything works:
+1. **Dashboard**: Check weekly trends, ROAS, sales metrics
+2. **Income Statement**: Verify financial breakdown with CSV export
+3. **Locations**: Confirm 200+ locations properly mapped
+4. **Campaigns**: Review marketing analytics and ad spend
 
 ## 📊 Database Cleanup & Production Readiness
 
