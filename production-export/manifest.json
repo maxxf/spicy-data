@@ -1,0 +1,20 @@
+{
+  "exportDate": "2025-10-28T19:43:30.381Z",
+  "version": "1.0.0",
+  "counts": {
+    "clients": 1,
+    "locations": 234,
+    "uberEatsTransactions": 40756,
+    "doordashTransactions": 107565,
+    "grubhubTransactions": 14184,
+    "platformAdSpend": 747
+  },
+  "checksums": {
+    "clients": "486a6db928e3b52be57d344d741cb41272dc81e0c894c9551aabf01169a97694",
+    "locations": "d1fad58b3f9f9c5131f4203aa1fcd226d99c68102fe9c9e8bcdc87ba4e4ba2df",
+    "uberEatsTransactions": "e0d8efc64ba6eef0dcab8a6451c29e724af6b3f10c7af8ad77af81c18baad5df",
+    "doordashTransactions": "53a45405f6e0a76f0d6c3b1a931d8b02cde1a944481db479ca6ef59d5af2b8b4",
+    "grubhubTransactions": "719b3146b2c4dc9a20be1d90d276d6116a562deac8816ad70f522ae334beb05d",
+    "platformAdSpend": "ee3892a726a5847269d23fa7e43c52facd3aab4369d7a9ebf09f349f6339c6bd"
+  }
+}
