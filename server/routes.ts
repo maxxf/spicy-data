@@ -455,7 +455,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/upload", upload.single("file"), async (req, res) => {
+  app.post("/api/upload", isAuthenticated, upload.single("file"), async (req, res) => {
     try {
       if (!req.file) {
         return res.status(400).json({ error: "No file uploaded" });
@@ -858,7 +858,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   }
 
   // Marketing data upload endpoint
-  app.post("/api/upload/marketing", upload.single("file"), async (req, res) => {
+  app.post("/api/upload/marketing", isAuthenticated, upload.single("file"), async (req, res) => {
     try {
       if (!req.file) {
         return res.status(400).json({ error: "No file uploaded" });

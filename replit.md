@@ -30,6 +30,8 @@ The frontend is built with React 18+, TypeScript, and Vite, utilizing `shadcn/ui
 ### Technical Implementations
 The backend uses Express.js with TypeScript, providing a RESTful API. It handles robust CSV parsing with platform-specific logic for Uber Eats, DoorDash, and Grubhub, including transaction validation, data normalization, and string similarity for location reconciliation. Data processing is optimized for memory usage and speed using SQL aggregations. Marketing-driven sales attribution logic is consistently applied across platforms. Authentication and authorization are managed via Replit Auth (OIDC) with `express-session`, implementing a three-tier role system and secure session management. A robust data migration system for production deployments ensures data integrity with Zod schema validation, checksum verification, and database transactions.
 
+**Production Upload System (October 28, 2025)**: All upload endpoints secured with authentication middleware. File processing uses `multer.memoryStorage()` for production compatibility - CSV data is parsed in-memory and stored directly to database without relying on workspace file system. Upload routes protected: `/api/upload` and `/api/upload/marketing` require authentication, `/api/admin/import-data` requires super admin role. System is production-ready with comprehensive deployment documentation in PRODUCTION_DEPLOYMENT.md.
+
 ### Feature Specifications
 Key features include:
 - Multi-dimensional filtering for analytics.
