@@ -543,30 +543,6 @@ export default function AdminPage() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <MapPin className="w-5 h-5" />
-            Location Management
-          </CardTitle>
-          <CardDescription>
-            View all canonical locations and their platform mappings. Locations are automatically created during CSV uploads.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {locations && locations.length > 0 ? (
-            <DataTable
-              data={locations}
-              columns={locationManagementColumns}
-            />
-          ) : (
-            <div className="text-center py-12 text-muted-foreground">
-              No locations found. Upload transaction data or import master location list to create locations.
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
             <Database className="w-5 h-5" />
             Data Migration
           </CardTitle>
