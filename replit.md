@@ -17,6 +17,15 @@ The frontend is built with React 18+, TypeScript, and Vite, utilizing `shadcn/ui
   - Dual-axis configuration with custom formatters for each metric (currency, multiplier, percentage)
   - Color-coded lines with legend for easy differentiation
   - Interactive tooltips showing all three metrics for each week
+- **Income Statement Redesign (October 28, 2025)**: Complete UI/UX overhaul inspired by Loop AI design:
+  - Clean header with "Balance || Income Statement" title and Link2 icon
+  - Streamlined filter bar (client selector + date range only - location/platform filters removed as they don't align with comparative income statement purpose)
+  - Blue percentage badges replacing plain text percentages
+  - Orange category indicators for main sections (Marketing, Customer Refunds, etc.)
+  - Dark background highlighting on Total column for key metrics (slate-700)
+  - Improved table spacing, borders, and typography for better readability
+  - All interactive elements have data-testid attributes for testing
+  - Maintained functional integrity: CSV export, fully wired filters, responsive layout
 
 ### Technical Implementations
 The backend uses Express.js with TypeScript, providing a RESTful API. It handles robust CSV parsing with platform-specific logic for Uber Eats, DoorDash, and Grubhub, including transaction validation, data normalization, and string similarity for location reconciliation. Data processing is optimized for memory usage and speed using SQL aggregations. Marketing-driven sales attribution logic is consistently applied across platforms. Authentication and authorization are managed via Replit Auth (OIDC) with `express-session`, implementing a three-tier role system and secure session management. A robust data migration system for production deployments ensures data integrity with Zod schema validation, checksum verification, and database transactions.
