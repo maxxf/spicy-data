@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Download, Info } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Download, Link2, Info, AlertCircle } from 'lucide-react';
 import { SiUbereats, SiDoordash } from 'react-icons/si';
 import { GiHotMeal } from 'react-icons/gi';
 import {
@@ -20,7 +21,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import type { Client } from "@shared/schema";
 
 interface PlatformData {
@@ -63,12 +63,39 @@ interface IncomeStatementData {
   totals: PlatformData;
 }
 
+const PercentBadge = ({ value, total }: { value: number; total: number }) => {
+  if (total === 0) return <Badge variant="secondary" className="text-xs font-normal">0%</Badge>;
+  
+  const percent = (value / total) * 100;
+  const absPercent = Math.abs(percent);
+  
+  return (
+    <Badge 
+      variant="secondary" 
+      className="text-xs font-normal bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300 border-0"
+    >
+      {absPercent.toFixed(2)}%
+    </Badge>
+  );
+};
+
+const CategoryIndicator = ({ color = "orange" }: { color?: string }) => {
+  const colorClasses = {
+    orange: "bg-orange-500",
+    blue: "bg-blue-500",
+    green: "bg-green-500",
+  };
+  
+  return (
+    <div className={`w-2 h-2 rounded-sm ${colorClasses[color as keyof typeof colorClasses] || colorClasses.orange}`} />
+  );
+};
+
 export default function IncomeStatement() {
   const [clientId, setClientId] = useState('83506705-b408-4f0a-a9b0-e5b585db3b7d');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
 
-  // Fetch clients list
   const { data: clients } = useQuery<Client[]>({
     queryKey: ['/api/clients'],
   });
@@ -95,22 +122,14 @@ export default function IncomeStatement() {
     return value < 0 ? `-$${formatted.replace('-', '')}` : `$${formatted}`;
   };
 
-  const formatPercent = (value: number, total: number) => {
-    if (total === 0) return '0%';
-    const percent = (value / total) * 100;
-    return `${percent.toFixed(2)}%`;
-  };
-
   const exportToCSV = () => {
     if (!data) return;
 
     const rows: string[][] = [];
     
-    // Header
     rows.push(['Component', 'Uber Eats', '', 'DoorDash', '', 'Grubhub', '', 'Total', '']);
     rows.push(['', 'Amount', '%', 'Amount', '%', 'Amount', '%', 'Amount', '%']);
     
-    // Helper to add row
     const addRow = (label: string, uberVal: number, doorVal: number, grubVal: number, totalVal: number, isNegative = false) => {
       const displayValue = (val: number) => isNegative ? -val : val;
       const uberPct = data.platforms.uberEats.salesInclTax > 0 ? (displayValue(uberVal) / data.platforms.uberEats.salesInclTax) * 100 : 0;
@@ -131,7 +150,6 @@ export default function IncomeStatement() {
       ]);
     };
 
-    // Add all 28 metrics
     addRow('Number of Transactions', data.platforms.uberEats.transactions, data.platforms.doorDash.transactions, data.platforms.grubhub.transactions, data.totals.transactions);
     addRow('Sales Incl. Tax', data.platforms.uberEats.salesInclTax, data.platforms.doorDash.salesInclTax, data.platforms.grubhub.salesInclTax, data.totals.salesInclTax);
     addRow('Sales Excl. Tax', data.platforms.uberEats.salesExclTax, data.platforms.doorDash.salesExclTax, data.platforms.grubhub.salesExclTax, data.totals.salesExclTax);
@@ -199,10 +217,21 @@ export default function IncomeStatement() {
     isNegative?: boolean;
     indentLevel?: number;
     tooltip?: string;
-    className?: string;
+    isHighlight?: boolean;
+    hasCategory?: boolean;
+    categoryColor?: string;
   }
 
-  const MetricRow = ({ label, value, isNegative = false, indentLevel = 0, tooltip, className = '' }: MetricRowProps) => {
+  const MetricRow = ({ 
+    label, 
+    value, 
+    isNegative = false, 
+    indentLevel = 0, 
+    tooltip, 
+    isHighlight = false,
+    hasCategory = false,
+    categoryColor = "orange"
+  }: MetricRowProps) => {
     const uber = value(platforms.uberEats);
     const door = value(platforms.doorDash);
     const grub = value(platforms.grubhub);
@@ -214,133 +243,177 @@ export default function IncomeStatement() {
     const grubPct = platforms.grubhub.salesInclTax > 0 ? (displayValue(grub) / platforms.grubhub.salesInclTax) * 100 : 0;
     const totalPct = totals.salesInclTax > 0 ? (displayValue(total) / totals.salesInclTax) * 100 : 0;
 
-    const ValueCell = ({ val, pct, showPercent = true }: { val: number; pct: number; showPercent?: boolean }) => (
-      <div className="flex items-baseline justify-between gap-2 py-3 px-3">
-        <span className={`font-medium ${val < 0 ? 'text-red-600' : ''}`}>
-          {formatCurrency(displayValue(val))}
-        </span>
-        {showPercent && (
-          <span className="text-xs text-muted-foreground min-w-12 text-right">
-            {pct.toFixed(2)}%
-          </span>
-        )}
-      </div>
-    );
+    const ValueCell = ({ val, pct, baseTotal, showPercent = true, isTotal = false }: { 
+      val: number; 
+      pct: number; 
+      baseTotal: number;
+      showPercent?: boolean; 
+      isTotal?: boolean;
+    }) => {
+      const cellBg = isTotal && isHighlight 
+        ? "bg-slate-700 dark:bg-slate-800" 
+        : "";
+      
+      return (
+        <div className={`flex flex-col gap-1 py-3 px-4 ${cellBg}`}>
+          <div className="flex items-baseline justify-between gap-3">
+            {showPercent && (
+              <PercentBadge value={displayValue(val)} total={baseTotal} />
+            )}
+            <span className={`font-medium text-sm ml-auto ${val < 0 ? 'text-red-600 dark:text-red-400' : isTotal && isHighlight ? 'text-white' : ''}`}>
+              {formatCurrency(displayValue(val))}
+            </span>
+          </div>
+        </div>
+      );
+    };
 
     return (
-      <div className={`grid grid-cols-[minmax(200px,_1fr)_repeat(4,_minmax(150px,_1fr))] border-b hover-elevate ${className}`}>
-        <div className={`flex items-center py-3 px-4 gap-2`} style={{ paddingLeft: `${16 + indentLevel * 16}px` }}>
+      <div className="grid grid-cols-[minmax(220px,_1fr)_repeat(4,_minmax(160px,_1fr))] border-b border-border/50 hover-elevate">
+        <div 
+          className="flex items-center gap-2 py-3 px-4 text-sm" 
+          style={{ paddingLeft: `${16 + indentLevel * 20}px` }}
+        >
+          {hasCategory && <CategoryIndicator color={categoryColor} />}
           <span className="font-medium">{label}</span>
           {tooltip && (
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Info className="h-3 w-3 text-muted-foreground cursor-help" data-testid={`tooltip-${label.toLowerCase().replace(/\s+/g, '-')}`} />
+                  <Info className="h-3.5 w-3.5 text-muted-foreground cursor-help" data-testid={`tooltip-${label.toLowerCase().replace(/\s+/g, '-')}`} />
                 </TooltipTrigger>
-                <TooltipContent>
-                  <p className="max-w-xs">{tooltip}</p>
+                <TooltipContent side="right" className="max-w-xs">
+                  <p>{tooltip}</p>
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
           )}
         </div>
-        <ValueCell val={uber} pct={uberPct} showPercent={label !== 'Number of Transactions'} />
-        <ValueCell val={door} pct={doorPct} showPercent={label !== 'Number of Transactions'} />
-        <ValueCell val={grub} pct={grubPct} showPercent={label !== 'Number of Transactions'} />
-        <ValueCell val={total} pct={totalPct} showPercent={label !== 'Number of Transactions'} />
+        <ValueCell 
+          val={uber} 
+          pct={uberPct} 
+          baseTotal={platforms.uberEats.salesInclTax}
+          showPercent={label !== 'Number of Transactions'} 
+        />
+        <ValueCell 
+          val={door} 
+          pct={doorPct} 
+          baseTotal={platforms.doorDash.salesInclTax}
+          showPercent={label !== 'Number of Transactions'} 
+        />
+        <ValueCell 
+          val={grub} 
+          pct={grubPct} 
+          baseTotal={platforms.grubhub.salesInclTax}
+          showPercent={label !== 'Number of Transactions'} 
+        />
+        <ValueCell 
+          val={total} 
+          pct={totalPct} 
+          baseTotal={totals.salesInclTax}
+          showPercent={label !== 'Number of Transactions'} 
+          isTotal
+        />
       </div>
     );
   };
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6 p-6" data-testid="page-income-statement">
       {/* Header */}
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold">Income Statement</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Financial breakdown by platform
-          </p>
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <h1 className="text-2xl font-semibold tracking-tight">Balance || Income Statement</h1>
+          <Link2 className="h-5 w-5 text-muted-foreground" />
         </div>
         {data && (
-          <Button onClick={exportToCSV} variant="outline" data-testid="button-export-csv">
+          <Button onClick={exportToCSV} variant="outline" size="sm" data-testid="button-export-csv">
             <Download className="h-4 w-4 mr-2" />
             Export CSV
           </Button>
         )}
       </div>
 
-      {/* Filters */}
-      <Card>
-        <CardContent className="pt-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="client-select">Client</Label>
-              <Select value={clientId} onValueChange={setClientId}>
-                <SelectTrigger id="client-select" data-testid="select-client">
-                  <SelectValue placeholder="Select client" />
-                </SelectTrigger>
-                <SelectContent>
-                  {clients?.map((client) => (
-                    <SelectItem key={client.id} value={client.id}>
-                      {client.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="start-date">Start Date</Label>
-              <Input
-                id="start-date"
-                type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                data-testid="input-start-date"
-              />
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="end-date">End Date</Label>
-              <Input
-                id="end-date"
-                type="date"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                data-testid="input-end-date"
-              />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Filters Bar */}
+      <div className="flex flex-wrap items-center gap-3">
+        <Select value={clientId} onValueChange={setClientId}>
+          <SelectTrigger className="w-[200px]" data-testid="select-client">
+            <SelectValue placeholder="Select Client" />
+          </SelectTrigger>
+          <SelectContent>
+            {clients?.map((client) => (
+              <SelectItem key={client.id} value={client.id}>
+                {client.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
 
-      {/* Main Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle>This Period's Payout Summary</CardTitle>
-        </CardHeader>
-        <CardContent className="p-0">
+        <div className="flex items-center gap-2 px-3 py-2 border rounded-md bg-background">
+          <Input
+            type="date"
+            value={startDate}
+            onChange={(e) => setStartDate(e.target.value)}
+            className="border-0 p-0 h-auto focus-visible:ring-0 w-[130px]"
+            placeholder="Start date"
+            data-testid="input-start-date"
+          />
+          <span className="text-sm text-muted-foreground">to</span>
+          <Input
+            type="date"
+            value={endDate}
+            onChange={(e) => setEndDate(e.target.value)}
+            className="border-0 p-0 h-auto focus-visible:ring-0 w-[130px]"
+            placeholder="End date"
+            data-testid="input-end-date"
+          />
+        </div>
+
+        {(startDate || endDate) && (
+          <Button 
+            variant="ghost" 
+            size="sm"
+            onClick={() => {
+              setStartDate('');
+              setEndDate('');
+            }}
+            className="text-destructive hover:text-destructive"
+            data-testid="button-reset-filters"
+          >
+            Reset
+          </Button>
+        )}
+      </div>
+
+      {/* Main Table Card */}
+      <Card className="overflow-hidden">
+        {/* Card Header */}
+        <div className="flex items-center justify-between p-6 border-b">
+          <h2 className="text-base font-semibold">This period's payout summary</h2>
+        </div>
+
+        {/* Table */}
+        <div className="overflow-auto">
           {/* Table Header */}
-          <div className="grid grid-cols-[minmax(200px,_1fr)_repeat(4,_minmax(150px,_1fr))] border-b bg-muted/50">
-            <div className="py-3 px-4 font-semibold">Component</div>
-            <div className="py-3 px-3 font-semibold flex items-center gap-2">
+          <div className="grid grid-cols-[minmax(220px,_1fr)_repeat(4,_minmax(160px,_1fr))] border-b bg-muted/30 sticky top-0 z-10">
+            <div className="py-3 px-4 font-semibold text-sm">Component</div>
+            <div className="py-3 px-4 font-semibold text-sm flex items-center gap-2">
               <SiUbereats className="h-4 w-4" />
               Uber Eats
             </div>
-            <div className="py-3 px-3 font-semibold flex items-center gap-2">
+            <div className="py-3 px-4 font-semibold text-sm flex items-center gap-2">
               <SiDoordash className="h-4 w-4" />
               DoorDash
             </div>
-            <div className="py-3 px-3 font-semibold flex items-center gap-2">
+            <div className="py-3 px-4 font-semibold text-sm flex items-center gap-2">
               <GiHotMeal className="h-4 w-4" />
               Grubhub
             </div>
-            <div className="py-3 px-3 font-semibold">Total</div>
+            <div className="py-3 px-4 font-semibold text-sm">Total</div>
           </div>
 
-          {/* Metrics */}
-          <div className="divide-y">
+          {/* Metrics Rows */}
+          <div>
             <MetricRow 
               label="Number of Transactions" 
               value={(p) => p.transactions}
@@ -349,12 +422,13 @@ export default function IncomeStatement() {
             <MetricRow 
               label="Sales Incl. Tax" 
               value={(p) => p.salesInclTax}
-              className="bg-muted/30"
+              isHighlight
             />
             
             <MetricRow 
               label="Sales Excl. Tax" 
               value={(p) => p.salesExclTax}
+              isHighlight
             />
             
             <MetricRow 
@@ -366,6 +440,7 @@ export default function IncomeStatement() {
               label="Unfulfilled Refunds" 
               value={(p) => p.unfulfilledRefunds}
               isNegative
+              hasCategory
             />
             
             <MetricRow 
@@ -377,19 +452,20 @@ export default function IncomeStatement() {
             <MetricRow 
               label="Taxes Withheld" 
               value={(p) => p.taxesWithheld}
+              indentLevel={1}
             />
             
             <MetricRow 
               label="Taxes Backup" 
               value={(p) => p.taxesBackup}
-              tooltip="Backup withholding for tax compliance (Uber Eats specific)"
+              tooltip="Backup withholding for tax compliance"
+              indentLevel={1}
             />
             
             <MetricRow 
               label="Commissions" 
               value={(p) => p.commissions}
               isNegative
-              className="bg-muted/30"
             />
             
             <MetricRow 
@@ -401,7 +477,7 @@ export default function IncomeStatement() {
               label="Marketing" 
               value={(p) => p.marketing}
               isNegative
-              className="bg-muted/30"
+              hasCategory
             />
             
             <MetricRow 
@@ -430,7 +506,7 @@ export default function IncomeStatement() {
               value={(p) => p.ddMarketingFee}
               isNegative
               indentLevel={1}
-              tooltip="Marketing credits and promotional fees specific to DoorDash"
+              tooltip="Marketing fees specific to DoorDash"
             />
             
             <MetricRow 
@@ -438,7 +514,6 @@ export default function IncomeStatement() {
               value={(p) => p.merchantFundedDiscount}
               isNegative
               indentLevel={1}
-              tooltip="Discounts funded by the restaurant"
             />
             
             <MetricRow 
@@ -446,23 +521,25 @@ export default function IncomeStatement() {
               value={(p) => p.thirdPartyFundedDiscount}
               isNegative
               indentLevel={1}
-              tooltip="Discounts funded by the third-party platform"
             />
             
             <MetricRow 
               label="Customer Refunds" 
               value={(p) => p.customerRefunds}
               isNegative
+              hasCategory
             />
             
             <MetricRow 
               label="Won Disputes" 
               value={(p) => p.wonDisputes}
+              indentLevel={1}
             />
             
             <MetricRow 
               label="Others" 
               value={(p) => p.others}
+              hasCategory
             />
             
             <MetricRow 
@@ -492,7 +569,7 @@ export default function IncomeStatement() {
             <MetricRow 
               label="Net Payout" 
               value={(p) => p.netPayout}
-              className="bg-primary/10 font-semibold"
+              isHighlight
             />
             
             <MetricRow 
@@ -505,10 +582,10 @@ export default function IncomeStatement() {
             <MetricRow 
               label="Net Margin" 
               value={(p) => p.netMargin}
-              className="bg-primary/20 font-semibold"
+              isHighlight
             />
           </div>
-        </CardContent>
+        </div>
       </Card>
     </div>
   );
