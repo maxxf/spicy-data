@@ -687,21 +687,21 @@ export class DbStorage implements IStorage {
             totalOrders: sql<number>`
               COUNT(CASE 
                 WHEN (${doordashTransactions.channel} = 'Marketplace' OR ${doordashTransactions.channel} IS NULL)
-                  AND ${doordashTransactions.transactionType} = 'Order'
+                  AND (${doordashTransactions.transactionType} = 'Order' OR ${doordashTransactions.transactionType} IS NULL OR ${doordashTransactions.transactionType} = '')
                 THEN 1 
               END)::int
             `,
             totalSales: sql<number>`
               COALESCE(SUM(CASE 
                 WHEN (${doordashTransactions.channel} = 'Marketplace' OR ${doordashTransactions.channel} IS NULL)
-                  AND ${doordashTransactions.transactionType} = 'Order'
+                  AND (${doordashTransactions.transactionType} = 'Order' OR ${doordashTransactions.transactionType} IS NULL OR ${doordashTransactions.transactionType} = '')
                 THEN COALESCE(${doordashTransactions.salesExclTax}, ${doordashTransactions.orderSubtotal}, 0)
               END), 0)
             `,
             marketingDrivenSales: sql<number>`
               COALESCE(SUM(CASE 
                 WHEN (${doordashTransactions.channel} = 'Marketplace' OR ${doordashTransactions.channel} IS NULL)
-                  AND ${doordashTransactions.transactionType} = 'Order'
+                  AND (${doordashTransactions.transactionType} = 'Order' OR ${doordashTransactions.transactionType} IS NULL OR ${doordashTransactions.transactionType} = '')
                   AND (ABS(COALESCE(${doordashTransactions.otherPayments}, 0)) > 0 
                        OR ABS(COALESCE(${doordashTransactions.offersOnItems}, 0)) > 0 
                        OR ABS(COALESCE(${doordashTransactions.deliveryOfferRedemptions}, 0)) > 0)
@@ -711,7 +711,7 @@ export class DbStorage implements IStorage {
             ordersFromMarketing: sql<number>`
               COUNT(CASE 
                 WHEN (${doordashTransactions.channel} = 'Marketplace' OR ${doordashTransactions.channel} IS NULL)
-                  AND ${doordashTransactions.transactionType} = 'Order'
+                  AND (${doordashTransactions.transactionType} = 'Order' OR ${doordashTransactions.transactionType} IS NULL OR ${doordashTransactions.transactionType} = '')
                   AND (ABS(COALESCE(${doordashTransactions.otherPayments}, 0)) > 0 
                        OR ABS(COALESCE(${doordashTransactions.offersOnItems}, 0)) > 0 
                        OR ABS(COALESCE(${doordashTransactions.deliveryOfferRedemptions}, 0)) > 0)
@@ -721,14 +721,14 @@ export class DbStorage implements IStorage {
             adSpend: sql<number>`
               COALESCE(SUM(CASE 
                 WHEN (${doordashTransactions.channel} = 'Marketplace' OR ${doordashTransactions.channel} IS NULL)
-                  AND ${doordashTransactions.transactionType} = 'Order'
+                  AND (${doordashTransactions.transactionType} = 'Order' OR ${doordashTransactions.transactionType} IS NULL OR ${doordashTransactions.transactionType} = '')
                 THEN ABS(COALESCE(${doordashTransactions.otherPayments}, 0))
               END), 0)
             `,
             offerDiscountValue: sql<number>`
               COALESCE(SUM(CASE 
                 WHEN (${doordashTransactions.channel} = 'Marketplace' OR ${doordashTransactions.channel} IS NULL)
-                  AND ${doordashTransactions.transactionType} = 'Order'
+                  AND (${doordashTransactions.transactionType} = 'Order' OR ${doordashTransactions.transactionType} IS NULL OR ${doordashTransactions.transactionType} = '')
                 THEN ABS(COALESCE(${doordashTransactions.offersOnItems}, 0)) + 
                      ABS(COALESCE(${doordashTransactions.deliveryOfferRedemptions}, 0)) +
                      COALESCE(${doordashTransactions.thirdPartyContribution}, 0) -
@@ -1037,18 +1037,18 @@ export class DbStorage implements IStorage {
         platformMetrics = await this.db
           .select({
             locationId: doordashTransactions.locationId,
-            // Count only Marketplace + Order transactions for order metrics
-            totalOrders: sql<number>`COUNT(CASE WHEN (${doordashTransactions.channel} = 'Marketplace' OR ${doordashTransactions.channel} IS NULL) AND ${doordashTransactions.transactionType} = 'Order' THEN 1 END)::int`,
-            // Sum sales only for Marketplace + Order
-            totalSales: sql<number>`COALESCE(SUM(CASE WHEN (${doordashTransactions.channel} = 'Marketplace' OR ${doordashTransactions.channel} IS NULL) AND ${doordashTransactions.transactionType} = 'Order' THEN COALESCE(${doordashTransactions.salesExclTax}, ${doordashTransactions.orderSubtotal}, 0) END), 0)`,
+            // Count only Marketplace + Order/NULL/empty transactions for order metrics
+            totalOrders: sql<number>`COUNT(CASE WHEN (${doordashTransactions.channel} = 'Marketplace' OR ${doordashTransactions.channel} IS NULL) AND (${doordashTransactions.transactionType} = 'Order' OR ${doordashTransactions.transactionType} IS NULL OR ${doordashTransactions.transactionType} = '') THEN 1 END)::int`,
+            // Sum sales only for Marketplace + Order/NULL/empty
+            totalSales: sql<number>`COALESCE(SUM(CASE WHEN (${doordashTransactions.channel} = 'Marketplace' OR ${doordashTransactions.channel} IS NULL) AND (${doordashTransactions.transactionType} = 'Order' OR ${doordashTransactions.transactionType} IS NULL OR ${doordashTransactions.transactionType} = '') THEN COALESCE(${doordashTransactions.salesExclTax}, ${doordashTransactions.orderSubtotal}, 0) END), 0)`,
             // Ad spend from other_payments (for Marketplace orders)
-            adSpend: sql<number>`COALESCE(SUM(CASE WHEN (${doordashTransactions.channel} = 'Marketplace' OR ${doordashTransactions.channel} IS NULL) AND ${doordashTransactions.transactionType} = 'Order' THEN ABS(COALESCE(${doordashTransactions.otherPayments}, 0)) END), 0)`,
+            adSpend: sql<number>`COALESCE(SUM(CASE WHEN (${doordashTransactions.channel} = 'Marketplace' OR ${doordashTransactions.channel} IS NULL) AND (${doordashTransactions.transactionType} = 'Order' OR ${doordashTransactions.transactionType} IS NULL OR ${doordashTransactions.transactionType} = '') THEN ABS(COALESCE(${doordashTransactions.otherPayments}, 0)) END), 0)`,
             // Offer discount value (for Marketplace orders) - subtract marketing_credits
-            offerDiscountValue: sql<number>`COALESCE(SUM(CASE WHEN (${doordashTransactions.channel} = 'Marketplace' OR ${doordashTransactions.channel} IS NULL) AND ${doordashTransactions.transactionType} = 'Order' THEN ABS(COALESCE(${doordashTransactions.offersOnItems}, 0)) + ABS(COALESCE(${doordashTransactions.deliveryOfferRedemptions}, 0)) + COALESCE(${doordashTransactions.thirdPartyContribution}, 0) - COALESCE(${doordashTransactions.marketingCredits}, 0) END), 0)`,
+            offerDiscountValue: sql<number>`COALESCE(SUM(CASE WHEN (${doordashTransactions.channel} = 'Marketplace' OR ${doordashTransactions.channel} IS NULL) AND (${doordashTransactions.transactionType} = 'Order' OR ${doordashTransactions.transactionType} IS NULL OR ${doordashTransactions.transactionType} = '') THEN ABS(COALESCE(${doordashTransactions.offersOnItems}, 0)) + ABS(COALESCE(${doordashTransactions.deliveryOfferRedemptions}, 0)) + COALESCE(${doordashTransactions.thirdPartyContribution}, 0) - COALESCE(${doordashTransactions.marketingCredits}, 0) END), 0)`,
             // Marketing-driven sales (orders with ANY marketing: ad spend OR offers OR delivery offers)
-            marketingDrivenSales: sql<number>`COALESCE(SUM(CASE WHEN (${doordashTransactions.channel} = 'Marketplace' OR ${doordashTransactions.channel} IS NULL) AND ${doordashTransactions.transactionType} = 'Order' AND (ABS(COALESCE(${doordashTransactions.otherPayments}, 0)) > 0 OR ABS(COALESCE(${doordashTransactions.offersOnItems}, 0)) > 0 OR ABS(COALESCE(${doordashTransactions.deliveryOfferRedemptions}, 0)) > 0) THEN COALESCE(${doordashTransactions.salesExclTax}, ${doordashTransactions.orderSubtotal}, 0) END), 0)`,
+            marketingDrivenSales: sql<number>`COALESCE(SUM(CASE WHEN (${doordashTransactions.channel} = 'Marketplace' OR ${doordashTransactions.channel} IS NULL) AND (${doordashTransactions.transactionType} = 'Order' OR ${doordashTransactions.transactionType} IS NULL OR ${doordashTransactions.transactionType} = '') AND (ABS(COALESCE(${doordashTransactions.otherPayments}, 0)) > 0 OR ABS(COALESCE(${doordashTransactions.offersOnItems}, 0)) > 0 OR ABS(COALESCE(${doordashTransactions.deliveryOfferRedemptions}, 0)) > 0) THEN COALESCE(${doordashTransactions.salesExclTax}, ${doordashTransactions.orderSubtotal}, 0) END), 0)`,
             // Orders from marketing (orders with ANY marketing: ad spend OR offers OR delivery offers)
-            ordersFromMarketing: sql<number>`COUNT(CASE WHEN (${doordashTransactions.channel} = 'Marketplace' OR ${doordashTransactions.channel} IS NULL) AND ${doordashTransactions.transactionType} = 'Order' AND (ABS(COALESCE(${doordashTransactions.otherPayments}, 0)) > 0 OR ABS(COALESCE(${doordashTransactions.offersOnItems}, 0)) > 0 OR ABS(COALESCE(${doordashTransactions.deliveryOfferRedemptions}, 0)) > 0) THEN 1 END)::int`,
+            ordersFromMarketing: sql<number>`COUNT(CASE WHEN (${doordashTransactions.channel} = 'Marketplace' OR ${doordashTransactions.channel} IS NULL) AND (${doordashTransactions.transactionType} = 'Order' OR ${doordashTransactions.transactionType} IS NULL OR ${doordashTransactions.transactionType} = '') AND (ABS(COALESCE(${doordashTransactions.otherPayments}, 0)) > 0 OR ABS(COALESCE(${doordashTransactions.offersOnItems}, 0)) > 0 OR ABS(COALESCE(${doordashTransactions.deliveryOfferRedemptions}, 0)) > 0) THEN 1 END)::int`,
             // Net payout for all Marketplace transactions (all statuses)
             netPayout: sql<number>`COALESCE(SUM(CASE WHEN (${doordashTransactions.channel} = 'Marketplace' OR ${doordashTransactions.channel} IS NULL) THEN COALESCE(${doordashTransactions.totalPayout}, ${doordashTransactions.netPayment}, 0) END), 0)`,
           })
