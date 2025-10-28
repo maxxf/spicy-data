@@ -153,13 +153,27 @@ export class MemStorage implements IStorage {
 
   async upsertUser(userData: UpsertUser): Promise<User> {
     const existing = this.users.get(userData.id as string);
+    
+    // Determine role: preserve existing role, or make first user super_admin
+    let role = "user";
+    if (existing) {
+      // Preserve existing role on re-login
+      role = existing.role;
+    } else if (userData.role) {
+      // Use provided role if specified
+      role = userData.role;
+    } else if (this.users.size === 0) {
+      // First user becomes super_admin
+      role = "super_admin";
+    }
+    
     const user: User = {
       id: userData.id || randomUUID(),
       email: userData.email || null,
       firstName: userData.firstName || null,
       lastName: userData.lastName || null,
       profileImageUrl: userData.profileImageUrl || null,
-      role: userData.role || "user",
+      role,
       clientId: userData.clientId || null,
       createdAt: existing?.createdAt || new Date(),
       updatedAt: new Date(),
