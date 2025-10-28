@@ -632,7 +632,6 @@ export default function Dashboard() {
                   stroke="hsl(var(--primary))" 
                   strokeWidth={2}
                   dot={{ fill: 'hsl(var(--primary))' }}
-                  name="Sales"
                 />
                 <Line 
                   yAxisId="right"
@@ -641,7 +640,6 @@ export default function Dashboard() {
                   stroke="hsl(var(--chart-2))" 
                   strokeWidth={2}
                   dot={{ fill: 'hsl(var(--chart-2))' }}
-                  name="ROAS"
                 />
                 <Line 
                   yAxisId="right"
@@ -650,7 +648,6 @@ export default function Dashboard() {
                   stroke="hsl(var(--chart-3))" 
                   strokeWidth={2}
                   dot={{ fill: 'hsl(var(--chart-3))' }}
-                  name="Payout %"
                 />
               </LineChart>
             </ChartContainer>
