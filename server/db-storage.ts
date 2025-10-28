@@ -1068,9 +1068,20 @@ export class DbStorage implements IStorage {
             .from(uberEatsTransactions)
             .where(and(...uberConditions));
           
+          console.log('[DEBUG - Uber Eats Filtering]', {
+            dateRange: `${filters.weekStart} to ${filters.weekEnd}`,
+            rawDataCount: rawData.length,
+            sampleDates: rawData.slice(0, 5).map(t => t.date),
+          });
+          
           const filteredByDate = rawData.filter(t => 
             isUberEatsDateInRange(t.date, filters.weekStart!, filters.weekEnd!)
           );
+          
+          console.log('[DEBUG - Uber Eats After Date Filter]', {
+            filteredCount: filteredByDate.length,
+            sampleFiltered: filteredByDate.slice(0, 3).map(t => ({ date: t.date, sales: t.salesExclTax, status: t.orderStatus })),
+          });
 
           // Calculate metrics with filtered data
           const metricsByLocation = new Map<string, any>();
