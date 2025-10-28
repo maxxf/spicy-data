@@ -29,7 +29,18 @@ Preferred communication style: Simple, everyday language.
   - **Date Filtering Validation**: Verified `isUberEatsDateInRange` function correctly filters M/D/YY format dates. Previous week returns accurate $521,315 in sales.
   - **Security Enhancement**: Added `NODE_ENV` guards to debug logging to prevent sensitive financial data exposure in production logs. Removed verbose logging from storage layer.
   - **Uber Eats Sales Discrepancy**: Investigated $2,150 difference between expected $117,075 and actual $114,925 (Completed orders, salesExclTax). No database field combination matches expected value; discrepancy likely due to different source data or calculation method.
-  - **Production Database Migration System**: Created export/import endpoints for transferring data between development and production environments. Super admin only. Export endpoint downloads all database data (clients, locations, transactions, promotions, campaigns) as JSON. Import endpoint accepts JSON file and uses `onConflictDoNothing()` to safely add missing records without affecting existing data. Includes referential integrity validation to prevent orphaned records. Admin UI provides step-by-step migration interface.
+  - **Production Database Migration System (October 28, 2025)**: Created export/import endpoints for transferring data between development and production environments with comprehensive data integrity safeguards.
+    - **Export Endpoint** (`/api/admin/export-data`): Downloads complete database snapshot as JSON with metadata (version, timestamp, entity counts)
+    - **Import Endpoint** (`/api/admin/import-data`): Validates and imports data with multi-layer protection:
+      - **Zod Schema Validation**: Strict type checking for all entities (clients, locations, transactions) before processing
+      - **Checksum Verification**: Validates data counts match export metadata to detect corruption
+      - **Database Transaction**: Atomic all-or-nothing import using `db.transaction()`
+      - **Referential Integrity**: Verifies parent records exist before importing children; skips orphaned records
+      - **Import Order**: Enforces clients → locations → transactions to maintain foreign key constraints
+      - **Detailed Reporting**: Returns counts of new/skipped/failed/orphaned records for each entity type
+    - **JSON Contract**: Export format includes `version`, `exportedAt`, `data` (clients, locations, transactions), and `stats` (counts for validation)
+    - **Security**: Super admin access only; production-safe with `NODE_ENV` guards
+    - **Admin UI**: Step-by-step migration interface with export/import buttons and usage instructions
 
 ### Data Model
 - **Core Entities**: Clients, Locations, Transactions, Promotions, Paid Ad Campaigns, Campaign Location Metrics.
