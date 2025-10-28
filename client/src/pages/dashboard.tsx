@@ -327,6 +327,18 @@ export default function Dashboard() {
       label: "Grubhub",
       color: platformColors.grubhub,
     },
+    sales: {
+      label: "Sales",
+      color: "hsl(var(--primary))",
+    },
+    roas: {
+      label: "ROAS",
+      color: "hsl(var(--chart-2))",
+    },
+    payoutPercent: {
+      label: "Payout %",
+      color: "hsl(var(--chart-3))",
+    },
   };
 
   // Weekly trend data from API (in chronological order, oldest to newest)
@@ -338,6 +350,7 @@ export default function Dashboard() {
     aov: week.averageAov,
     marketing: week.totalMarketingInvestment,
     roas: week.blendedRoas,
+    payoutPercent: week.netPayoutPercent,
   })) ?? [];
 
   // Prepare client performance data for the chart
@@ -570,7 +583,7 @@ export default function Dashboard() {
         {/* Weekly Sales Trend */}
         <Card>
           <CardHeader>
-            <CardTitle>Weekly Sales Trend</CardTitle>
+            <CardTitle>Weekly Performance Trends</CardTitle>
           </CardHeader>
           <CardContent>
             <ChartContainer config={chartConfig} className="h-[300px]">
@@ -581,18 +594,63 @@ export default function Dashboard() {
                   className="text-xs"
                   tick={{ fill: 'hsl(var(--muted-foreground))' }}
                 />
+                {/* Left Y-axis for Sales */}
                 <YAxis 
+                  yAxisId="left"
                   className="text-xs"
                   tick={{ fill: 'hsl(var(--muted-foreground))' }}
                   tickFormatter={(value) => `$${(value / 1000).toFixed(0)}k`}
                 />
-                <ChartTooltip content={<ChartTooltipContent />} />
+                {/* Right Y-axis for ROAS and Payout % */}
+                <YAxis 
+                  yAxisId="right"
+                  orientation="right"
+                  className="text-xs"
+                  tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                  domain={[0, 'auto']}
+                  tickFormatter={(value) => `${value.toFixed(1)}`}
+                />
+                <ChartTooltip 
+                  content={<ChartTooltipContent 
+                    formatter={(value, name) => {
+                      if (name === 'sales') {
+                        return [`$${value.toLocaleString()}`, 'Sales'];
+                      } else if (name === 'roas') {
+                        return [`${Number(value).toFixed(2)}x`, 'ROAS'];
+                      } else if (name === 'payoutPercent') {
+                        return [`${Number(value).toFixed(1)}%`, 'Payout %'];
+                      }
+                      return [value, name];
+                    }}
+                  />} 
+                />
+                <ChartLegend content={<ChartLegendContent />} />
                 <Line 
+                  yAxisId="left"
                   type="monotone" 
                   dataKey="sales" 
                   stroke="hsl(var(--primary))" 
                   strokeWidth={2}
                   dot={{ fill: 'hsl(var(--primary))' }}
+                  name="Sales"
+                />
+                <Line 
+                  yAxisId="right"
+                  type="monotone" 
+                  dataKey="roas" 
+                  stroke="hsl(var(--chart-2))" 
+                  strokeWidth={2}
+                  dot={{ fill: 'hsl(var(--chart-2))' }}
+                  name="ROAS"
+                />
+                <Line 
+                  yAxisId="right"
+                  type="monotone" 
+                  dataKey="payoutPercent" 
+                  stroke="hsl(var(--chart-3))" 
+                  strokeWidth={2}
+                  dot={{ fill: 'hsl(var(--chart-3))' }}
+                  name="Payout %"
                 />
               </LineChart>
             </ChartContainer>
