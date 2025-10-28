@@ -40,7 +40,7 @@ Key features include:
 - Management of clients, locations, file uploads (transaction and marketing data), analytics, promotions, and paid ads.
 - Automated location standardization and master location system with extensive transaction consolidation across platforms using various matching strategies.
 - Support for specific CSV report types from Uber Eats, DoorDash, and Grubhub.
-- Handling of platform-specific data nuances, such as DoorDash Storefront filtering and merchant store ID mapping, and Uber Eats/Grubhub store code matching.
+- Handling of platform-specific data nuances, such as DoorDash Storefront filtering (Storefront transactions are excluded, only Marketplace transactions processed), merchant store ID mapping, and Uber Eats/Grubhub store code matching.
 
 ### System Design Choices
 The system uses Drizzle ORM with a PostgreSQL dialect for database interactions, enforced with Zod schemas for validation. The data model includes core entities like Clients, Locations, Transactions, Promotions, and Paid Ad Campaigns, designed to support complex analytics and reporting. A master location system standardizes location names and consolidates transactions from various platform-specific entries, ensuring data accuracy and consistency. Unmapped transactions are assigned to a designated bucket, and referential integrity is strictly maintained across all data operations.

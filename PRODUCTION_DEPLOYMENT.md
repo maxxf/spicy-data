@@ -17,7 +17,7 @@
 - [x] **Production Compatible**: No dependency on workspace file system
 - [x] **Supported Formats**:
   - Uber Eats transaction CSVs
-  - DoorDash transaction CSVs (Marketplace & Storefront)
+  - DoorDash transaction CSVs (Marketplace only - Storefront transactions automatically filtered out)
   - Grubhub transaction CSVs
   - Marketing data (promotions, paid ads, location metrics)
 
