@@ -2937,6 +2937,81 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Migration payload validation schemas
+  const migrationClientSchema = z.object({
+    id: z.string().uuid(),
+    name: z.string(),
+  });
+
+  const migrationLocationSchema = z.object({
+    id: z.string().uuid(),
+    clientId: z.string().uuid(),
+    canonicalName: z.string(),
+    storeId: z.string().nullable(),
+    ubereatsStoreLabel: z.string().nullable(),
+    doordashStoreKey: z.string().nullable(),
+    grubhubStoreNumber: z.string().nullable(),
+    locationTag: z.string().nullable(),
+    isVerified: z.boolean().nullable(),
+  });
+
+  const migrationUberEatsTransactionSchema = z.object({
+    id: z.string().uuid(),
+    clientId: z.string().uuid(),
+    locationId: z.string().uuid(),
+    orderDate: z.string(),
+    storeName: z.string().nullable(),
+    subtotal: z.number().nullable(),
+    salesExclTax: z.number().nullable(),
+    otherPayments: z.number().nullable(),
+    offersOnItems: z.number().nullable(),
+    deliveryOfferRedemptions: z.number().nullable(),
+    otherPaymentsDescription: z.string().nullable(),
+    status: z.string().nullable(),
+  });
+
+  const migrationDoordashTransactionSchema = z.object({
+    id: z.string().uuid(),
+    clientId: z.string().uuid(),
+    locationId: z.string().uuid(),
+    orderDate: z.string(),
+    storeName: z.string().nullable(),
+    subtotal: z.number().nullable(),
+    otherPayments: z.number().nullable(),
+    offersOnItems: z.number().nullable(),
+    deliveryOfferRedemptions: z.number().nullable(),
+    status: z.string().nullable(),
+  });
+
+  const migrationGrubhubTransactionSchema = z.object({
+    id: z.string().uuid(),
+    clientId: z.string().uuid(),
+    locationId: z.string().uuid(),
+    orderDate: z.string(),
+    storeName: z.string().nullable(),
+    subtotal: z.number().nullable(),
+    status: z.string().nullable(),
+  });
+
+  const migrationPayloadSchema = z.object({
+    version: z.string(),
+    exportedAt: z.string(),
+    data: z.object({
+      clients: z.array(migrationClientSchema),
+      locations: z.array(migrationLocationSchema),
+      transactions: z.object({
+        ubereats: z.array(migrationUberEatsTransactionSchema),
+        doordash: z.array(migrationDoordashTransactionSchema),
+        grubhub: z.array(migrationGrubhubTransactionSchema),
+      }),
+    }),
+    stats: z.object({
+      clientsCount: z.number(),
+      locationsCount: z.number(),
+      transactionsCount: z.number(),
+    }),
+  });
+
   // Data migration endpoints (super admin only)
   app.get("/api/admin/export-data", isSuperAdmin, async (req, res) => {
     try {
@@ -2984,94 +3059,184 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: 'No file uploaded' });
       }
 
-      const importData = JSON.parse(req.file.buffer.toString('utf-8'));
-      
-      if (!importData.version || !importData.data) {
-        return res.status(400).json({ error: 'Invalid export file format' });
+      let importData;
+      try {
+        importData = JSON.parse(req.file.buffer.toString('utf-8'));
+      } catch (err) {
+        return res.status(400).json({ error: 'Invalid JSON file' });
       }
+      
+      // Validate payload structure using Zod schema
+      const validationResult = migrationPayloadSchema.safeParse(importData);
+      if (!validationResult.success) {
+        return res.status(400).json({ 
+          error: 'Invalid migration file structure',
+          details: validationResult.error.errors.map(e => ({
+            path: e.path.join('.'),
+            message: e.message,
+          })),
+        });
+      }
+      
+      // Use validated data
+      importData = validationResult.data;
 
       const { clients, locations, transactions } = importData.data;
+      const { stats } = importData;
+      
+      // Verify data integrity using checksums from export
+      const expectedCounts = {
+        clients: stats.clientsCount,
+        locations: stats.locationsCount,
+        transactions: stats.transactionsCount,
+      };
+      
+      const actualCounts = {
+        clients: clients?.length || 0,
+        locations: locations?.length || 0,
+        transactions: (transactions?.ubereats?.length || 0) + (transactions?.doordash?.length || 0) + (transactions?.grubhub?.length || 0),
+      };
+      
+      if (actualCounts.clients !== expectedCounts.clients || 
+          actualCounts.locations !== expectedCounts.locations ||
+          actualCounts.transactions !== expectedCounts.transactions) {
+        return res.status(400).json({ 
+          error: 'Data corruption detected: counts do not match checksums',
+          expected: expectedCounts,
+          actual: actualCounts
+        });
+      }
+
       const dbStorage = storage as any; // Cast to access db and schema
+      const db = dbStorage.db;
       
-      // Import clients
-      const clientIds = new Set<string>();
-      for (const client of clients) {
-        try {
-          await dbStorage.db.insert(dbStorage.schema.clients)
-            .values(client)
-            .onConflictDoNothing();
-          clientIds.add(client.id);
-        } catch (err) {
-          console.error(`Failed to import client ${client.id}:`, err);
-        }
-      }
-
-      // Import locations
-      const locationIds = new Set<string>();
-      for (const location of locations) {
-        try {
-          if (clientIds.has(location.clientId)) {
-            await dbStorage.db.insert(dbStorage.schema.locations)
-              .values(location)
-              .onConflictDoNothing();
-            locationIds.add(location.id);
-          }
-        } catch (err) {
-          console.error(`Failed to import location ${location.id}:`, err);
-        }
-      }
-
-      // Import transactions
-      let importedCount = 0;
+      // Fetch existing records to avoid duplicates and verify referential integrity
+      const existingClients = await storage.getAllClients();
+      const existingLocations = await storage.getAllLocations();
+      const existingClientIds = new Set(existingClients.map(c => c.id));
+      const existingLocationIds = new Set(existingLocations.map(l => l.id));
       
-      // Uber Eats
-      for (const txn of transactions.ubereats) {
-        try {
-          if (clientIds.has(txn.clientId) && locationIds.has(txn.locationId)) {
-            await dbStorage.db.insert(dbStorage.schema.uberEatsTransactions)
+      // Track import results
+      const results = {
+        clients: { new: 0, skipped: 0, failed: 0 },
+        locations: { new: 0, skipped: 0, failed: 0, orphaned: 0 },
+        transactions: { new: 0, skipped: 0, failed: 0, orphaned: 0 },
+      };
+      
+      // Use transaction for atomic import
+      await db.transaction(async (tx: any) => {
+        // Step 1: Import clients (parents first)
+        for (const client of clients) {
+          try {
+            if (existingClientIds.has(client.id)) {
+              results.clients.skipped++;
+              continue;
+            }
+            
+            await tx.insert(dbStorage.schema.clients).values(client);
+            existingClientIds.add(client.id);
+            results.clients.new++;
+          } catch (err) {
+            results.clients.failed++;
+            throw new Error(`Failed to import client ${client.id}: ${err}`);
+          }
+        }
+        
+        // Step 2: Import locations (verify parent clients exist)
+        for (const location of locations) {
+          try {
+            if (existingLocationIds.has(location.id)) {
+              results.locations.skipped++;
+              continue;
+            }
+            
+            // Verify parent client exists
+            if (!existingClientIds.has(location.clientId)) {
+              results.locations.orphaned++;
+              continue; // Skip orphaned locations
+            }
+            
+            await tx.insert(dbStorage.schema.locations).values(location);
+            existingLocationIds.add(location.id);
+            results.locations.new++;
+          } catch (err) {
+            results.locations.failed++;
+            throw new Error(`Failed to import location ${location.id}: ${err}`);
+          }
+        }
+        
+        // Step 3: Import transactions (verify parents exist)
+        // Uber Eats
+        for (const txn of transactions.ubereats || []) {
+          try {
+            // Verify referential integrity
+            if (!existingClientIds.has(txn.clientId) || !existingLocationIds.has(txn.locationId)) {
+              results.transactions.orphaned++;
+              continue;
+            }
+            
+            await tx.insert(dbStorage.schema.uberEatsTransactions)
               .values(txn)
               .onConflictDoNothing();
-            importedCount++;
+            results.transactions.new++;
+          } catch (err) {
+            results.transactions.failed++;
+            // Don't throw here - continue with other transactions
           }
-        } catch (err) {
-          console.error(`Failed to import UE transaction ${txn.id}:`, err);
         }
-      }
 
-      // DoorDash
-      for (const txn of transactions.doordash) {
-        try {
-          if (clientIds.has(txn.clientId) && locationIds.has(txn.locationId)) {
-            await dbStorage.db.insert(dbStorage.schema.doordashTransactions)
+        // DoorDash
+        for (const txn of transactions.doordash || []) {
+          try {
+            if (!existingClientIds.has(txn.clientId) || !existingLocationIds.has(txn.locationId)) {
+              results.transactions.orphaned++;
+              continue;
+            }
+            
+            await tx.insert(dbStorage.schema.doordashTransactions)
               .values(txn)
               .onConflictDoNothing();
-            importedCount++;
+            results.transactions.new++;
+          } catch (err) {
+            results.transactions.failed++;
           }
-        } catch (err) {
-          console.error(`Failed to import DD transaction ${txn.id}:`, err);
         }
-      }
 
-      // Grubhub
-      for (const txn of transactions.grubhub) {
-        try {
-          if (clientIds.has(txn.clientId) && locationIds.has(txn.locationId)) {
-            await dbStorage.db.insert(dbStorage.schema.grubhubTransactions)
+        // Grubhub
+        for (const txn of transactions.grubhub || []) {
+          try {
+            if (!existingClientIds.has(txn.clientId) || !existingLocationIds.has(txn.locationId)) {
+              results.transactions.orphaned++;
+              continue;
+            }
+            
+            await tx.insert(dbStorage.schema.grubhubTransactions)
               .values(txn)
               .onConflictDoNothing();
-            importedCount++;
+            results.transactions.new++;
+          } catch (err) {
+            results.transactions.failed++;
           }
-        } catch (err) {
-          console.error(`Failed to import GH transaction ${txn.id}:`, err);
         }
+      });
+      
+      // Check for failures
+      if (results.clients.failed > 0 || results.locations.failed > 0) {
+        return res.status(500).json({
+          success: false,
+          error: 'Import failed due to errors',
+          results,
+        });
       }
 
       res.json({
         success: true,
-        imported: {
-          clients: clientIds.size,
-          locations: locationIds.size,
-          transactions: importedCount,
+        results,
+        summary: {
+          clientsImported: results.clients.new,
+          locationsImported: results.locations.new,
+          transactionsImported: results.transactions.new,
+          orphanedRecordsSkipped: results.locations.orphaned + results.transactions.orphaned,
         },
       });
     } catch (error: any) {

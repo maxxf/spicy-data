@@ -29,6 +29,7 @@ Preferred communication style: Simple, everyday language.
   - **Date Filtering Validation**: Verified `isUberEatsDateInRange` function correctly filters M/D/YY format dates. Previous week returns accurate $521,315 in sales.
   - **Security Enhancement**: Added `NODE_ENV` guards to debug logging to prevent sensitive financial data exposure in production logs. Removed verbose logging from storage layer.
   - **Uber Eats Sales Discrepancy**: Investigated $2,150 difference between expected $117,075 and actual $114,925 (Completed orders, salesExclTax). No database field combination matches expected value; discrepancy likely due to different source data or calculation method.
+  - **Production Database Migration System**: Created export/import endpoints for transferring data between development and production environments. Super admin only. Export endpoint downloads all database data (clients, locations, transactions, promotions, campaigns) as JSON. Import endpoint accepts JSON file and uses `onConflictDoNothing()` to safely add missing records without affecting existing data. Includes referential integrity validation to prevent orphaned records. Admin UI provides step-by-step migration interface.
 
 ### Data Model
 - **Core Entities**: Clients, Locations, Transactions, Promotions, Paid Ad Campaigns, Campaign Location Metrics.

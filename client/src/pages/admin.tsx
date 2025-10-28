@@ -614,9 +614,10 @@ export default function AdminPage() {
                         .then(res => res.json())
                         .then(data => {
                           if (data.success) {
+                            const summary = data.summary;
                             toast({
                               title: "Import successful",
-                              description: `Imported ${data.imported.clients} clients, ${data.imported.locations} locations, ${data.imported.transactions} transactions`,
+                              description: `Imported: ${summary.clientsImported} clients, ${summary.locationsImported} locations, ${summary.transactionsImported} transactions. Skipped ${summary.orphanedRecordsSkipped} orphaned records.`,
                             });
                             queryClient.invalidateQueries();
                           } else {
