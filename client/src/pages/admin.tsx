@@ -7,7 +7,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { Database, Settings, Upload, CheckCircle2, AlertCircle, MapPin, TrendingUp } from "lucide-react";
+import { Database, Settings, Upload, CheckCircle2, AlertCircle, MapPin, TrendingUp, Download } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { DataTable } from "@/components/data-table";
 import { FileUploadZone } from "@/components/file-upload-zone";
@@ -561,6 +561,94 @@ export default function AdminPage() {
               No locations found. Upload transaction data or import master location list to create locations.
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Database className="w-5 h-5" />
+            Data Migration
+          </CardTitle>
+          <CardDescription>
+            Export all data from development database and import it into production to sync the databases.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="space-y-4">
+            <div className="p-4 border rounded-lg space-y-3 bg-muted/50">
+              <h4 className="font-medium">Step 1: Export Data</h4>
+              <p className="text-sm text-muted-foreground">
+                Download all database data (clients, locations, transactions) as a JSON file.
+              </p>
+              <Button
+                onClick={() => window.open('/api/admin/export-data', '_blank')}
+                variant="outline"
+                data-testid="button-export-data"
+              >
+                <Download className="w-4 h-4 mr-2" />
+                Export Database
+              </Button>
+            </div>
+
+            <div className="p-4 border rounded-lg space-y-3 bg-muted/50">
+              <h4 className="font-medium">Step 2: Import Data</h4>
+              <p className="text-sm text-muted-foreground">
+                Upload the exported JSON file to production to import all data.
+              </p>
+              <div className="space-y-2">
+                <Input
+                  id="migration-file-input"
+                  type="file"
+                  accept=".json"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      const formData = new FormData();
+                      formData.append('file', file);
+                      
+                      fetch('/api/admin/import-data', {
+                        method: 'POST',
+                        body: formData,
+                      })
+                        .then(res => res.json())
+                        .then(data => {
+                          if (data.success) {
+                            toast({
+                              title: "Import successful",
+                              description: `Imported ${data.imported.clients} clients, ${data.imported.locations} locations, ${data.imported.transactions} transactions`,
+                            });
+                            queryClient.invalidateQueries();
+                          } else {
+                            throw new Error(data.error || 'Import failed');
+                          }
+                        })
+                        .catch(error => {
+                          toast({
+                            title: "Import failed",
+                            description: error.message,
+                            variant: "destructive",
+                          });
+                        });
+                    }
+                  }}
+                  data-testid="input-migration-file"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Only upload JSON files exported from this system
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="p-4 border-l-4 border-warning bg-warning/10 rounded-lg">
+            <p className="text-sm font-medium mb-2">⚠️ Important Notes:</p>
+            <ul className="text-sm text-muted-foreground space-y-1 list-disc list-inside">
+              <li>Export data from development environment</li>
+              <li>Import the file into production environment</li>
+              <li>This will add missing data without affecting existing records</li>
+            </ul>
+          </div>
         </CardContent>
       </Card>
     </div>

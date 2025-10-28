@@ -226,7 +226,14 @@ export function isUberEatsDateInRange(dateStr: string, weekStart: string, weekEn
 }
 
 export class DbStorage implements IStorage {
-  private db;
+  public db;
+  public schema = {
+    clients,
+    locations,
+    uberEatsTransactions,
+    doordashTransactions,
+    grubhubTransactions,
+  };
 
   constructor() {
     if (!process.env.DATABASE_URL) {

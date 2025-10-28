@@ -2937,6 +2937,149 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Data migration endpoints (super admin only)
+  app.get("/api/admin/export-data", isSuperAdmin, async (req, res) => {
+    try {
+      // Export all database data for migration
+      const dbStorage = storage as any; // Cast to access db and schema
+      const [clients, locations, uberEatsTransactions, doordashTransactions, grubhubTransactions] = await Promise.all([
+        storage.getAllClients(),
+        storage.getAllLocations(),
+        dbStorage.db.select().from(dbStorage.schema.uberEatsTransactions),
+        dbStorage.db.select().from(dbStorage.schema.doordashTransactions),
+        dbStorage.db.select().from(dbStorage.schema.grubhubTransactions),
+      ]);
+
+      const exportData = {
+        version: '1.0',
+        exportedAt: new Date().toISOString(),
+        data: {
+          clients,
+          locations,
+          transactions: {
+            ubereats: uberEatsTransactions,
+            doordash: doordashTransactions,
+            grubhub: grubhubTransactions,
+          },
+        },
+        stats: {
+          clientsCount: clients.length,
+          locationsCount: locations.length,
+          transactionsCount: uberEatsTransactions.length + doordashTransactions.length + grubhubTransactions.length,
+        },
+      };
+
+      res.setHeader('Content-Type', 'application/json');
+      res.setHeader('Content-Disposition', `attachment; filename="database-export-${new Date().toISOString().split('T')[0]}.json"`);
+      res.json(exportData);
+    } catch (error: any) {
+      console.error('Export error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/admin/import-data", isSuperAdmin, upload.single('file'), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: 'No file uploaded' });
+      }
+
+      const importData = JSON.parse(req.file.buffer.toString('utf-8'));
+      
+      if (!importData.version || !importData.data) {
+        return res.status(400).json({ error: 'Invalid export file format' });
+      }
+
+      const { clients, locations, transactions } = importData.data;
+      const dbStorage = storage as any; // Cast to access db and schema
+      
+      // Import clients
+      const clientIds = new Set<string>();
+      for (const client of clients) {
+        try {
+          await dbStorage.db.insert(dbStorage.schema.clients)
+            .values(client)
+            .onConflictDoNothing();
+          clientIds.add(client.id);
+        } catch (err) {
+          console.error(`Failed to import client ${client.id}:`, err);
+        }
+      }
+
+      // Import locations
+      const locationIds = new Set<string>();
+      for (const location of locations) {
+        try {
+          if (clientIds.has(location.clientId)) {
+            await dbStorage.db.insert(dbStorage.schema.locations)
+              .values(location)
+              .onConflictDoNothing();
+            locationIds.add(location.id);
+          }
+        } catch (err) {
+          console.error(`Failed to import location ${location.id}:`, err);
+        }
+      }
+
+      // Import transactions
+      let importedCount = 0;
+      
+      // Uber Eats
+      for (const txn of transactions.ubereats) {
+        try {
+          if (clientIds.has(txn.clientId) && locationIds.has(txn.locationId)) {
+            await dbStorage.db.insert(dbStorage.schema.uberEatsTransactions)
+              .values(txn)
+              .onConflictDoNothing();
+            importedCount++;
+          }
+        } catch (err) {
+          console.error(`Failed to import UE transaction ${txn.id}:`, err);
+        }
+      }
+
+      // DoorDash
+      for (const txn of transactions.doordash) {
+        try {
+          if (clientIds.has(txn.clientId) && locationIds.has(txn.locationId)) {
+            await dbStorage.db.insert(dbStorage.schema.doordashTransactions)
+              .values(txn)
+              .onConflictDoNothing();
+            importedCount++;
+          }
+        } catch (err) {
+          console.error(`Failed to import DD transaction ${txn.id}:`, err);
+        }
+      }
+
+      // Grubhub
+      for (const txn of transactions.grubhub) {
+        try {
+          if (clientIds.has(txn.clientId) && locationIds.has(txn.locationId)) {
+            await dbStorage.db.insert(dbStorage.schema.grubhubTransactions)
+              .values(txn)
+              .onConflictDoNothing();
+            importedCount++;
+          }
+        } catch (err) {
+          console.error(`Failed to import GH transaction ${txn.id}:`, err);
+        }
+      }
+
+      res.json({
+        success: true,
+        imported: {
+          clients: clientIds.size,
+          locations: locationIds.size,
+          transactions: importedCount,
+        },
+      });
+    } catch (error: any) {
+      console.error('Import error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   const httpServer = createServer(app);
 
   return httpServer;
