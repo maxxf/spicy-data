@@ -32,6 +32,18 @@ export const users = pgTable("users", {
 export type UpsertUser = typeof users.$inferInsert;
 export type User = typeof users.$inferSelect;
 
+export const updateUserRoleSchema = z.object({
+  role: z.enum(["super_admin", "brand_admin", "user"]),
+  clientId: z.string().nullable().optional(),
+});
+
+export const createBrandAdminSchema = z.object({
+  email: z.string().email(),
+  firstName: z.string().optional(),
+  lastName: z.string().optional(),
+  clientId: z.string().uuid(),
+});
+
 // Core entity schemas
 export const clients = pgTable("clients", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),

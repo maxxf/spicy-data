@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { isUberEatsAdRelatedDescription } from "./db-storage";
 import { setupAuth, isAuthenticated, isSuperAdmin, isBrandAdmin, getCurrentUser } from "./replitAuth";
-import { insertPromotionSchema, insertPaidAdCampaignSchema, insertLocationSchema, insertLocationWeeklyFinancialSchema, onboardingMessageSchema, onboardingCompleteSchema, type AnalyticsFilters } from "@shared/schema";
+import { insertPromotionSchema, insertPaidAdCampaignSchema, insertLocationSchema, insertLocationWeeklyFinancialSchema, onboardingMessageSchema, onboardingCompleteSchema, updateUserRoleSchema, createBrandAdminSchema, type AnalyticsFilters } from "@shared/schema";
 import multer from "multer";
 import { parse } from "csv-parse/sync";
 import { z } from "zod";
@@ -452,6 +452,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(client);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
+    }
+  });
+
+  // User Management routes (super admin only)
+  app.get("/api/users", isSuperAdmin, async (req, res) => {
+    try {
+      const users = await storage.getAllUsers();
+      res.json(users);
+    } catch (error: any) {
+      console.error("Error fetching users:", error);
+      res.status(500).json({ error: "Failed to fetch users" });
+    }
+  });
+
+  app.patch("/api/users/:id/role", isSuperAdmin, async (req, res) => {
+    try {
+      const validationResult = updateUserRoleSchema.safeParse(req.body);
+      if (!validationResult.success) {
+        return res.status(400).json({
+          error: "Invalid input",
+          details: validationResult.error.errors
+        });
+      }
+
+      const { role, clientId } = validationResult.data;
+      const updated = await storage.updateUserRole(req.params.id, role, clientId);
+      
+      if (!updated) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      res.json(updated);
+    } catch (error: any) {
+      console.error("Error updating user role:", error);
+      res.status(500).json({ error: "Failed to update user role" });
+    }
+  });
+
+  app.delete("/api/users/:id", isSuperAdmin, async (req, res) => {
+    try {
+      const currentUser = await getCurrentUser(req);
+      
+      if (currentUser?.id === req.params.id) {
+        return res.status(400).json({ error: "Cannot delete your own account" });
+      }
+
+      const deleted = await storage.deleteUser(req.params.id);
+      
+      if (!deleted) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("Error deleting user:", error);
+      res.status(500).json({ error: "Failed to delete user" });
     }
   });
 

@@ -302,6 +302,28 @@ export class DbStorage implements IStorage {
     return user;
   }
 
+  async getAllUsers(): Promise<User[]> {
+    return await this.db.select().from(users).orderBy(users.createdAt);
+  }
+
+  async updateUserRole(id: string, role: string, clientId?: string | null): Promise<User | undefined> {
+    const [updated] = await this.db
+      .update(users)
+      .set({ 
+        role,
+        clientId: clientId !== undefined ? clientId : sql`client_id`,
+        updatedAt: new Date()
+      })
+      .where(eq(users.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteUser(id: string): Promise<boolean> {
+    const result = await this.db.delete(users).where(eq(users.id, id));
+    return result.rowCount ? result.rowCount > 0 : false;
+  }
+
   async createClient(insertClient: InsertClient): Promise<Client> {
     const [client] = await this.db.insert(clients).values(insertClient).returning();
     return client;
