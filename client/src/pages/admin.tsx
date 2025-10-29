@@ -227,7 +227,7 @@ export default function AdminPage() {
         doordash: { status: 'idle' },
         grubhub: { status: 'idle' },
       });
-    }, 3000); // Keep success state visible for 3 seconds
+    }, 5000); // Keep success state visible for 5 seconds
   };
 
   const handleMarketingUpload = async () => {
