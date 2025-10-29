@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -39,6 +39,16 @@ export default function AdminPage() {
   const [marketingDataType, setMarketingDataType] = useState<MarketingDataType | "">("");
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const clearTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (clearTimeoutRef.current) {
+        clearTimeout(clearTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const { data: currentUser } = useQuery<any>({
     queryKey: ["/api/auth/user"],
@@ -215,8 +225,13 @@ export default function AdminPage() {
       });
     }
 
+    // Clear any existing timeout
+    if (clearTimeoutRef.current) {
+      clearTimeout(clearTimeoutRef.current);
+    }
+
     // Clear files after all uploads complete
-    setTimeout(() => {
+    clearTimeoutRef.current = setTimeout(() => {
       setSelectedFiles({
         ubereats: null,
         doordash: null,
@@ -227,6 +242,7 @@ export default function AdminPage() {
         doordash: { status: 'idle' },
         grubhub: { status: 'idle' },
       });
+      clearTimeoutRef.current = null;
     }, 5000); // Keep success state visible for 5 seconds
   };
 
