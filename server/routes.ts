@@ -497,6 +497,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const { role, clientId } = validationResult.data;
+      
+      // Validate that brand admins must have a clientId assigned
+      if (role === "brand_admin" && !clientId) {
+        return res.status(400).json({
+          error: "Brand admins must be assigned to a client"
+        });
+      }
+
       const updated = await storage.updateUserRole(req.params.id, role, clientId);
       
       if (!updated) {

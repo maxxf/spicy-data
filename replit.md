@@ -6,6 +6,24 @@ This project is a multi-tenant data analytics dashboard designed for restaurant 
 ## User Preferences
 Preferred communication style: Simple, everyday language.
 
+## User Permissions & Role-Based Access Control (October 29, 2025)
+Implemented comprehensive three-tier role system:
+- **Super Admin**: Full system access - manage all users, view/edit all clients, access all data
+- **Brand Admin**: Client-scoped access - assigned to specific client, can only view/manage their client's data
+- **User**: Limited access - can view their assigned client's data if one is set
+
+**Key Features:**
+- User Management UI (super admin only): View all users, edit roles, assign brand admins to clients, delete users
+- Data Filtering: All analytics, locations, and client endpoints enforce role-based filtering
+- Security: Brand admin role requires clientId assignment, users can't delete themselves
+- Session Management: Development environment uses HTTP-compatible cookies, production enforces HTTPS-only
+
+**Protected Routes:**
+- `/api/users/*` - Super admin only
+- `/api/clients` - Filtered by user role and assigned client
+- `/api/locations` - Filtered by allowed clientIds
+- `/api/analytics/*` - Filtered by allowed clientIds
+
 ## System Architecture
 
 ### UI/UX Decisions
