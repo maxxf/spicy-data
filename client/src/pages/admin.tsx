@@ -29,6 +29,10 @@ export default function AdminPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
+  const { data: currentUser } = useQuery<any>({
+    queryKey: ["/api/auth/user"],
+  });
+
   const { data: clients } = useQuery<Client[]>({
     queryKey: ["/api/clients"],
   });
@@ -280,6 +284,39 @@ export default function AdminPage() {
         ),
     },
   ];
+
+  if (!currentUser) {
+    return (
+      <div className="p-8 space-y-8" data-testid="page-admin">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight mb-2 flex items-center gap-2">
+            <Settings className="w-6 h-6" />
+            Admin Settings
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            Data upload and one-time setup tasks
+          </p>
+        </div>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <AlertCircle className="w-5 h-5 text-yellow-500" />
+              Login Required
+            </CardTitle>
+            <CardDescription>
+              You need to log in to upload files and manage data
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button asChild data-testid="button-login">
+              <a href="/api/login">Log in with Replit</a>
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="p-8 space-y-8" data-testid="page-admin">
