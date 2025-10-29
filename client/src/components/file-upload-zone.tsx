@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { Upload, FileText, X, AlertCircle } from "lucide-react";
+import { Upload, FileText, X, AlertCircle, CheckCircle2 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -8,11 +8,18 @@ import { PlatformBadge } from "./platform-badge";
 
 type Platform = "ubereats" | "doordash" | "grubhub";
 
+type UploadStatus = {
+  status: 'idle' | 'uploading' | 'success' | 'error';
+  rowsProcessed?: number;
+  error?: string;
+};
+
 interface FileUploadZoneProps {
   platform: Platform;
   onFileSelect: (file: File, platform: Platform) => void;
   onFileClear?: (platform: Platform) => void;
   isProcessing?: boolean;
+  uploadStatus?: UploadStatus;
   progress?: number;
   error?: string;
   className?: string;
@@ -23,6 +30,7 @@ export function FileUploadZone({
   onFileSelect,
   onFileClear,
   isProcessing = false,
+  uploadStatus,
   progress = 0,
   error,
   className,
@@ -143,7 +151,7 @@ export function FileUploadZone({
               </div>
             </div>
 
-            {isProcessing && (
+            {uploadStatus?.status === 'uploading' && (
               <div className="space-y-2">
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground">Processing...</span>
@@ -153,10 +161,22 @@ export function FileUploadZone({
               </div>
             )}
 
-            {error && (
+            {uploadStatus?.status === 'success' && (
+              <div className="flex items-start gap-2 p-3 rounded-md bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800" data-testid={`alert-success-${platform}`}>
+                <CheckCircle2 className="w-4 h-4 text-green-600 dark:text-green-400 flex-shrink-0 mt-0.5" />
+                <div className="text-sm text-green-700 dark:text-green-300">
+                  <p className="font-medium">Upload successful</p>
+                  {uploadStatus.rowsProcessed && (
+                    <p className="text-xs mt-0.5">Processed {uploadStatus.rowsProcessed.toLocaleString()} transactions</p>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {(uploadStatus?.status === 'error' || error) && (
               <div className="flex items-start gap-2 p-3 rounded-md bg-destructive/10 border border-destructive/20" data-testid={`alert-error-${platform}`}>
                 <AlertCircle className="w-4 h-4 text-destructive flex-shrink-0 mt-0.5" />
-                <p className="text-sm text-destructive">{error}</p>
+                <p className="text-sm text-destructive">{uploadStatus?.error || error}</p>
               </div>
             )}
           </div>

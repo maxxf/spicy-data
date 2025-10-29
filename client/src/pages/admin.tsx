@@ -16,6 +16,12 @@ import type { Client, Location } from "@shared/schema";
 type Platform = "ubereats" | "doordash" | "grubhub";
 type MarketingDataType = "doordash-promotions" | "doordash-ads" | "uber-campaigns" | "uber-offers";
 
+type UploadStatus = {
+  status: 'idle' | 'uploading' | 'success' | 'error';
+  rowsProcessed?: number;
+  error?: string;
+};
+
 export default function AdminPage() {
   const [selectedClient, setSelectedClient] = useState<string>("83506705-b408-4f0a-a9b0-e5b585db3b7d");
   const [masterListUrl, setMasterListUrl] = useState<string>("https://docs.google.com/spreadsheets/d/1H-qG7iMx52CTC7HDwsHwTV8YdS60syK6V9V-RKQc5GA/edit?gid=1978235356#gid=1978235356");
@@ -23,6 +29,11 @@ export default function AdminPage() {
     ubereats: null,
     doordash: null,
     grubhub: null,
+  });
+  const [uploadStatuses, setUploadStatuses] = useState<Record<Platform, UploadStatus>>({
+    ubereats: { status: 'idle' },
+    doordash: { status: 'idle' },
+    grubhub: { status: 'idle' },
   });
   const [marketingFile, setMarketingFile] = useState<File | null>(null);
   const [marketingDataType, setMarketingDataType] = useState<MarketingDataType | "">("");
@@ -44,6 +55,12 @@ export default function AdminPage() {
   const uploadMutation = useMutation({
     mutationFn: async ({ file, platform, clientId }: { file: File; platform: Platform; clientId: string }) => {
       console.log(`Starting upload for ${platform}:`, file.name, file.size);
+      
+      setUploadStatuses(prev => ({
+        ...prev,
+        [platform]: { status: 'uploading' }
+      }));
+
       const formData = new FormData();
       formData.append("file", file);
       formData.append("platform", platform);
@@ -53,26 +70,50 @@ export default function AdminPage() {
         const response = await apiRequest("POST", "/api/upload", formData);
         const data = await response.json();
         console.log(`Upload response for ${platform}:`, data);
-        return data;
+        return { data, platform };
       } catch (error) {
         console.error(`Upload error for ${platform}:`, error);
-        throw error;
+        throw { error, platform };
       }
     },
-    onSuccess: () => {
+    onSuccess: ({ data, platform }: { data: any; platform: Platform }) => {
+      const platformNames: Record<Platform, string> = {
+        ubereats: 'Uber Eats',
+        doordash: 'DoorDash',
+        grubhub: 'Grubhub'
+      };
+
+      setUploadStatuses(prev => ({
+        ...prev,
+        [platform]: { status: 'success', rowsProcessed: data.rowsProcessed }
+      }));
+
       toast({
-        title: "Upload successful",
-        description: "File processed and data imported successfully",
+        title: `${platformNames[platform]} upload successful`,
+        description: `Processed ${data.rowsProcessed} transactions`,
       });
+      
       queryClient.invalidateQueries({ queryKey: ["/api/analytics/overview"] });
       queryClient.invalidateQueries({ queryKey: ["/api/analytics/locations"] });
       queryClient.invalidateQueries({ queryKey: ["/api/locations"] });
       queryClient.invalidateQueries({ queryKey: ["/api/locations/suggestions"] });
     },
-    onError: (error: any) => {
+    onError: ({ error, platform }: { error: any; platform: Platform }) => {
+      const platformNames: Record<Platform, string> = {
+        ubereats: 'Uber Eats',
+        doordash: 'DoorDash',
+        grubhub: 'Grubhub'
+      };
+
       console.error("Upload mutation error:", error);
+      
+      setUploadStatuses(prev => ({
+        ...prev,
+        [platform]: { status: 'error', error: error.message }
+      }));
+
       toast({
-        title: "Upload failed",
+        title: `${platformNames[platform]} upload failed`,
         description: error.message || "Failed to process file",
         variant: "destructive",
       });
@@ -140,6 +181,7 @@ export default function AdminPage() {
 
   const handleFileClear = (platform: Platform) => {
     setSelectedFiles((prev) => ({ ...prev, [platform]: null }));
+    setUploadStatuses(prev => ({ ...prev, [platform]: { status: 'idle' } }));
   };
 
   const handleUpload = async () => {
@@ -173,11 +215,19 @@ export default function AdminPage() {
       });
     }
 
-    setSelectedFiles({
-      ubereats: null,
-      doordash: null,
-      grubhub: null,
-    });
+    // Clear files after all uploads complete
+    setTimeout(() => {
+      setSelectedFiles({
+        ubereats: null,
+        doordash: null,
+        grubhub: null,
+      });
+      setUploadStatuses({
+        ubereats: { status: 'idle' },
+        doordash: { status: 'idle' },
+        grubhub: { status: 'idle' },
+      });
+    }, 3000); // Keep success state visible for 3 seconds
   };
 
   const handleMarketingUpload = async () => {
@@ -375,19 +425,22 @@ export default function AdminPage() {
             platform="ubereats"
             onFileSelect={handleFileSelect}
             onFileClear={handleFileClear}
-            isProcessing={uploadMutation.isPending}
+            isProcessing={uploadStatuses.ubereats.status === 'uploading'}
+            uploadStatus={uploadStatuses.ubereats}
           />
           <FileUploadZone
             platform="doordash"
             onFileSelect={handleFileSelect}
             onFileClear={handleFileClear}
-            isProcessing={uploadMutation.isPending}
+            isProcessing={uploadStatuses.doordash.status === 'uploading'}
+            uploadStatus={uploadStatuses.doordash}
           />
           <FileUploadZone
             platform="grubhub"
             onFileSelect={handleFileSelect}
             onFileClear={handleFileClear}
-            isProcessing={uploadMutation.isPending}
+            isProcessing={uploadStatuses.grubhub.status === 'uploading'}
+            uploadStatus={uploadStatuses.grubhub}
           />
         </div>
 
