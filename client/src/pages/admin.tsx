@@ -11,6 +11,7 @@ import { Database, Settings, Upload, CheckCircle2, AlertCircle, MapPin, Trending
 import { Input } from "@/components/ui/input";
 import { DataTable } from "@/components/data-table";
 import { FileUploadZone } from "@/components/file-upload-zone";
+import { UserManagement } from "@/components/user-management";
 import type { Client, Location } from "@shared/schema";
 
 type Platform = "ubereats" | "doordash" | "grubhub";
@@ -734,6 +735,10 @@ export default function AdminPage() {
           </div>
         </CardContent>
       </Card>
+
+      {currentUser?.role === "super_admin" && (
+        <UserManagement />
+      )}
     </div>
   );
 }
