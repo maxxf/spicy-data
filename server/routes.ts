@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { isUberEatsAdRelatedDescription } from "./db-storage";
 import { setupAuth, isAuthenticated, isSuperAdmin, isBrandAdmin, getCurrentUser } from "./replitAuth";
-import { insertPromotionSchema, insertPaidAdCampaignSchema, insertLocationSchema, insertLocationWeeklyFinancialSchema, type AnalyticsFilters } from "@shared/schema";
+import { insertPromotionSchema, insertPaidAdCampaignSchema, insertLocationSchema, insertLocationWeeklyFinancialSchema, onboardingMessageSchema, onboardingCompleteSchema, type AnalyticsFilters } from "@shared/schema";
 import multer from "multer";
 import { parse } from "csv-parse/sync";
 import { z } from "zod";
@@ -452,6 +452,184 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(client);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
+    }
+  });
+
+  // PUBLIC Onboarding routes (no authentication required)
+  app.post("/api/onboarding/start", async (req, res) => {
+    try {
+      const session = await storage.createOnboardingSession();
+      res.json(session);
+    } catch (error: any) {
+      console.error("Error creating onboarding session:", error);
+      res.status(500).json({ error: "Failed to create session. Please try again." });
+    }
+  });
+
+  app.get("/api/onboarding/:sessionId", async (req, res) => {
+    try {
+      const session = await storage.getOnboardingSession(req.params.sessionId);
+      if (!session) {
+        return res.status(404).json({ error: "Session not found" });
+      }
+      res.json(session);
+    } catch (error: any) {
+      console.error("Error retrieving onboarding session:", error);
+      res.status(500).json({ error: "Failed to retrieve session. Please try again." });
+    }
+  });
+
+  app.post("/api/onboarding/:sessionId/message", async (req, res) => {
+    try {
+      const validationResult = onboardingMessageSchema.safeParse(req.body);
+      if (!validationResult.success) {
+        return res.status(400).json({ 
+          error: "Invalid input",
+          details: validationResult.error.errors
+        });
+      }
+
+      const { message } = validationResult.data;
+
+      const session = await storage.getOnboardingSession(req.params.sessionId);
+      if (!session) {
+        return res.status(404).json({ error: "Session not found" });
+      }
+
+      if (!process.env.OPENAI_API_KEY) {
+        console.error("OpenAI API key not configured");
+        return res.status(500).json({ error: "Service temporarily unavailable. Please try again later." });
+      }
+
+      const { OpenAI } = await import("openai");
+      const openai = new OpenAI({
+        apiKey: process.env.OPENAI_API_KEY,
+      });
+
+      const messages = session.messages || [];
+      messages.push({ role: "user", content: message });
+
+      const systemPrompt = `You are an onboarding assistant for a restaurant analytics platform. Your goal is to help new restaurant brands set up their account by collecting the following information:
+
+1. Brand name and contact information
+2. Which delivery platforms they use (Uber Eats, DoorDash, Grubhub)
+3. List of all their restaurant locations (name and address)
+4. Estimated Cost of Goods Sold percentage (COGS %)
+5. Primary business goal: profitability optimization or topline growth
+
+Be conversational, helpful, and guide them through the process step by step. Ask one thing at a time. When they provide location information, help them format it as a list with names and addresses.
+
+When you have collected all the information, respond with a JSON object in this exact format:
+{
+  "complete": true,
+  "data": {
+    "brandName": "string",
+    "contactEmail": "string",
+    "platforms": ["ubereats", "doordash", "grubhub"],
+    "locations": [{"name": "string", "address": "string"}],
+    "cogsPercentage": 0.46,
+    "primaryGoal": "profitability" | "topline_growth"
+  }
+}
+
+Otherwise, just respond conversationally to continue gathering information.`;
+
+      let completion;
+      try {
+        completion = await openai.chat.completions.create({
+          model: "gpt-4o",
+          messages: [
+            { role: "system", content: systemPrompt },
+            ...messages,
+          ],
+        });
+      } catch (openaiError: any) {
+        console.error("OpenAI API error:", openaiError);
+        return res.status(500).json({ 
+          error: "Failed to get response from AI assistant. Please try again." 
+        });
+      }
+
+      const assistantMessage = completion.choices[0].message.content || "";
+      messages.push({ role: "assistant", content: assistantMessage });
+
+      let collectedData = session.collectedData;
+      let status = session.status;
+
+      try {
+        const jsonMatch = assistantMessage.match(/\{[\s\S]*"complete":\s*true[\s\S]*\}/);
+        if (jsonMatch) {
+          const parsed = JSON.parse(jsonMatch[0]);
+          if (parsed.complete && parsed.data) {
+            collectedData = parsed.data;
+            status = "completed";
+          }
+        }
+      } catch (e) {
+      }
+
+      const updated = await storage.updateOnboardingSession(req.params.sessionId, {
+        messages,
+        collectedData,
+        status,
+      });
+
+      res.json(updated);
+    } catch (error: any) {
+      console.error("Error processing message:", error);
+      res.status(500).json({ error: "An unexpected error occurred. Please try again." });
+    }
+  });
+
+  app.post("/api/onboarding/:sessionId/complete", async (req, res) => {
+    try {
+      const validationResult = onboardingCompleteSchema.safeParse(req.body);
+      if (!validationResult.success) {
+        return res.status(400).json({ 
+          error: "Invalid input",
+          details: validationResult.error.errors
+        });
+      }
+
+      const session = await storage.getOnboardingSession(req.params.sessionId);
+      if (!session) {
+        return res.status(404).json({ error: "Session not found" });
+      }
+
+      if (!session.collectedData) {
+        return res.status(400).json({ error: "Onboarding not yet complete. Please finish the conversation first." });
+      }
+
+      const data = session.collectedData as any;
+
+      const client = await storage.createClient({
+        name: data.brandName,
+        cogsPercentage: data.cogsPercentage,
+        primaryGoal: data.primaryGoal,
+        onboardingSessionId: session.id,
+        onboardingCompletedAt: new Date(),
+      });
+
+      const locationIds: string[] = [];
+      for (const loc of data.locations || []) {
+        const location = await storage.createLocation({
+          clientId: client.id,
+          canonicalName: loc.name,
+          address: loc.address,
+          isVerified: false,
+        });
+        locationIds.push(location.id);
+      }
+
+      res.json({
+        success: true,
+        client,
+        locationIds,
+        email: data.contactEmail,
+      });
+    } catch (error: any) {
+      console.error("Error completing onboarding:", error);
+      res.status(500).json({ error: "Failed to complete onboarding. Please try again." });
     }
   });
 

@@ -10,6 +10,8 @@ Preferred communication style: Simple, everyday language.
 
 ### UI/UX Decisions
 The frontend is built with React 18+, TypeScript, and Vite, utilizing `shadcn/ui` (Radix UI) with Tailwind CSS for a custom "New York" design system. It features a data-dense layout, a custom color palette (teal brand, light/dark modes), and is responsive for data visualization. Navigation is handled by a sidebar, leading to key pages like Dashboard, Campaigns, Upload, Locations, Admin, and Income Statement, all supporting comprehensive filtering by week, client, location, platform, and location tags.
+
+**LLM-Powered Onboarding (October 29, 2025)**: Implemented public `/welcome` page with conversational onboarding flow powered by OpenAI GPT-4o. System guides new restaurant brands through setup by collecting: brand name, contact email, delivery platforms (Uber Eats/DoorDash/Grubhub), location list with addresses, estimated COGS percentage, and primary business goal (profitability vs topline growth). Chat state persisted in `onboarding_sessions` table with structured data extraction. Onboarding completion creates client record with COGS % and business goal fields, pre-populates locations, and generates account credentials. Public routing implemented without sidebar authentication.
 - **Weekly Performance Trends Chart (October 28, 2025)**: Enhanced the Weekly Sales Trend chart to display three key metrics simultaneously:
   - **Sales** (left Y-axis): Total weekly sales in dollars
   - **ROAS** (right Y-axis): Return on Ad Spend multiplier

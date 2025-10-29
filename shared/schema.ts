@@ -36,6 +36,10 @@ export type User = typeof users.$inferSelect;
 export const clients = pgTable("clients", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
+  cogsPercentage: real("cogs_percentage"), // e.g., 0.46 for 46% COGS
+  primaryGoal: text("primary_goal"), // 'profitability' | 'topline_growth'
+  onboardingSessionId: varchar("onboarding_session_id"),
+  onboardingCompletedAt: timestamp("onboarding_completed_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -54,6 +58,38 @@ export const locations = pgTable("locations", {
   locationTag: text("location_tag"), // e.g., "Corporate", "Franchise"
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
+
+// Onboarding sessions - track LLM-powered onboarding conversations
+export const onboardingSessions = pgTable("onboarding_sessions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  messages: jsonb("messages").notNull().default(sql`'[]'::jsonb`), // Chat message history
+  collectedData: jsonb("collected_data"), // Structured data extracted from conversation
+  verificationResults: jsonb("verification_results"), // Location verification from Perplexity
+  status: text("status").notNull().default("in_progress"), // 'in_progress' | 'completed'
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Chat sessions - data query conversations for authenticated users
+export const chatSessions = pgTable("chat_sessions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  clientId: varchar("client_id").notNull().references(() => clients.id),
+  messages: jsonb("messages").notNull().default(sql`'[]'::jsonb`), // Chat message history
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type OnboardingSession = typeof onboardingSessions.$inferSelect;
+export type InsertOnboardingSession = typeof onboardingSessions.$inferInsert;
+
+export type ChatSession = typeof chatSessions.$inferSelect;
+export type InsertChatSession = typeof chatSessions.$inferInsert;
+
+export const onboardingMessageSchema = z.object({
+  message: z.string().min(1, "Message cannot be empty").max(2000, "Message is too long"),
+});
+
+export const onboardingCompleteSchema = z.object({});
 
 // Platform transaction schemas
 export const uberEatsTransactions = pgTable("uber_eats_transactions", {

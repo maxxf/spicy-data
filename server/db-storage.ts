@@ -8,6 +8,8 @@ import {
   users,
   clients,
   locations,
+  onboardingSessions,
+  chatSessions,
   uberEatsTransactions,
   doordashTransactions,
   grubhubTransactions,
@@ -312,6 +314,44 @@ export class DbStorage implements IStorage {
 
   async getAllClients(): Promise<Client[]> {
     return await this.db.select().from(clients);
+  }
+
+  async createOnboardingSession(): Promise<any> {
+    const [session] = await this.db.insert(onboardingSessions).values({}).returning();
+    return session;
+  }
+
+  async getOnboardingSession(id: string): Promise<any> {
+    const [session] = await this.db.select().from(onboardingSessions).where(eq(onboardingSessions.id, id));
+    return session;
+  }
+
+  async updateOnboardingSession(id: string, updates: any): Promise<any> {
+    const [updated] = await this.db
+      .update(onboardingSessions)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(onboardingSessions.id, id))
+      .returning();
+    return updated;
+  }
+
+  async createChatSession(userId: string, clientId: string): Promise<any> {
+    const [session] = await this.db.insert(chatSessions).values({ userId, clientId }).returning();
+    return session;
+  }
+
+  async getChatSession(id: string): Promise<any> {
+    const [session] = await this.db.select().from(chatSessions).where(eq(chatSessions.id, id));
+    return session;
+  }
+
+  async updateChatSession(id: string, messages: any[]): Promise<any> {
+    const [updated] = await this.db
+      .update(chatSessions)
+      .set({ messages })
+      .where(eq(chatSessions.id, id))
+      .returning();
+    return updated;
   }
 
   async createLocation(location: InsertLocation): Promise<Location> {
