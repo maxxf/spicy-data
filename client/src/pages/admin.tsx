@@ -2,17 +2,17 @@ import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { Database, Settings, Upload, CheckCircle2, AlertCircle, MapPin, TrendingUp, Download } from "lucide-react";
+import { Database, Settings, Upload, CheckCircle2, AlertCircle, TrendingUp, Download, Users, FileSpreadsheet } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { DataTable } from "@/components/data-table";
 import { FileUploadZone } from "@/components/file-upload-zone";
 import { UserManagement } from "@/components/user-management";
-import type { Client, Location } from "@shared/schema";
+import type { Client } from "@shared/schema";
 
 type Platform = "ubereats" | "doordash" | "grubhub";
 type MarketingDataType = "doordash-promotions" | "doordash-ads" | "uber-campaigns" | "uber-offers";
@@ -25,7 +25,7 @@ type UploadStatus = {
 
 export default function AdminPage() {
   const [selectedClient, setSelectedClient] = useState<string>("83506705-b408-4f0a-a9b0-e5b585db3b7d");
-  const [masterListUrl, setMasterListUrl] = useState<string>("https://docs.google.com/spreadsheets/d/1H-qG7iMx52CTC7HDwsHwTV8YdS60syK6V9V-RKQc5GA/edit?gid=1978235356#gid=1978235356");
+  const [masterListUrl, setMasterListUrl] = useState<string>("");
   const [selectedFiles, setSelectedFiles] = useState<Record<Platform, File | null>>({
     ubereats: null,
     doordash: null,
@@ -57,10 +57,6 @@ export default function AdminPage() {
 
   const { data: clients } = useQuery<Client[]>({
     queryKey: ["/api/clients"],
-  });
-
-  const { data: locations } = useQuery<Location[]>({
-    queryKey: ["/api/locations"],
   });
 
   const uploadMutation = useMutation({
@@ -176,6 +172,7 @@ export default function AdminPage() {
       });
       queryClient.invalidateQueries({ queryKey: ["/api/locations"] });
       queryClient.invalidateQueries({ queryKey: ["/api/analytics/locations"] });
+      setMasterListUrl("");
     },
     onError: (error: any) => {
       toast({
@@ -300,58 +297,6 @@ export default function AdminPage() {
 
   const hasSelectedFiles = Object.values(selectedFiles).some((file) => file !== null);
 
-  const locationManagementColumns = [
-    {
-      key: "storeId",
-      label: "Store ID",
-      sortable: true,
-      render: (value: string | null) => value || <span className="text-muted-foreground">—</span>,
-    },
-    {
-      key: "canonicalName",
-      label: "Canonical Name",
-      sortable: true,
-    },
-    {
-      key: "uberEatsName",
-      label: "Uber Eats",
-      render: (value: string | null) => value || <span className="text-muted-foreground">—</span>,
-    },
-    {
-      key: "doordashName",
-      label: "DoorDash",
-      render: (value: string | null) => value || <span className="text-muted-foreground">—</span>,
-    },
-    {
-      key: "grubhubName",
-      label: "Grubhub",
-      render: (value: string | null) => value || <span className="text-muted-foreground">—</span>,
-    },
-    {
-      key: "locationTag",
-      label: "Tag",
-      render: (value: string | null) => value ? (
-        <Badge variant="secondary" className="no-default-hover-elevate">{value}</Badge>
-      ) : <span className="text-muted-foreground">—</span>,
-    },
-    {
-      key: "isVerified",
-      label: "Status",
-      render: (value: boolean) =>
-        value ? (
-          <Badge variant="outline" className="bg-green-50 dark:bg-green-950/20 text-green-700 dark:text-green-400 border-green-200 dark:border-green-800 no-default-hover-elevate">
-            <CheckCircle2 className="w-3 h-3 mr-1" />
-            Verified
-          </Badge>
-        ) : (
-          <Badge variant="outline" className="bg-yellow-50 dark:bg-yellow-950/20 text-yellow-700 dark:text-yellow-400 border-yellow-200 dark:border-yellow-800 no-default-hover-elevate">
-            <AlertCircle className="w-3 h-3 mr-1" />
-            Unverified
-          </Badge>
-        ),
-    },
-  ];
-
   if (!currentUser) {
     return (
       <div className="p-8 space-y-8" data-testid="page-admin">
@@ -361,7 +306,7 @@ export default function AdminPage() {
             Admin Settings
           </h1>
           <p className="text-sm text-muted-foreground">
-            Data upload and one-time setup tasks
+            Data upload and system management
           </p>
         </div>
 
@@ -372,7 +317,7 @@ export default function AdminPage() {
               Login Required
             </CardTitle>
             <CardDescription>
-              You need to log in to upload files and manage data
+              You need to log in to access admin features
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -393,15 +338,16 @@ export default function AdminPage() {
           Admin Settings
         </h1>
         <p className="text-sm text-muted-foreground">
-          Data upload and one-time setup tasks
+          Data upload and system management
         </p>
       </div>
 
+      {/* Client Selector */}
       <Card>
         <CardHeader>
           <CardTitle>Select Client</CardTitle>
           <CardDescription>
-            Choose the client you're working with
+            Choose which client you're working with
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -417,328 +363,413 @@ export default function AdminPage() {
                     {client.name}
                   </SelectItem>
                 ))}
-                <SelectItem value="new" data-testid="option-client-new">
-                  + Create new client
-                </SelectItem>
               </SelectContent>
             </Select>
           </div>
         </CardContent>
       </Card>
 
-      <div className="space-y-4">
-        <div>
-          <h2 className="text-xl font-semibold tracking-tight mb-2 flex items-center gap-2">
-            <Upload className="w-5 h-5" />
-            Upload Transaction Data
-          </h2>
-          <p className="text-sm text-muted-foreground">
-            Import CSV files from delivery platforms to analyze performance
-          </p>
-        </div>
+      {/* Tabbed Interface */}
+      <Tabs defaultValue="transactions" className="space-y-4" data-testid="tabs-admin">
+        <TabsList className="grid w-full grid-cols-2 lg:grid-cols-5" data-testid="tabs-list-admin">
+          <TabsTrigger value="transactions" data-testid="tab-transactions">
+            <Upload className="w-4 h-4 mr-2" />
+            Transactions
+          </TabsTrigger>
+          <TabsTrigger value="marketing" data-testid="tab-marketing">
+            <TrendingUp className="w-4 h-4 mr-2" />
+            Marketing
+          </TabsTrigger>
+          <TabsTrigger value="locations" data-testid="tab-locations">
+            <FileSpreadsheet className="w-4 h-4 mr-2" />
+            Locations
+          </TabsTrigger>
+          {currentUser?.role === "super_admin" && (
+            <>
+              <TabsTrigger value="migration" data-testid="tab-migration">
+                <Database className="w-4 h-4 mr-2" />
+                Migration
+              </TabsTrigger>
+              <TabsTrigger value="users" data-testid="tab-users">
+                <Users className="w-4 h-4 mr-2" />
+                Users
+              </TabsTrigger>
+            </>
+          )}
+        </TabsList>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <FileUploadZone
-            platform="ubereats"
-            onFileSelect={handleFileSelect}
-            onFileClear={handleFileClear}
-            isProcessing={uploadStatuses.ubereats.status === 'uploading'}
-            uploadStatus={uploadStatuses.ubereats}
-          />
-          <FileUploadZone
-            platform="doordash"
-            onFileSelect={handleFileSelect}
-            onFileClear={handleFileClear}
-            isProcessing={uploadStatuses.doordash.status === 'uploading'}
-            uploadStatus={uploadStatuses.doordash}
-          />
-          <FileUploadZone
-            platform="grubhub"
-            onFileSelect={handleFileSelect}
-            onFileClear={handleFileClear}
-            isProcessing={uploadStatuses.grubhub.status === 'uploading'}
-            uploadStatus={uploadStatuses.grubhub}
-          />
-        </div>
-
-        <div className="flex justify-end gap-4">
-          <Button
-            size="lg"
-            onClick={handleUpload}
-            disabled={!hasSelectedFiles || !selectedClient || uploadMutation.isPending}
-            data-testid="button-upload-all"
-          >
-            {uploadMutation.isPending ? (
-              <>
-                <Upload className="w-4 h-4 mr-2 animate-spin" />
-                Processing...
-              </>
-            ) : (
-              <>
-                <CheckCircle2 className="w-4 h-4 mr-2" />
-                Upload & Process
-              </>
-            )}
-          </Button>
-        </div>
-      </div>
-
-      <div className="border-t pt-8 space-y-4">
-        <div>
-          <h2 className="text-xl font-semibold tracking-tight mb-2 flex items-center gap-2">
-            <TrendingUp className="w-5 h-5" />
-            Upload Marketing Data
-          </h2>
-          <p className="text-sm text-muted-foreground">
-            Import campaign performance data from promotions and paid advertising
-          </p>
-        </div>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Select Data Type</CardTitle>
-            <CardDescription>
-              Choose the type of marketing data you're uploading
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="space-y-2 max-w-md">
-              <Label htmlFor="marketing-type-select">Data Type</Label>
-              <Select value={marketingDataType} onValueChange={(val) => setMarketingDataType(val as MarketingDataType)}>
-                <SelectTrigger id="marketing-type-select" data-testid="select-marketing-type">
-                  <SelectValue placeholder="Choose data type..." />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="doordash-promotions" data-testid="option-type-doordash-promotions">
-                    DoorDash - Promotions
-                  </SelectItem>
-                  <SelectItem value="doordash-ads" data-testid="option-type-doordash-ads">
-                    DoorDash - Paid Ads
-                  </SelectItem>
-                  <SelectItem value="uber-campaigns" data-testid="option-type-uber-campaigns">
-                    Uber Eats - Campaign Location Data
-                  </SelectItem>
-                  <SelectItem value="uber-offers" data-testid="option-type-uber-offers">
-                    Uber Eats - Offers & Campaigns
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            {marketingDataType && (
-              <div className="space-y-2">
-                <Label>Upload CSV File</Label>
-                <div
-                  className="border-2 border-dashed rounded-lg p-8 text-center hover-elevate cursor-pointer transition-colors"
-                  onClick={() => document.getElementById("marketing-file-input")?.click()}
-                  data-testid="zone-marketing-upload"
-                >
-                  <input
-                    id="marketing-file-input"
-                    type="file"
-                    accept=".csv"
-                    className="hidden"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file) setMarketingFile(file);
-                    }}
-                    data-testid="input-marketing-file"
-                  />
-                  {marketingFile ? (
-                    <div className="space-y-2">
-                      <CheckCircle2 className="w-8 h-8 mx-auto text-success" />
-                      <p className="font-medium">{marketingFile.name}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {(marketingFile.size / 1024).toFixed(2)} KB
-                      </p>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setMarketingFile(null);
-                        }}
-                        data-testid="button-clear-marketing-file"
-                      >
-                        Clear
-                      </Button>
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      <Upload className="w-8 h-8 mx-auto text-muted-foreground" />
-                      <p className="font-medium">Drop CSV file here or click to browse</p>
-                      <p className="text-sm text-muted-foreground">
-                        Upload your {marketingDataType.replace("-", " ")} CSV file
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {marketingFile && marketingDataType && (
-              <div className="flex justify-end">
-                <Button
-                  size="lg"
-                  onClick={handleMarketingUpload}
-                  disabled={uploadMarketingMutation.isPending}
-                  data-testid="button-upload-marketing"
-                >
-                  {uploadMarketingMutation.isPending ? (
-                    <>
-                      <Upload className="w-4 h-4 mr-2 animate-spin" />
-                      Processing...
-                    </>
-                  ) : (
-                    <>
-                      <CheckCircle2 className="w-4 h-4 mr-2" />
-                      Upload Marketing Data
-                    </>
-                  )}
-                </Button>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Database className="w-5 h-5" />
-            Import Master Location List
-          </CardTitle>
-          <CardDescription>
-            Import canonical location data with Store IDs from Google Sheets. This enables automatic location matching across all platforms.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="master-list-url">Google Sheets URL</Label>
-            <Input
-              id="master-list-url"
-              type="text"
-              placeholder="https://docs.google.com/spreadsheets/d/..."
-              value={masterListUrl}
-              onChange={(e) => setMasterListUrl(e.target.value)}
-              data-testid="input-master-list-url"
-            />
-            <p className="text-xs text-muted-foreground">
-              Column C should contain Store IDs that match across all delivery platforms
+        {/* Transaction Upload Tab */}
+        <TabsContent value="transactions" className="space-y-4" data-testid="content-transactions">
+          <div>
+            <h2 className="text-xl font-semibold tracking-tight mb-2 flex items-center gap-2">
+              <Upload className="w-5 h-5" />
+              Upload Transaction Data
+            </h2>
+            <p className="text-sm text-muted-foreground mb-4">
+              Import CSV payment reports from delivery platforms to analyze sales performance
             </p>
           </div>
-          <Button
-            onClick={handleImportMasterList}
-            disabled={!masterListUrl || !selectedClient || importMasterListMutation.isPending}
-            data-testid="button-import-master-list"
-          >
-            {importMasterListMutation.isPending ? (
-              <>
-                <Upload className="w-4 h-4 mr-2 animate-spin" />
-                Importing...
-              </>
-            ) : (
-              <>
-                <Database className="w-4 h-4 mr-2" />
-                Import Master List
-              </>
-            )}
-          </Button>
-        </CardContent>
-      </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Database className="w-5 h-5" />
-            Data Migration
-          </CardTitle>
-          <CardDescription>
-            Export all data from development database and import it into production to sync the databases.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="space-y-4">
-            <div className="p-4 border rounded-lg space-y-3 bg-muted/50">
-              <h4 className="font-medium">Step 1: Export Data</h4>
-              <p className="text-sm text-muted-foreground">
-                Download all database data (clients, locations, transactions) as a JSON file.
-              </p>
-              <Button
-                onClick={() => window.open('/api/admin/export-data', '_blank')}
-                variant="outline"
-                data-testid="button-export-data"
-              >
-                <Download className="w-4 h-4 mr-2" />
-                Export Database
-              </Button>
-            </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <FileUploadZone
+              platform="ubereats"
+              onFileSelect={handleFileSelect}
+              onFileClear={handleFileClear}
+              isProcessing={uploadStatuses.ubereats.status === 'uploading'}
+              uploadStatus={uploadStatuses.ubereats}
+            />
+            <FileUploadZone
+              platform="doordash"
+              onFileSelect={handleFileSelect}
+              onFileClear={handleFileClear}
+              isProcessing={uploadStatuses.doordash.status === 'uploading'}
+              uploadStatus={uploadStatuses.doordash}
+            />
+            <FileUploadZone
+              platform="grubhub"
+              onFileSelect={handleFileSelect}
+              onFileClear={handleFileClear}
+              isProcessing={uploadStatuses.grubhub.status === 'uploading'}
+              uploadStatus={uploadStatuses.grubhub}
+            />
+          </div>
 
-            <div className="p-4 border rounded-lg space-y-3 bg-muted/50">
-              <h4 className="font-medium">Step 2: Import Data</h4>
-              <p className="text-sm text-muted-foreground">
-                Upload the exported JSON file to production to import all data.
-              </p>
-              <div className="space-y-2">
-                <Input
-                  id="migration-file-input"
-                  type="file"
-                  accept=".json"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) {
-                      const formData = new FormData();
-                      formData.append('file', file);
-                      
-                      fetch('/api/admin/import-data', {
-                        method: 'POST',
-                        body: formData,
-                      })
-                        .then(res => res.json())
-                        .then(data => {
-                          if (data.success) {
-                            const summary = data.summary;
-                            toast({
-                              title: "Import successful",
-                              description: `Imported: ${summary.clientsImported} clients, ${summary.locationsImported} locations, ${summary.transactionsImported} transactions. Skipped ${summary.orphanedRecordsSkipped} orphaned records.`,
-                            });
-                            queryClient.invalidateQueries();
-                          } else {
-                            throw new Error(data.error || 'Import failed');
-                          }
-                        })
-                        .catch(error => {
-                          toast({
-                            title: "Import failed",
-                            description: error.message,
-                            variant: "destructive",
-                          });
-                        });
-                    }
-                  }}
-                  data-testid="input-migration-file"
-                />
-                <p className="text-xs text-muted-foreground">
-                  Only upload JSON files exported from this system
+          <div className="flex justify-end gap-4">
+            <Button
+              size="lg"
+              onClick={handleUpload}
+              disabled={!hasSelectedFiles || !selectedClient || uploadMutation.isPending}
+              data-testid="button-upload-all"
+            >
+              {uploadMutation.isPending ? (
+                <>
+                  <Upload className="w-4 h-4 mr-2 animate-spin" />
+                  Processing...
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 className="w-4 h-4 mr-2" />
+                  Upload & Process
+                </>
+              )}
+            </Button>
+          </div>
+        </TabsContent>
+
+        {/* Marketing Upload Tab */}
+        <TabsContent value="marketing" className="space-y-4" data-testid="content-marketing">
+          <div>
+            <h2 className="text-xl font-semibold tracking-tight mb-2 flex items-center gap-2">
+              <TrendingUp className="w-5 h-5" />
+              Upload Marketing Data
+            </h2>
+            <p className="text-sm text-muted-foreground mb-4">
+              Import promotion and paid advertising performance data to track ROI and ROAS
+            </p>
+          </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Select Data Type</CardTitle>
+              <CardDescription>
+                Choose the type of marketing data you're uploading
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="space-y-2 max-w-md">
+                <Label htmlFor="marketing-type-select">Data Type</Label>
+                <Select value={marketingDataType} onValueChange={(val) => setMarketingDataType(val as MarketingDataType)}>
+                  <SelectTrigger id="marketing-type-select" data-testid="select-marketing-type">
+                    <SelectValue placeholder="Choose data type..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="doordash-promotions" data-testid="option-type-doordash-promotions">
+                      DoorDash - Promotions
+                    </SelectItem>
+                    <SelectItem value="doordash-ads" data-testid="option-type-doordash-ads">
+                      DoorDash - Paid Ads
+                    </SelectItem>
+                    <SelectItem value="uber-campaigns" data-testid="option-type-uber-campaigns">
+                      Uber Eats - Campaign Location Data
+                    </SelectItem>
+                    <SelectItem value="uber-offers" data-testid="option-type-uber-offers">
+                      Uber Eats - Offers & Campaigns
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {marketingDataType && (
+                <div className="space-y-2">
+                  <Label>Upload CSV File</Label>
+                  <div
+                    className="border-2 border-dashed rounded-lg p-8 text-center hover-elevate cursor-pointer transition-colors"
+                    onClick={() => document.getElementById("marketing-file-input")?.click()}
+                    data-testid="zone-marketing-upload"
+                  >
+                    <input
+                      id="marketing-file-input"
+                      type="file"
+                      accept=".csv"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) setMarketingFile(file);
+                      }}
+                      data-testid="input-marketing-file"
+                    />
+                    {marketingFile ? (
+                      <div className="space-y-2">
+                        <CheckCircle2 className="w-8 h-8 mx-auto text-success" />
+                        <p className="font-medium">{marketingFile.name}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {(marketingFile.size / 1024).toFixed(2)} KB
+                        </p>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setMarketingFile(null);
+                          }}
+                          data-testid="button-clear-marketing-file"
+                        >
+                          Clear
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        <Upload className="w-8 h-8 mx-auto text-muted-foreground" />
+                        <p className="font-medium">Drop CSV file here or click to browse</p>
+                        <p className="text-sm text-muted-foreground">
+                          Upload your {marketingDataType.replace("-", " ")} CSV file
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {marketingFile && marketingDataType && (
+                <div className="flex justify-end">
+                  <Button
+                    size="lg"
+                    onClick={handleMarketingUpload}
+                    disabled={uploadMarketingMutation.isPending}
+                    data-testid="button-upload-marketing"
+                  >
+                    {uploadMarketingMutation.isPending ? (
+                      <>
+                        <Upload className="w-4 h-4 mr-2 animate-spin" />
+                        Processing...
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle2 className="w-4 h-4 mr-2" />
+                        Upload Marketing Data
+                      </>
+                    )}
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Master Locations Tab */}
+        <TabsContent value="locations" className="space-y-4" data-testid="content-locations">
+          <div>
+            <h2 className="text-xl font-semibold tracking-tight mb-2 flex items-center gap-2">
+              <FileSpreadsheet className="w-5 h-5" />
+              Import Master Location List
+            </h2>
+            <p className="text-sm text-muted-foreground mb-4">
+              One-time setup: Import your complete list of store locations from Google Sheets
+            </p>
+          </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Google Sheets Master List</CardTitle>
+              <CardDescription>
+                Your master location list should contain all restaurant locations with their official Store IDs
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="p-4 border rounded-lg bg-muted/50 space-y-2">
+                <h4 className="font-medium text-sm">What is this?</h4>
+                <p className="text-sm text-muted-foreground">
+                  The master location list is your single source of truth for all restaurant locations. It contains the official Store IDs that match across Uber Eats, DoorDash, and Grubhub.
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  Once imported, the system will automatically match transaction data from all platforms to the correct locations using these Store IDs.
                 </p>
               </div>
+
+              <div className="p-4 border-l-4 border-primary bg-primary/5 rounded-lg">
+                <p className="text-sm font-medium mb-2">📋 Required Sheet Format:</p>
+                <ul className="text-sm text-muted-foreground space-y-1 list-disc list-inside">
+                  <li>Column A: Location name (e.g., "Las Vegas - Spring Mountain")</li>
+                  <li>Column B: Address (optional, for reference)</li>
+                  <li>Column C: Store ID (e.g., "NV008") - Must match platform reports</li>
+                </ul>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="master-list-url">Google Sheets URL</Label>
+                <Input
+                  id="master-list-url"
+                  type="text"
+                  placeholder="https://docs.google.com/spreadsheets/d/..."
+                  value={masterListUrl}
+                  onChange={(e) => setMasterListUrl(e.target.value)}
+                  data-testid="input-master-list-url"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Make sure your Google Sheet is shared with "Anyone with the link can view"
+                </p>
+              </div>
+              
+              <Button
+                onClick={handleImportMasterList}
+                disabled={!masterListUrl || !selectedClient || importMasterListMutation.isPending}
+                data-testid="button-import-master-list"
+              >
+                {importMasterListMutation.isPending ? (
+                  <>
+                    <Upload className="w-4 h-4 mr-2 animate-spin" />
+                    Importing...
+                  </>
+                ) : (
+                  <>
+                    <Database className="w-4 h-4 mr-2" />
+                    Import Master List
+                  </>
+                )}
+              </Button>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Data Migration Tab - Super Admin Only */}
+        {currentUser?.role === "super_admin" && (
+          <TabsContent value="migration" className="space-y-4" data-testid="content-migration">
+            <div>
+              <h2 className="text-xl font-semibold tracking-tight mb-2 flex items-center gap-2">
+                <Database className="w-5 h-5" />
+                Data Migration
+              </h2>
+              <p className="text-sm text-muted-foreground mb-4">
+                Export data from development and import into production to sync databases
+              </p>
             </div>
-          </div>
 
-          <div className="p-4 border-l-4 border-warning bg-warning/10 rounded-lg">
-            <p className="text-sm font-medium mb-2">⚠️ Important Notes:</p>
-            <ul className="text-sm text-muted-foreground space-y-1 list-disc list-inside">
-              <li>Export data from development environment</li>
-              <li>Import the file into production environment</li>
-              <li>This will add missing data without affecting existing records</li>
-            </ul>
-          </div>
-        </CardContent>
-      </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle>Database Migration Tools</CardTitle>
+                <CardDescription>
+                  Transfer all data (clients, locations, transactions) between environments
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="space-y-4">
+                  <div className="p-4 border rounded-lg space-y-3 bg-muted/50">
+                    <h4 className="font-medium">Step 1: Export Data</h4>
+                    <p className="text-sm text-muted-foreground">
+                      Download all database data (clients, locations, transactions) as a JSON file.
+                    </p>
+                    <Button
+                      onClick={() => window.open('/api/admin/export-data', '_blank')}
+                      variant="outline"
+                      data-testid="button-export-data"
+                    >
+                      <Download className="w-4 h-4 mr-2" />
+                      Export Database
+                    </Button>
+                  </div>
 
-      {currentUser?.role === "super_admin" && (
-        <UserManagement />
-      )}
+                  <div className="p-4 border rounded-lg space-y-3 bg-muted/50">
+                    <h4 className="font-medium">Step 2: Import Data</h4>
+                    <p className="text-sm text-muted-foreground">
+                      Upload the exported JSON file to production to import all data.
+                    </p>
+                    <div className="space-y-2">
+                      <Input
+                        id="migration-file-input"
+                        type="file"
+                        accept=".json"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            const formData = new FormData();
+                            formData.append('file', file);
+                            
+                            fetch('/api/admin/import-data', {
+                              method: 'POST',
+                              body: formData,
+                            })
+                              .then(res => res.json())
+                              .then(data => {
+                                if (data.success) {
+                                  const summary = data.summary;
+                                  toast({
+                                    title: "Import successful",
+                                    description: `Imported: ${summary.clientsImported} clients, ${summary.locationsImported} locations, ${summary.transactionsImported} transactions. Skipped ${summary.orphanedRecordsSkipped} orphaned records.`,
+                                  });
+                                  queryClient.invalidateQueries();
+                                } else {
+                                  throw new Error(data.error || 'Import failed');
+                                }
+                              })
+                              .catch(error => {
+                                toast({
+                                  title: "Import failed",
+                                  description: error.message,
+                                  variant: "destructive",
+                                });
+                              });
+                          }
+                        }}
+                        data-testid="input-migration-file"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Only upload JSON files exported from this system
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="p-4 border-l-4 border-warning bg-warning/10 rounded-lg">
+                  <p className="text-sm font-medium mb-2">⚠️ Important Notes:</p>
+                  <ul className="text-sm text-muted-foreground space-y-1 list-disc list-inside">
+                    <li>Export data from development environment</li>
+                    <li>Import the file into production environment</li>
+                    <li>This will add missing data without affecting existing records</li>
+                    <li>Only super admins can access migration tools</li>
+                  </ul>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        )}
+
+        {/* User Management Tab - Super Admin Only */}
+        {currentUser?.role === "super_admin" && (
+          <TabsContent value="users" className="space-y-4" data-testid="content-users">
+            <div>
+              <h2 className="text-xl font-semibold tracking-tight mb-2 flex items-center gap-2">
+                <Users className="w-5 h-5" />
+                User Management
+              </h2>
+              <p className="text-sm text-muted-foreground mb-4">
+                Manage user accounts, roles, and client assignments
+              </p>
+            </div>
+            
+            <UserManagement />
+          </TabsContent>
+        )}
+      </Tabs>
     </div>
   );
 }
