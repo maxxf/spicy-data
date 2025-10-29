@@ -92,8 +92,8 @@ async function identifyDataGaps() {
             COUNT(*) as orders
           FROM uber_eats_transactions
           WHERE location_id = ${loc.id}
-            AND TO_DATE('20' || SPLIT_PART(date, '/', 3) || '-' || LPAD(SPLIT_PART(date, '/', 1), 2, '0') || '-' || LPAD(SPLIT_PART(date, '/', 2), 2, '0'), 'YYYY-MM-DD') >= ${week.week_start}::date
-            AND TO_DATE('20' || SPLIT_PART(date, '/', 3) || '-' || LPAD(SPLIT_PART(date, '/', 1), 2, '0') || '-' || LPAD(SPLIT_PART(date, '/', 2), 2, '0'), 'YYYY-MM-DD') <= ${week.week_end}::date
+            AND TO_DATE('20' || SPLIT_PART(date, '/', 3) || '-' || LPAD(SPLIT_PART(date, '/', 1), 2, '0') || '-' || LPAD(SPLIT_PART(date, '/', 2), 2, '0'), 'YYYY-MM-DD') >= ${sql.raw(`'${week.week_start}'::date`)}
+            AND TO_DATE('20' || SPLIT_PART(date, '/', 3) || '-' || LPAD(SPLIT_PART(date, '/', 1), 2, '0') || '-' || LPAD(SPLIT_PART(date, '/', 2), 2, '0'), 'YYYY-MM-DD') <= ${sql.raw(`'${week.week_end}'::date`)}
             AND order_status = 'Completed'
         ),
         door AS (
@@ -102,8 +102,8 @@ async function identifyDataGaps() {
             COUNT(*) as orders
           FROM doordash_transactions
           WHERE location_id = ${loc.id}
-            AND CAST(transaction_date AS DATE) >= ${week.week_start}::date
-            AND CAST(transaction_date AS DATE) <= ${week.week_end}::date
+            AND CAST(transaction_date AS DATE) >= ${sql.raw(`'${week.week_start}'::date`)}
+            AND CAST(transaction_date AS DATE) <= ${sql.raw(`'${week.week_end}'::date`)}
             AND (channel = 'Marketplace' OR channel IS NULL)
             AND (transaction_type = 'Order' OR transaction_type IS NULL OR transaction_type = '')
         ),
@@ -113,8 +113,8 @@ async function identifyDataGaps() {
             COUNT(*) as orders
           FROM grubhub_transactions
           WHERE location_id = ${loc.id}
-            AND order_date >= ${week.week_start}::date
-            AND order_date <= ${week.week_end}::date
+            AND order_date >= ${sql.raw(`'${week.week_start}'::date`)}
+            AND order_date <= ${sql.raw(`'${week.week_end}'::date`)}
             AND transaction_type = 'Prepaid Order'
         )
         SELECT 
