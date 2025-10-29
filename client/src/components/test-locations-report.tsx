@@ -146,6 +146,35 @@ export function TestLocationsReport({ clientId, isActive }: { clientId: string; 
             issue: `Marketing spend (${formatCurrency(metric.marketingSpend)}) exceeds marketing sales (${formatCurrency(metric.marketingSales)})`
           });
         }
+
+        // Week-over-week changes (compare with previous week)
+        if (idx > 0) {
+          const prevMetric = location.weeklyMetrics[idx - 1];
+          if (prevMetric && prevMetric.sales > 0) {
+            const salesChange = ((metric.sales - prevMetric.sales) / prevMetric.sales) * 100;
+            const salesDollarChange = metric.sales - prevMetric.sales;
+
+            // Flag significant drops (>50% or >$1000 drop)
+            if (salesChange < -50 || salesDollarChange < -1000) {
+              issues.push({
+                type: 'warning',
+                location: location.locationName,
+                week,
+                issue: `Sales dropped ${Math.abs(salesChange).toFixed(0)}% (${formatCurrency(Math.abs(salesDollarChange))}) from previous week`
+              });
+            }
+
+            // Flag significant increases (>100% or >$2000 increase) as unusual patterns
+            if (salesChange > 100 && salesDollarChange > 2000) {
+              issues.push({
+                type: 'info',
+                location: location.locationName,
+                week,
+                issue: `Sales increased ${salesChange.toFixed(0)}% (${formatCurrency(salesDollarChange)}) from previous week - verify data accuracy`
+              });
+            }
+          }
+        }
       });
     });
 
