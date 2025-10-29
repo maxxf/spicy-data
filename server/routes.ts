@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { isUberEatsAdRelatedDescription } from "./db-storage";
-import { setupAuth, isAuthenticated, isSuperAdmin, isBrandAdmin, getCurrentUser } from "./replitAuth";
+import { setupAuth, isAuthenticated, isSuperAdmin, isBrandAdmin, getCurrentUser, getAllowedClientIds } from "./replitAuth";
 import { insertPromotionSchema, insertPaidAdCampaignSchema, insertLocationSchema, insertLocationWeeklyFinancialSchema, onboardingMessageSchema, onboardingCompleteSchema, updateUserRoleSchema, createBrandAdminSchema, type AnalyticsFilters } from "@shared/schema";
 import multer from "multer";
 import { parse } from "csv-parse/sync";
@@ -432,10 +432,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Protected API routes (require authentication)
-  app.get("/api/clients", async (req, res) => {
+  app.get("/api/clients", isAuthenticated, async (req, res) => {
     try {
-      const clients = await storage.getAllClients();
-      res.json(clients);
+      const user = await getCurrentUser(req);
+      
+      // Super admins can see all clients
+      if (user?.role === "super_admin") {
+        const clients = await storage.getAllClients();
+        return res.json(clients);
+      }
+      
+      // Brand admins can only see their assigned client
+      if (user?.role === "brand_admin" && user.clientId) {
+        const client = await storage.getClient(user.clientId);
+        return res.json(client ? [client] : []);
+      }
+      
+      // Regular users can see their assigned client if they have one
+      if (user?.clientId) {
+        const client = await storage.getClient(user.clientId);
+        return res.json(client ? [client] : []);
+      }
+      
+      // No client access
+      res.json([]);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
@@ -1442,11 +1462,24 @@ Otherwise, just respond conversationally to continue gathering information.`;
     }
   });
 
-  app.get("/api/locations", async (req, res) => {
+  app.get("/api/locations", isAuthenticated, async (req, res) => {
     try {
       const { clientId } = req.query;
-      const locations = clientId
-        ? await storage.getLocationsByClient(clientId as string)
+      
+      // Get allowed client IDs based on user role and permissions
+      const allowedClientIds = await getAllowedClientIds(req, clientId as string | undefined);
+      
+      if (allowedClientIds && allowedClientIds.length === 0) {
+        return res.status(403).json({ error: "You don't have permission to access this client's data" });
+      }
+      
+      // For brand admins, use their assigned client
+      const effectiveClientId = allowedClientIds && allowedClientIds.length > 0 
+        ? allowedClientIds[0] 
+        : clientId as string | undefined;
+      
+      const locations = effectiveClientId
+        ? await storage.getLocationsByClient(effectiveClientId)
         : await storage.getAllLocations();
       res.json(locations);
     } catch (error: any) {
@@ -1901,11 +1934,24 @@ Otherwise, just respond conversationally to continue gathering information.`;
     }
   });
 
-  app.get("/api/analytics/overview", async (req, res) => {
+  app.get("/api/analytics/overview", isAuthenticated, async (req, res) => {
     try {
       const { clientId, locationId, platform, weekStart, weekEnd, locationTag } = req.query;
+      
+      // Get allowed client IDs based on user role and permissions
+      const allowedClientIds = await getAllowedClientIds(req, clientId as string | undefined);
+      
+      if (allowedClientIds && allowedClientIds.length === 0) {
+        return res.status(403).json({ error: "You don't have permission to access this client's data" });
+      }
+      
+      // For brand admins, override the clientId with their assigned client
+      const effectiveClientId = allowedClientIds && allowedClientIds.length > 0 
+        ? allowedClientIds[0] 
+        : clientId as string | undefined;
+      
       const filters: AnalyticsFilters = {
-        clientId: clientId as string | undefined,
+        clientId: effectiveClientId,
         locationId: locationId as string | undefined,
         platform: platform as "ubereats" | "doordash" | "grubhub" | undefined,
         weekStart: weekStart as string | undefined,

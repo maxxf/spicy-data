@@ -229,3 +229,38 @@ export async function getCurrentUser(req: any): Promise<User | null> {
   
   return await storage.getUser(req.user.claims.sub) || null;
 }
+
+// Helper to get allowed client IDs for a user based on their role
+export async function getAllowedClientIds(req: any, requestedClientId?: string): Promise<string[] | null> {
+  const user = await getCurrentUser(req);
+  
+  if (!user) {
+    return null;
+  }
+  
+  // Super admins can access all clients
+  if (user.role === "super_admin") {
+    return requestedClientId ? [requestedClientId] : null; // null means all clients
+  }
+  
+  // Brand admins can only access their assigned client
+  if (user.role === "brand_admin") {
+    if (!user.clientId) {
+      return []; // Brand admin without assigned client can't access any data
+    }
+    
+    // If a specific client is requested, verify it matches their assigned client
+    if (requestedClientId && requestedClientId !== user.clientId) {
+      return []; // Requesting unauthorized client
+    }
+    
+    return [user.clientId];
+  }
+  
+  // Regular users can access their assigned client if they have one
+  if (user.clientId) {
+    return requestedClientId && requestedClientId !== user.clientId ? [] : [user.clientId];
+  }
+  
+  return []; // No client access
+}
