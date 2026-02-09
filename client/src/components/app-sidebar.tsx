@@ -8,7 +8,6 @@ import {
   LogOut, 
   Clock,
   BarChart3,
-  Copy,
   Zap
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
@@ -98,14 +97,6 @@ export function AppSidebar() {
             <img src={logoImage} alt="Spicy Data" className="w-full h-full object-cover" />
           </div>
           <span className="text-sm font-semibold tracking-tight">SPICY DATA</span>
-          <Button
-            size="icon"
-            variant="ghost"
-            className="ml-auto"
-            data-testid="button-copy-sidebar"
-          >
-            <Copy className="w-3.5 h-3.5" />
-          </Button>
         </div>
       </SidebarHeader>
       <SidebarContent className="px-2 py-2">
