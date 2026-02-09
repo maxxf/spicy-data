@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,6 +9,12 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
+import { FileUploadZone } from "@/components/file-upload-zone";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import {
   Dialog,
   DialogContent,
@@ -17,7 +23,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import {
-  Zap,
+  Upload,
   Plus,
   Trash2,
   TestTube,
@@ -29,9 +35,23 @@ import {
   XCircle,
   Key,
   Loader2,
+  ChevronDown,
+  ChevronRight,
+  FileSpreadsheet,
+  TrendingUp,
+  Zap,
 } from "lucide-react";
 import { SiUbereats, SiDoordash, SiGrubhub } from "react-icons/si";
 import type { PlatformCredential, DataSyncJob, Client } from "@shared/schema";
+
+type Platform = "ubereats" | "doordash" | "grubhub";
+type MarketingDataType = "doordash-promotions" | "doordash-ads" | "uber-campaigns" | "uber-offers";
+
+type UploadStatus = {
+  status: 'idle' | 'uploading' | 'success' | 'error';
+  rowsProcessed?: number;
+  error?: string;
+};
 
 const platformConfig = {
   ubereats: {
@@ -63,6 +83,12 @@ const platformConfig = {
       { value: "login", label: "Portal Login" },
     ],
   },
+};
+
+const platformNames: Record<Platform, string> = {
+  ubereats: 'Uber Eats',
+  doordash: 'DoorDash',
+  grubhub: 'Grubhub'
 };
 
 function StatusBadge({ status }: { status: string }) {
@@ -153,9 +179,9 @@ function AddCredentialDialog({ clients }: { clients: Client[] }) {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button data-testid="button-add-credential">
+        <Button size="sm" variant="outline" data-testid="button-add-credential">
           <Plus className="w-4 h-4 mr-2" />
-          Add Platform Connection
+          Add Connection
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-md" data-testid="dialog-add-credential">
@@ -166,7 +192,7 @@ function AddCredentialDialog({ clients }: { clients: Client[] }) {
           <div className="space-y-2">
             <Label>Client</Label>
             <Select value={clientId} onValueChange={setClientId}>
-              <SelectTrigger data-testid="select-client">
+              <SelectTrigger data-testid="select-credential-client">
                 <SelectValue placeholder="Select client" />
               </SelectTrigger>
               <SelectContent>
@@ -180,7 +206,7 @@ function AddCredentialDialog({ clients }: { clients: Client[] }) {
           <div className="space-y-2">
             <Label>Platform</Label>
             <Select value={platform} onValueChange={(v) => { setPlatform(v); setCredentialType(""); }}>
-              <SelectTrigger data-testid="select-platform">
+              <SelectTrigger data-testid="select-credential-platform">
                 <SelectValue placeholder="Select platform" />
               </SelectTrigger>
               <SelectContent>
@@ -360,53 +386,160 @@ function CredentialCard({ credential, onDelete, onTest }: {
   );
 }
 
-function SyncJobRow({ job }: { job: DataSyncJob }) {
-  const statusIcon = {
-    pending: <Clock className="w-3.5 h-3.5 text-muted-foreground" />,
-    running: <Loader2 className="w-3.5 h-3.5 text-blue-500 animate-spin" />,
-    completed: <CheckCircle2 className="w-3.5 h-3.5 text-green-500" />,
-    failed: <XCircle className="w-3.5 h-3.5 text-destructive" />,
-  };
-
-  return (
-    <div className="flex items-center gap-3 py-2 px-3 text-sm border-b last:border-b-0" data-testid={`row-sync-job-${job.id}`}>
-      {statusIcon[job.status as keyof typeof statusIcon] || <Clock className="w-3.5 h-3.5" />}
-      <span className="font-medium capitalize">{job.platform}</span>
-      <Badge variant="secondary" className="text-xs">{job.reportType}</Badge>
-      {job.dateRangeStart && job.dateRangeEnd && (
-        <span className="text-xs text-muted-foreground">{job.dateRangeStart} - {job.dateRangeEnd}</span>
-      )}
-      <span className="ml-auto text-xs text-muted-foreground">
-        {job.recordsProcessed ? `${job.recordsProcessed} records` : ""}
-      </span>
-      {job.errorMessage && (
-        <span className="text-xs text-destructive truncate max-w-[200px]">{job.errorMessage}</span>
-      )}
-      <span className="text-xs text-muted-foreground whitespace-nowrap">
-        {job.createdAt ? new Date(job.createdAt).toLocaleDateString() : ""}
-      </span>
-    </div>
-  );
-}
-
 export default function AutomationsPage() {
   const { user } = useAuth();
   const { toast } = useToast();
   const isSuperAdmin = user?.role === "super_admin";
+  const clearTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [automationOpen, setAutomationOpen] = useState(false);
+
+  const [selectedClient, setSelectedClient] = useState<string>("");
+  const [uploadStatuses, setUploadStatuses] = useState<Record<Platform, UploadStatus>>({
+    ubereats: { status: 'idle' },
+    doordash: { status: 'idle' },
+    grubhub: { status: 'idle' },
+  });
+  const [selectedFiles, setSelectedFiles] = useState<Record<Platform, File | null>>({
+    ubereats: null,
+    doordash: null,
+    grubhub: null,
+  });
+
+  const [marketingFile, setMarketingFile] = useState<File | null>(null);
+  const [marketingDataType, setMarketingDataType] = useState<MarketingDataType | "">("");
+
+  useEffect(() => {
+    return () => {
+      if (clearTimeoutRef.current) {
+        clearTimeout(clearTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  const { data: clients = [] } = useQuery<Client[]>({
+    queryKey: ["/api/clients"],
+  });
 
   const { data: credentials = [], isLoading: credentialsLoading } = useQuery<PlatformCredential[]>({
     queryKey: ["/api/platform-credentials"],
     enabled: isSuperAdmin,
   });
 
-  const { data: syncJobs = [], isLoading: jobsLoading } = useQuery<DataSyncJob[]>({
-    queryKey: ["/api/sync-jobs"],
-    enabled: isSuperAdmin,
+  useEffect(() => {
+    if (clients.length > 0 && !selectedClient) {
+      setSelectedClient(clients[0].id);
+    }
+  }, [clients, selectedClient]);
+
+  const uploadMutation = useMutation({
+    mutationFn: async ({ file, platform, clientId }: { file: File; platform: Platform; clientId: string }) => {
+      setUploadStatuses(prev => ({
+        ...prev,
+        [platform]: { status: 'uploading' }
+      }));
+
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("platform", platform);
+      formData.append("clientId", clientId);
+
+      try {
+        const response = await apiRequest("POST", "/api/upload", formData);
+        const data = await response.json();
+        return { data, platform };
+      } catch (error) {
+        throw { error, platform };
+      }
+    },
+    onSuccess: ({ data, platform }: { data: any; platform: Platform }) => {
+      setUploadStatuses(prev => ({
+        ...prev,
+        [platform]: { status: 'success', rowsProcessed: data.rowsProcessed }
+      }));
+
+      toast({
+        title: `${platformNames[platform]} upload successful`,
+        description: `Processed ${data.rowsProcessed} transactions`,
+      });
+
+      queryClient.invalidateQueries({ queryKey: ["/api/analytics"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/transactions"] });
+
+      if (clearTimeoutRef.current) clearTimeout(clearTimeoutRef.current);
+      clearTimeoutRef.current = setTimeout(() => {
+        setUploadStatuses(prev => ({
+          ...prev,
+          [platform]: { status: 'idle' }
+        }));
+        setSelectedFiles(prev => ({ ...prev, [platform]: null }));
+      }, 5000);
+    },
+    onError: (err: any) => {
+      const platform = err?.platform || 'ubereats';
+      const errorMessage = err?.error?.message || "Upload failed";
+
+      setUploadStatuses(prev => ({
+        ...prev,
+        [platform]: { status: 'error', error: errorMessage }
+      }));
+
+      toast({
+        title: `${platformNames[platform as Platform]} upload failed`,
+        description: errorMessage,
+        variant: "destructive",
+      });
+    },
   });
 
-  const { data: clients = [] } = useQuery<Client[]>({
-    queryKey: ["/api/clients"],
+  const uploadMarketingMutation = useMutation({
+    mutationFn: async ({ file, dataType, clientId }: { file: File; dataType: MarketingDataType; clientId: string }) => {
+      const formData = new FormData();
+      formData.append("file", file);
+      const [platform, type] = dataType.split("-");
+      formData.append("platform", platform);
+      formData.append("dataType", type);
+      formData.append("clientId", clientId);
+      return apiRequest("POST", "/api/upload/marketing", formData);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Marketing data uploaded",
+        description: "Campaign performance data imported successfully",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/analytics/promotions"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/analytics/paid-ads"] });
+      setMarketingFile(null);
+      setMarketingDataType("");
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Upload failed",
+        description: error.message || "Failed to process marketing data",
+        variant: "destructive",
+      });
+    },
   });
+
+  const handleFileSelect = (file: File, platform: Platform) => {
+    setSelectedFiles(prev => ({ ...prev, [platform]: file }));
+    if (selectedClient) {
+      uploadMutation.mutate({ file, platform, clientId: selectedClient });
+    } else {
+      toast({
+        title: "Select a client first",
+        description: "Please choose a client before uploading files",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleFileClear = (platform: Platform) => {
+    setSelectedFiles(prev => ({ ...prev, [platform]: null }));
+    setUploadStatuses(prev => ({
+      ...prev,
+      [platform]: { status: 'idle' }
+    }));
+  };
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
@@ -442,7 +575,7 @@ export default function AutomationsPage() {
             <ShieldCheck className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
             <h2 className="text-lg font-semibold mb-2">Access Restricted</h2>
             <p className="text-sm text-muted-foreground">
-              Only super admins can manage platform automations and credentials.
+              Only super admins can manage data ingestion and platform connections.
             </p>
           </CardContent>
         </Card>
@@ -459,110 +592,210 @@ export default function AutomationsPage() {
 
   return (
     <div className="p-6 space-y-6 max-w-5xl mx-auto overflow-y-auto h-full" data-testid="page-automations">
-      <div className="flex items-center justify-between gap-4 flex-wrap">
-        <div>
-          <h1 className="text-xl font-semibold flex items-center gap-2">
-            <Zap className="w-5 h-5" />
-            Automations
-          </h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            Connect delivery platforms for automated data collection
-          </p>
-        </div>
-        <AddCredentialDialog clients={clients} />
+      <div>
+        <h1 className="text-xl font-semibold flex items-center gap-2" data-testid="heading-data-ingestion">
+          <Upload className="w-5 h-5" />
+          Data Ingestion
+        </h1>
+        <p className="text-sm text-muted-foreground mt-1">
+          Upload transaction and marketing CSV files from your delivery platforms
+        </p>
       </div>
 
-      <div className="grid gap-4 grid-cols-3">
-        {Object.entries(platformConfig).map(([key, config]) => {
-          const PIcon = config.icon;
-          const count = credentials.filter(c => c.platform === key).length;
-          const activeCount = credentials.filter(c => c.platform === key && c.status === "active").length;
-          return (
-            <Card key={key} data-testid={`card-platform-summary-${key}`}>
-              <CardContent className="p-4 flex items-center gap-3">
-                <div className={`p-2.5 rounded-md ${config.bgColor}`}>
-                  <PIcon className={`w-5 h-5 ${config.color}`} />
-                </div>
-                <div>
-                  <p className="font-medium text-sm">{config.name}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {count === 0 ? "No connections" : `${activeCount}/${count} active`}
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
+      <div className="flex items-center gap-3">
+        <Label className="text-sm font-medium whitespace-nowrap">Client</Label>
+        <Select value={selectedClient} onValueChange={setSelectedClient}>
+          <SelectTrigger className="w-[280px]" data-testid="select-upload-client">
+            <SelectValue placeholder="Select client" />
+          </SelectTrigger>
+          <SelectContent>
+            {clients.map(c => (
+              <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       <div className="space-y-4">
-        <h2 className="text-base font-semibold">Platform Connections</h2>
-        {credentialsLoading ? (
-          <Card>
-            <CardContent className="p-8 text-center">
-              <Loader2 className="w-6 h-6 mx-auto animate-spin text-muted-foreground" />
-              <p className="text-sm text-muted-foreground mt-2">Loading connections...</p>
-            </CardContent>
-          </Card>
-        ) : credentials.length === 0 ? (
-          <Card>
-            <CardContent className="p-8 text-center">
-              <Key className="w-8 h-8 mx-auto text-muted-foreground mb-3" />
-              <p className="text-sm text-muted-foreground">No platform connections yet.</p>
-              <p className="text-xs text-muted-foreground mt-1">Add connections to start automated data collection.</p>
-            </CardContent>
-          </Card>
-        ) : (
-          Object.entries(groupedByClient).map(([cId, creds]) => {
-            const client = clients.find(c => c.id === cId);
-            return (
-              <div key={cId} className="space-y-2">
-                <h3 className="text-sm font-medium text-muted-foreground">{client?.name || cId}</h3>
-                <div className="grid gap-2">
-                  {creds.map(cred => (
-                    <CredentialCard
-                      key={cred.id}
-                      credential={cred}
-                      onDelete={(id) => deleteMutation.mutate(id)}
-                      onTest={(id) => testMutation.mutate(id)}
-                    />
-                  ))}
-                </div>
-              </div>
-            );
-          })
-        )}
+        <div className="flex items-center gap-2">
+          <FileSpreadsheet className="w-4 h-4 text-muted-foreground" />
+          <h2 className="text-base font-semibold" data-testid="heading-transaction-data">Transaction Data</h2>
+        </div>
+        <p className="text-sm text-muted-foreground -mt-2">
+          Upload payment/transaction CSV reports exported from each delivery platform
+        </p>
+        <div className="grid gap-4 md:grid-cols-3">
+          {(["ubereats", "doordash", "grubhub"] as Platform[]).map(platform => (
+            <FileUploadZone
+              key={platform}
+              platform={platform}
+              onFileSelect={handleFileSelect}
+              onFileClear={handleFileClear}
+              uploadStatus={uploadStatuses[platform]}
+              isProcessing={uploadStatuses[platform].status === 'uploading'}
+              data-testid={`upload-zone-${platform}`}
+            />
+          ))}
+        </div>
       </div>
 
-      <div className="space-y-3">
-        <div className="flex items-center justify-between gap-2">
-          <h2 className="text-base font-semibold">Sync History</h2>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => queryClient.invalidateQueries({ queryKey: ["/api/sync-jobs"] })}
-            data-testid="button-refresh-sync-jobs"
-          >
-            <RefreshCw className="w-4 h-4 mr-1" />
-            Refresh
-          </Button>
+      <div className="space-y-4">
+        <div className="flex items-center gap-2">
+          <TrendingUp className="w-4 h-4 text-muted-foreground" />
+          <h2 className="text-base font-semibold" data-testid="heading-marketing-data">Marketing Data</h2>
         </div>
+        <p className="text-sm text-muted-foreground -mt-2">
+          Upload campaign performance and ad spend reports
+        </p>
+
         <Card>
-          <CardContent className="p-0">
-            {jobsLoading ? (
-              <div className="p-6 text-center">
-                <Loader2 className="w-5 h-5 mx-auto animate-spin text-muted-foreground" />
+          <CardContent className="p-5 space-y-4">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label className="text-sm">Data Type</Label>
+                <Select
+                  value={marketingDataType}
+                  onValueChange={(v) => setMarketingDataType(v as MarketingDataType)}
+                >
+                  <SelectTrigger data-testid="select-marketing-type">
+                    <SelectValue placeholder="Select report type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="doordash-promotions">DoorDash Promotions</SelectItem>
+                    <SelectItem value="doordash-ads">DoorDash Sponsored Listings</SelectItem>
+                    <SelectItem value="uber-campaigns">Uber Eats Campaigns</SelectItem>
+                    <SelectItem value="uber-offers">Uber Eats Offers</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
-            ) : syncJobs.length === 0 ? (
-              <div className="p-6 text-center text-sm text-muted-foreground">
-                No sync jobs have run yet. Add platform connections to begin.
+              <div className="space-y-2">
+                <Label className="text-sm">CSV File</Label>
+                <Input
+                  type="file"
+                  accept=".csv"
+                  onChange={e => setMarketingFile(e.target.files?.[0] || null)}
+                  data-testid="input-marketing-file"
+                />
               </div>
-            ) : (
-              syncJobs.map(job => <SyncJobRow key={job.id} job={job} />)
-            )}
+            </div>
+            <Button
+              onClick={() => {
+                if (marketingFile && marketingDataType && selectedClient) {
+                  uploadMarketingMutation.mutate({
+                    file: marketingFile,
+                    dataType: marketingDataType,
+                    clientId: selectedClient,
+                  });
+                } else {
+                  toast({
+                    title: "Missing fields",
+                    description: "Please select a client, data type, and file",
+                    variant: "destructive",
+                  });
+                }
+              }}
+              disabled={!marketingFile || !marketingDataType || !selectedClient || uploadMarketingMutation.isPending}
+              data-testid="button-upload-marketing"
+            >
+              {uploadMarketingMutation.isPending ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <Upload className="w-4 h-4 mr-2" />
+              )}
+              Upload Marketing Data
+            </Button>
           </CardContent>
         </Card>
       </div>
+
+      <Collapsible open={automationOpen} onOpenChange={setAutomationOpen}>
+        <CollapsibleTrigger asChild>
+          <button
+            className="flex items-center gap-2 w-full text-left py-3 group"
+            data-testid="button-toggle-automation"
+          >
+            {automationOpen ? (
+              <ChevronDown className="w-4 h-4 text-muted-foreground" />
+            ) : (
+              <ChevronRight className="w-4 h-4 text-muted-foreground" />
+            )}
+            <Zap className="w-4 h-4 text-muted-foreground" />
+            <span className="text-base font-semibold">Platform Connections</span>
+            <Badge variant="secondary" className="ml-2 text-xs">Coming Soon</Badge>
+          </button>
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <div className="space-y-4 pt-2 pb-4">
+            <p className="text-sm text-muted-foreground">
+              Connect delivery platform accounts for automated data collection. This feature will allow automatic syncing of transaction and marketing data without manual CSV uploads.
+            </p>
+
+            <div className="grid gap-3 grid-cols-3">
+              {Object.entries(platformConfig).map(([key, config]) => {
+                const PIcon = config.icon;
+                const count = credentials.filter(c => c.platform === key).length;
+                const activeCount = credentials.filter(c => c.platform === key && c.status === "active").length;
+                return (
+                  <Card key={key} data-testid={`card-platform-summary-${key}`}>
+                    <CardContent className="p-4 flex items-center gap-3">
+                      <div className={`p-2.5 rounded-md ${config.bgColor}`}>
+                        <PIcon className={`w-5 h-5 ${config.color}`} />
+                      </div>
+                      <div>
+                        <p className="font-medium text-sm">{config.name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {count === 0 ? "No connections" : `${activeCount}/${count} active`}
+                        </p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+
+            <div className="flex items-center justify-between gap-2">
+              <h3 className="text-sm font-medium">Saved Connections</h3>
+              <AddCredentialDialog clients={clients} />
+            </div>
+
+            {credentialsLoading ? (
+              <Card>
+                <CardContent className="p-6 text-center">
+                  <Loader2 className="w-5 h-5 mx-auto animate-spin text-muted-foreground" />
+                  <p className="text-sm text-muted-foreground mt-2">Loading connections...</p>
+                </CardContent>
+              </Card>
+            ) : credentials.length === 0 ? (
+              <Card>
+                <CardContent className="p-6 text-center">
+                  <Key className="w-7 h-7 mx-auto text-muted-foreground mb-2" />
+                  <p className="text-sm text-muted-foreground">No platform connections yet.</p>
+                  <p className="text-xs text-muted-foreground mt-1">Add connections to prepare for automated data collection.</p>
+                </CardContent>
+              </Card>
+            ) : (
+              Object.entries(groupedByClient).map(([cId, creds]) => {
+                const client = clients.find(c => c.id === cId);
+                return (
+                  <div key={cId} className="space-y-2">
+                    <h4 className="text-sm font-medium text-muted-foreground">{client?.name || cId}</h4>
+                    <div className="grid gap-2">
+                      {creds.map(cred => (
+                        <CredentialCard
+                          key={cred.id}
+                          credential={cred}
+                          onDelete={(id) => deleteMutation.mutate(id)}
+                          onTest={(id) => testMutation.mutate(id)}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </CollapsibleContent>
+      </Collapsible>
     </div>
   );
 }

@@ -8,7 +8,7 @@ import {
   LogOut, 
   Clock,
   BarChart3,
-  Zap
+  Upload
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import {
@@ -60,9 +60,9 @@ const navigation = [
     icon: BarChart3,
   },
   {
-    title: "Automations",
+    title: "Data Ingestion",
     url: "/automations",
-    icon: Zap,
+    icon: Upload,
   },
   {
     title: "Admin",
