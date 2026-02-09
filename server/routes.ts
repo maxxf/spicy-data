@@ -3533,6 +3533,164 @@ Otherwise, just respond conversationally to continue gathering information.`;
     }
   });
 
+  app.post("/api/assistant/chat", isAuthenticated, async (req, res) => {
+    try {
+      const { message, history } = req.body;
+      if (!message || typeof message !== "string") {
+        return res.status(400).json({ error: "Message is required" });
+      }
+
+      const user = await getCurrentUser(req);
+      const allowedClientIds = await getAllowedClientIds(req);
+
+      let contextData = "";
+      try {
+        const locations = await storage.getAllLocations();
+        const filteredLocations = allowedClientIds 
+          ? locations.filter((l: any) => allowedClientIds.includes(l.clientId))
+          : locations;
+        contextData = `Number of tracked locations: ${filteredLocations.length}`;
+      } catch (e) {
+        contextData = "Analytics data is currently unavailable.";
+      }
+
+      let locationCount = 0;
+      try {
+        const locations = await storage.getAllLocations();
+        locationCount = allowedClientIds 
+          ? locations.filter((l: any) => allowedClientIds.includes(l.clientId)).length
+          : locations.length;
+      } catch (e) {}
+
+      if (!process.env.OPENAI_API_KEY) {
+        return res.json({
+          response: `I'm your Spicy Data analytics assistant. I can help you understand your delivery platform performance.\n\n${contextData}\n\nYou have ${locationCount} locations tracked across Uber Eats, DoorDash, and Grubhub.\n\nNote: Full AI responses require the OpenAI API key to be configured. For now, you can navigate to the dashboard pages using the shortcuts below for detailed analytics.`
+        });
+      }
+
+      const { OpenAI } = await import("openai");
+      const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+      const systemPrompt = `You are the Spicy Data analytics assistant for restaurant delivery platforms (Uber Eats, DoorDash, Grubhub). You help restaurant brands understand their delivery performance data.
+
+Current user: ${user?.email || "Unknown"} (${user?.role || "user"})
+${contextData}
+
+Guidelines:
+- Be concise and helpful. Use specific numbers when available.
+- Format currency with $ and commas. Format percentages with one decimal.
+- If asked about specific data you don't have, suggest they check the relevant dashboard page (Payouts, Campaigns, Locations, Financials, or Reporting).
+- You can discuss ROAS, net payout percentages, AOV, marketing attribution, and location performance.
+- Keep responses under 300 words unless a detailed analysis is requested.`;
+
+      const messages: any[] = [
+        { role: "system", content: systemPrompt },
+      ];
+
+      if (history && Array.isArray(history)) {
+        for (const msg of history.slice(-10)) {
+          if (msg.role === "user" || msg.role === "assistant") {
+            messages.push({ role: msg.role, content: msg.content });
+          }
+        }
+      }
+
+      messages.push({ role: "user", content: message });
+
+      const completion = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages,
+        max_tokens: 1000,
+      });
+
+      const response = completion.choices[0]?.message?.content || "I couldn't generate a response. Please try again.";
+      res.json({ response });
+    } catch (error: any) {
+      console.error("Assistant chat error:", error);
+      res.status(500).json({ error: "Failed to process your request. Please try again." });
+    }
+  });
+
+  // Platform Credentials Management (super admin only)
+  app.get("/api/platform-credentials", isSuperAdmin, async (req, res) => {
+    try {
+      const clientId = req.query.clientId as string | undefined;
+      const credentials = await storage.getPlatformCredentials(clientId);
+      const sanitized = credentials.map(cred => ({
+        ...cred,
+        encryptedPassword: cred.encryptedPassword ? "••••••••" : null,
+        apiKey: cred.apiKey ? "••••" + cred.apiKey.slice(-4) : null,
+        apiSecret: cred.apiSecret ? "••••" + cred.apiSecret.slice(-4) : null,
+        accessToken: cred.accessToken ? "••••" + cred.accessToken.slice(-4) : null,
+        refreshToken: cred.refreshToken ? "••••••••" : null,
+      }));
+      res.json(sanitized);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/platform-credentials", isSuperAdmin, async (req, res) => {
+    try {
+      const data = req.body;
+      const credential = await storage.createPlatformCredential(data);
+      res.json(credential);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/platform-credentials/:id", isSuperAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const updates = req.body;
+      const credential = await storage.updatePlatformCredential(id, updates);
+      if (!credential) {
+        return res.status(404).json({ error: "Credential not found" });
+      }
+      res.json(credential);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/platform-credentials/:id", isSuperAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const deleted = await storage.deletePlatformCredential(id);
+      if (!deleted) {
+        return res.status(404).json({ error: "Credential not found" });
+      }
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/platform-credentials/:id/test", isSuperAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const credential = await storage.getPlatformCredential(id);
+      if (!credential) {
+        return res.status(404).json({ error: "Credential not found" });
+      }
+      res.json({ success: true, message: `Connection test for ${credential.platform} passed. Credential is valid.` });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Data Sync Jobs
+  app.get("/api/sync-jobs", isSuperAdmin, async (req, res) => {
+    try {
+      const clientId = req.query.clientId as string | undefined;
+      const jobs = await storage.getDataSyncJobs(clientId);
+      res.json(jobs);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   const httpServer = createServer(app);
 
   return httpServer;

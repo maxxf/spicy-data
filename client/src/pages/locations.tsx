@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { PlatformBadge } from "@/components/platform-badge";
 import { LocationSelector } from "@/components/location-selector";
 import { PlatformSelector } from "@/components/platform-selector";
+import { ClientSelector } from "@/components/client-selector";
 import { useClientContext } from "@/contexts/client-context";
 import { WeekSelector } from "@/components/week-selector";
 import { CheckCircle2, AlertCircle, Link as LinkIcon, MapPin, Download } from "lucide-react";
@@ -372,7 +373,12 @@ export default function LocationsPage() {
 
         <TabsContent value="overview" className="space-y-6 mt-6">
           {weeks && weeks.length > 0 ? (
-            <div className="flex flex-wrap gap-4">
+            <div className="flex flex-wrap gap-3">
+              <ClientSelector
+                selectedClientId={selectedClientId}
+                onClientChange={setSelectedClientId}
+                showAllOption={true}
+              />
               <LocationSelector
                 clientId={selectedClientId}
                 selectedLocationId={selectedLocationId}

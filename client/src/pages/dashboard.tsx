@@ -4,6 +4,7 @@ import { MetricCard } from "@/components/metric-card";
 import { LocationSelector } from "@/components/location-selector";
 import { PlatformSelector } from "@/components/platform-selector";
 import { WeekSelector } from "@/components/week-selector";
+import { ClientSelector } from "@/components/client-selector";
 import { useClientContext } from "@/contexts/client-context";
 import { DataTable } from "@/components/data-table";
 import { PlatformBadge } from "@/components/platform-badge";
@@ -386,7 +387,12 @@ export default function Dashboard() {
             {isPortfolioView ? "Multi-platform delivery performance overview" : "Client-specific performance metrics"}
           </p>
         </div>
-        <div className="flex items-center gap-4 flex-wrap">
+        <div className="flex items-center gap-3 flex-wrap">
+          <ClientSelector
+            selectedClientId={selectedClientId}
+            onClientChange={setSelectedClientId}
+            showAllOption={true}
+          />
           <WeekSelector
             weeks={weeks}
             selectedWeek={selectedWeek}

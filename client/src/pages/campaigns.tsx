@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { LocationSelector } from "@/components/location-selector";
 import { PlatformSelector } from "@/components/platform-selector";
+import { ClientSelector } from "@/components/client-selector";
 import { useClientContext } from "@/contexts/client-context";
 import { WeekSelector } from "@/components/week-selector";
 import { MetricCard } from "@/components/metric-card";
@@ -190,6 +191,11 @@ export default function PromosPage() {
           </p>
         </div>
         <div className="flex items-center gap-3 flex-wrap">
+          <ClientSelector
+            selectedClientId={selectedClientId}
+            onClientChange={setSelectedClientId}
+            showAllOption={true}
+          />
           <WeekSelector
             weeks={weeks}
             selectedWeek={selectedWeek}

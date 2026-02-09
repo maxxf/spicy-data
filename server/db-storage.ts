@@ -18,6 +18,8 @@ import {
   campaignLocationMetrics,
   platformAdSpend,
   locationWeeklyFinancials,
+  platformCredentials,
+  dataSyncJobs,
   type User,
   type UpsertUser,
   type Client,
@@ -38,6 +40,9 @@ import {
   type PaidAdCampaignMetrics,
   type CampaignLocationMetric,
   type InsertCampaignLocationMetric,
+  type PlatformCredential,
+  type InsertPlatformCredential,
+  type DataSyncJob,
   type LocationWeeklyFinancial,
   type InsertLocationWeeklyFinancial,
   type DashboardOverview,
@@ -1868,5 +1873,69 @@ export class DbStorage implements IStorage {
           weekEnd: end.toISOString().split('T')[0],
         };
       });
+  }
+
+  async getPlatformCredentials(clientId?: string): Promise<PlatformCredential[]> {
+    if (clientId) {
+      return await this.db.select().from(platformCredentials).where(eq(platformCredentials.clientId, clientId)).orderBy(desc(platformCredentials.createdAt));
+    }
+    return await this.db.select().from(platformCredentials).orderBy(desc(platformCredentials.createdAt));
+  }
+
+  async getPlatformCredential(id: string): Promise<PlatformCredential | undefined> {
+    const result = await this.db.select().from(platformCredentials).where(eq(platformCredentials.id, id));
+    return result[0];
+  }
+
+  async createPlatformCredential(data: InsertPlatformCredential): Promise<PlatformCredential> {
+    const result = await this.db.insert(platformCredentials).values(data).returning();
+    return result[0];
+  }
+
+  async updatePlatformCredential(id: string, data: Partial<InsertPlatformCredential>): Promise<PlatformCredential | undefined> {
+    const result = await this.db.update(platformCredentials)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(platformCredentials.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async deletePlatformCredential(id: string): Promise<boolean> {
+    const result = await this.db.delete(platformCredentials).where(eq(platformCredentials.id, id)).returning();
+    return result.length > 0;
+  }
+
+  async updateCredentialSyncStatus(id: string, status: string, error?: string): Promise<void> {
+    await this.db.update(platformCredentials)
+      .set({
+        status,
+        lastSyncAt: new Date(),
+        lastError: error || null,
+        updatedAt: new Date(),
+      })
+      .where(eq(platformCredentials.id, id));
+  }
+
+  async createDataSyncJob(data: Partial<DataSyncJob>): Promise<DataSyncJob> {
+    const result = await this.db.insert(dataSyncJobs).values(data as any).returning();
+    return result[0];
+  }
+
+  async getDataSyncJobs(clientId?: string, limit = 50): Promise<DataSyncJob[]> {
+    if (clientId) {
+      return await this.db.select().from(dataSyncJobs)
+        .where(eq(dataSyncJobs.clientId, clientId))
+        .orderBy(desc(dataSyncJobs.createdAt))
+        .limit(limit);
+    }
+    return await this.db.select().from(dataSyncJobs)
+      .orderBy(desc(dataSyncJobs.createdAt))
+      .limit(limit);
+  }
+
+  async updateDataSyncJob(id: string, data: Partial<DataSyncJob>): Promise<void> {
+    await this.db.update(dataSyncJobs)
+      .set(data as any)
+      .where(eq(dataSyncJobs.id, id));
   }
 }

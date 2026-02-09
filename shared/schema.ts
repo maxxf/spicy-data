@@ -502,6 +502,56 @@ export type PromotionMetrics = Promotion & {
 
 export type PaidAdCampaignMetrics = PaidAdCampaign;
 
+// Platform credentials for automated data collection
+export const platformCredentials = pgTable("platform_credentials", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  clientId: varchar("client_id").notNull().references(() => clients.id),
+  platform: varchar("platform").notNull(), // "ubereats", "doordash", "grubhub"
+  credentialType: varchar("credential_type").notNull(), // "api_key", "oauth", "login"
+  username: text("username"),
+  encryptedPassword: text("encrypted_password"),
+  apiKey: text("api_key"),
+  apiSecret: text("api_secret"),
+  accessToken: text("access_token"),
+  refreshToken: text("refresh_token"),
+  tokenExpiresAt: timestamp("token_expires_at"),
+  storeIds: text("store_ids").array(), // Platform-specific store/location IDs
+  status: varchar("status").notNull().default("active"), // "active", "inactive", "error"
+  lastSyncAt: timestamp("last_sync_at"),
+  lastError: text("last_error"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertPlatformCredentialSchema = createInsertSchema(platformCredentials).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  lastSyncAt: true,
+  lastError: true,
+});
+export type InsertPlatformCredential = z.infer<typeof insertPlatformCredentialSchema>;
+export type PlatformCredential = typeof platformCredentials.$inferSelect;
+
+// Data sync jobs for tracking automated data collection
+export const dataSyncJobs = pgTable("data_sync_jobs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  credentialId: varchar("credential_id").notNull().references(() => platformCredentials.id),
+  clientId: varchar("client_id").notNull().references(() => clients.id),
+  platform: varchar("platform").notNull(),
+  status: varchar("status").notNull().default("pending"), // "pending", "running", "completed", "failed"
+  reportType: varchar("report_type").notNull(), // "transactions", "marketing", "payouts"
+  dateRangeStart: varchar("date_range_start"),
+  dateRangeEnd: varchar("date_range_end"),
+  recordsProcessed: integer("records_processed").default(0),
+  errorMessage: text("error_message"),
+  startedAt: timestamp("started_at"),
+  completedAt: timestamp("completed_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type DataSyncJob = typeof dataSyncJobs.$inferSelect;
+
 // Analytics filters schema
 export const analyticsFiltersSchema = z.object({
   clientId: z.string().optional(),

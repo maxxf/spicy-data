@@ -27,6 +27,9 @@ import {
   type AnalyticsFilters,
   type User,
   type UpsertUser,
+  type PlatformCredential,
+  type InsertPlatformCredential,
+  type DataSyncJob,
 } from "@shared/schema";
 import { getUniqueWeeks } from "@shared/week-utils";
 import { randomUUID } from "crypto";
@@ -106,6 +109,17 @@ export interface IStorage {
   getLocationWeeklyFinancials(locationId: string): Promise<LocationWeeklyFinancial[]>;
   getLocationWeeklyFinancialsByClient(clientId: string): Promise<LocationWeeklyFinancial[]>;
   deleteLocationWeeklyFinancialsByClient(clientId: string): Promise<number>;
+
+  getPlatformCredentials(clientId?: string): Promise<PlatformCredential[]>;
+  getPlatformCredential(id: string): Promise<PlatformCredential | undefined>;
+  createPlatformCredential(data: InsertPlatformCredential): Promise<PlatformCredential>;
+  updatePlatformCredential(id: string, data: Partial<InsertPlatformCredential>): Promise<PlatformCredential | undefined>;
+  deletePlatformCredential(id: string): Promise<boolean>;
+  updateCredentialSyncStatus(id: string, status: string, error?: string): Promise<void>;
+
+  createDataSyncJob(data: Partial<DataSyncJob>): Promise<DataSyncJob>;
+  getDataSyncJobs(clientId?: string, limit?: number): Promise<DataSyncJob[]>;
+  updateDataSyncJob(id: string, data: Partial<DataSyncJob>): Promise<void>;
 }
 
 export class MemStorage implements IStorage {
@@ -971,6 +985,16 @@ export class MemStorage implements IStorage {
     // Use shared utility to get unique weeks (Monday to Sunday, UTC-safe)
     return getUniqueWeeks(allDates);
   }
+
+  async getPlatformCredentials(_clientId?: string): Promise<PlatformCredential[]> { return []; }
+  async getPlatformCredential(_id: string): Promise<PlatformCredential | undefined> { return undefined; }
+  async createPlatformCredential(data: InsertPlatformCredential): Promise<PlatformCredential> { return { ...data, id: randomUUID(), lastSyncAt: null, lastError: null, createdAt: new Date(), updatedAt: new Date() } as PlatformCredential; }
+  async updatePlatformCredential(_id: string, _data: Partial<InsertPlatformCredential>): Promise<PlatformCredential | undefined> { return undefined; }
+  async deletePlatformCredential(_id: string): Promise<boolean> { return false; }
+  async updateCredentialSyncStatus(_id: string, _status: string, _error?: string): Promise<void> {}
+  async createDataSyncJob(data: Partial<DataSyncJob>): Promise<DataSyncJob> { return { ...data, id: randomUUID(), createdAt: new Date() } as DataSyncJob; }
+  async getDataSyncJobs(_clientId?: string, _limit?: number): Promise<DataSyncJob[]> { return []; }
+  async updateDataSyncJob(_id: string, _data: Partial<DataSyncJob>): Promise<void> {}
 }
 
 import { DbStorage } from "./db-storage";
