@@ -580,14 +580,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Session not found" });
       }
 
-      if (!process.env.OPENAI_API_KEY) {
-        console.error("OpenAI API key not configured");
-        return res.status(500).json({ error: "Service temporarily unavailable. Please try again later." });
-      }
-
-      const { OpenAI } = await import("openai");
-      const openai = new OpenAI({
-        apiKey: process.env.OPENAI_API_KEY,
+      const Anthropic = (await import("@anthropic-ai/sdk")).default;
+      const anthropic = new Anthropic({
+        apiKey: process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY,
+        baseURL: process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL,
       });
 
       const messages = session.messages || [];
@@ -618,23 +614,27 @@ When you have collected all the information, respond with a JSON object in this 
 
 Otherwise, just respond conversationally to continue gathering information.`;
 
-      let completion;
+      const anthropicMessages = messages.map((m: any) => ({
+        role: m.role as "user" | "assistant",
+        content: m.content as string,
+      }));
+
+      let assistantMessage: string;
       try {
-        completion = await openai.chat.completions.create({
-          model: "gpt-4o",
-          messages: [
-            { role: "system", content: systemPrompt },
-            ...messages,
-          ],
+        const response = await anthropic.messages.create({
+          model: "claude-sonnet-4-5",
+          max_tokens: 8192,
+          system: systemPrompt,
+          messages: anthropicMessages,
         });
-      } catch (openaiError: any) {
-        console.error("OpenAI API error:", openaiError);
+        const content = response.content[0];
+        assistantMessage = content.type === "text" ? content.text : "";
+      } catch (anthropicError: any) {
+        console.error("Anthropic API error:", anthropicError);
         return res.status(500).json({ 
           error: "Failed to get response from AI assistant. Please try again." 
         });
       }
-
-      const assistantMessage = completion.choices[0].message.content || "";
       messages.push({ role: "assistant", content: assistantMessage });
 
       let collectedData = session.collectedData;
@@ -3562,14 +3562,11 @@ Otherwise, just respond conversationally to continue gathering information.`;
           : locations.length;
       } catch (e) {}
 
-      if (!process.env.OPENAI_API_KEY) {
-        return res.json({
-          response: `I'm your Spicy Data analytics assistant. I can help you understand your delivery platform performance.\n\n${contextData}\n\nYou have ${locationCount} locations tracked across Uber Eats, DoorDash, and Grubhub.\n\nNote: Full AI responses require the OpenAI API key to be configured. For now, you can navigate to the dashboard pages using the shortcuts below for detailed analytics.`
-        });
-      }
-
-      const { OpenAI } = await import("openai");
-      const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+      const Anthropic = (await import("@anthropic-ai/sdk")).default;
+      const anthropic = new Anthropic({
+        apiKey: process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY,
+        baseURL: process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL,
+      });
 
       const systemPrompt = `You are the Spicy Data analytics assistant for restaurant delivery platforms (Uber Eats, DoorDash, Grubhub). You help restaurant brands understand their delivery performance data.
 
@@ -3583,27 +3580,27 @@ Guidelines:
 - You can discuss ROAS, net payout percentages, AOV, marketing attribution, and location performance.
 - Keep responses under 300 words unless a detailed analysis is requested.`;
 
-      const messages: any[] = [
-        { role: "system", content: systemPrompt },
-      ];
+      const anthropicMessages: { role: "user" | "assistant"; content: string }[] = [];
 
       if (history && Array.isArray(history)) {
         for (const msg of history.slice(-10)) {
           if (msg.role === "user" || msg.role === "assistant") {
-            messages.push({ role: msg.role, content: msg.content });
+            anthropicMessages.push({ role: msg.role, content: msg.content });
           }
         }
       }
 
-      messages.push({ role: "user", content: message });
+      anthropicMessages.push({ role: "user", content: message });
 
-      const completion = await openai.chat.completions.create({
-        model: "gpt-4o",
-        messages,
-        max_tokens: 1000,
+      const completion = await anthropic.messages.create({
+        model: "claude-sonnet-4-5",
+        max_tokens: 8192,
+        system: systemPrompt,
+        messages: anthropicMessages,
       });
 
-      const response = completion.choices[0]?.message?.content || "I couldn't generate a response. Please try again.";
+      const firstContent = completion.content[0];
+      const response = firstContent?.type === "text" ? firstContent.text : "I couldn't generate a response. Please try again.";
       res.json({ response });
     } catch (error: any) {
       console.error("Assistant chat error:", error);
