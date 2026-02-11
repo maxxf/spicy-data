@@ -30,7 +30,7 @@ Implemented comprehensive three-tier role system:
 The app is organized around a **Spicy growth manager's** daily workflows. A persistent **Command Bar** in the header provides global client search (autocomplete) and platform toggles (UE/DD/GH) that lock context across all pages. The sidebar is divided into **Analytics** and **Management** sections.
 
 **Navigation Structure:**
-- **Analytics**: Assistant (/), Menu Performance (/menu-performance), Ops Signals (/ops-signals), Campaign Tracker (/campaigns), Profitability (/profitability), Income Statement (/income-statement)
+- **Analytics**: Assistant (/), Menu Performance (/menu-performance), Ops Signals (/ops-signals), Campaign Tracker (/campaigns), Profitability (/profitability), Income Statement (/income-statement), Weekly Report (/weekly-report)
 - **Management**: Locations (/locations), Data Ingestion (/automations, super_admin only), Admin (/admin, super_admin only)
 
 **Campaign Tracker Redesign (February 2026)**: Complete rebuild with three major sections:
@@ -38,6 +38,14 @@ The app is organized around a **Spicy growth manager's** daily workflows. A pers
 - **Weekly Trending Charts**: 4 charts showing week-over-week trends: (1) Marketing vs Organic Sales stacked area, (2) ROAS & CPO dual-axis line, (3) Marketing Spend % of Sales composed chart, (4) Ad Spend vs Offer Discounts stacked bar
 - **Two tabs**: "By Campaign" (promotions + paid ads tables with marketing mix breakdown) and "By Location" (location-level marketing metrics table with marketing-driven sales, organic sales, ROAS, spend %, AOV)
 - Weekly-trend endpoint (`/api/analytics/weekly-trend`) extended to return marketing split fields: marketingDrivenSales, organicSales, ordersFromMarketing, organicOrders, adSpend, offerDiscountValue, totalMarketingSpend, marketingSpendPercent, marketingRoas, cpo, netPayout
+
+**Weekly Report Page (February 2026)**: Shareable weekly client summary at `/weekly-report`:
+- **AI Executive Summary**: Claude-powered narrative with highlights, concerns, and 4-6 actionable recommendations via `POST /api/reports/weekly-summary`
+- **Key Metrics**: 6 cards (Total Sales, Orders, AOV, ROAS, Net Payout %, Marketing Spend %) with week-over-week change indicators
+- **Marketing Performance**: Sales Attribution (marketing vs organic split with progress bar) and Spend Breakdown (ad spend vs offer discounts)
+- **Platform Breakdown**: Per-platform cards (Uber Eats, DoorDash, Grubhub) with sales, orders, payout %, marketing sales
+- **Location Leaderboard**: Sortable ranked table of all locations by sales, orders, AOV, marketing spend, ROAS, payout %
+- **Export**: Copy-to-clipboard (formatted text for email/Slack), CSV download, browser print/PDF
 
 **Global Context (ClientContext):** Stores selectedClientId, selectedPlatforms[], and selectedWeek — shared across all pages via the Command Bar. Individual pages add page-specific filters (location, etc.) on top of the global context.
 

@@ -9,6 +9,7 @@ import {
   UtensilsCrossed,
   Activity,
   FileText,
+  ClipboardList,
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import {
@@ -59,6 +60,11 @@ const analyticsNav = [
     title: "Income Statement",
     url: "/income-statement",
     icon: FileText,
+  },
+  {
+    title: "Weekly Report",
+    url: "/weekly-report",
+    icon: ClipboardList,
   },
 ];
 

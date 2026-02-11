@@ -17,6 +17,7 @@ import IncomeStatement from "@/pages/income-statement";
 import MenuPerformancePage from "@/pages/menu-performance";
 import OpsSignalsPage from "@/pages/ops-signals";
 import AutomationsPage from "@/pages/automations";
+import WeeklyReportPage from "@/pages/weekly-report";
 import Welcome from "@/pages/welcome";
 import NotFound from "@/pages/not-found";
 
@@ -29,6 +30,7 @@ function AuthenticatedRouter() {
       <Route path="/campaigns" component={PromosPage} />
       <Route path="/profitability" component={Dashboard} />
       <Route path="/income-statement" component={IncomeStatement} />
+      <Route path="/weekly-report" component={WeeklyReportPage} />
       <Route path="/locations" component={LocationsPage} />
       <Route path="/automations" component={AutomationsPage} />
       <Route path="/admin" component={AdminPage} />

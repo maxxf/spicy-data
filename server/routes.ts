@@ -2244,6 +2244,119 @@ Otherwise, just respond conversationally to continue gathering information.`;
     }
   });
 
+  app.post("/api/reports/weekly-summary", isAuthenticated, async (req, res) => {
+    try {
+      const Anthropic = (await import("@anthropic-ai/sdk")).default;
+      const anthropic = new Anthropic({
+        apiKey: process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY,
+        baseURL: process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL,
+      });
+
+      const { clientName, weekStart, weekEnd, overview, previousWeek, wowChanges, topLocations, bottomLocations, platformBreakdown } = req.body;
+
+      const formatCurrency = (v: number) => `$${Math.round(v).toLocaleString()}`;
+      const formatPct = (v: number) => `${v.toFixed(1)}%`;
+
+      let dataContext = `Weekly Report Data for ${clientName || "All Clients"}\n`;
+      dataContext += `Week: ${weekStart} to ${weekEnd}\n\n`;
+
+      if (overview) {
+        dataContext += `KEY METRICS:\n`;
+        dataContext += `- Total Sales: ${formatCurrency(overview.totalSales)}\n`;
+        dataContext += `- Total Orders: ${overview.totalOrders}\n`;
+        dataContext += `- AOV: ${formatCurrency(overview.averageAov)}\n`;
+        dataContext += `- Blended ROAS: ${overview.blendedRoas.toFixed(2)}x\n`;
+        dataContext += `- Net Payout %: ${formatPct(overview.netPayoutPercent)}\n`;
+        dataContext += `- Marketing Spend %: ${formatPct(overview.marketingSpendPercent)}\n`;
+        dataContext += `- Marketing Driven Sales: ${formatCurrency(overview.marketingDrivenSales)}\n`;
+        dataContext += `- Organic Sales: ${formatCurrency(overview.organicSales)}\n`;
+        dataContext += `- Ad Spend: ${formatCurrency(overview.adSpend)}\n`;
+        dataContext += `- Offer Discounts: ${formatCurrency(overview.offerDiscountValue)}\n`;
+        dataContext += `- CPO: ${formatCurrency(overview.cpo)}\n`;
+        dataContext += `- Net Payout: ${formatCurrency(overview.netPayout)}\n\n`;
+      }
+
+      if (wowChanges) {
+        dataContext += `WEEK-OVER-WEEK CHANGES:\n`;
+        Object.entries(wowChanges).forEach(([key, val]) => {
+          if (val !== null && val !== undefined) {
+            dataContext += `- ${key}: ${(val as number) > 0 ? "+" : ""}${(val as number).toFixed(1)}%\n`;
+          }
+        });
+        dataContext += `\n`;
+      }
+
+      if (topLocations && topLocations.length > 0) {
+        dataContext += `TOP PERFORMING LOCATIONS:\n`;
+        topLocations.forEach((loc: any, i: number) => {
+          dataContext += `${i + 1}. ${loc.name} - Sales: ${formatCurrency(loc.sales)}, ROAS: ${loc.roas.toFixed(2)}x, Payout: ${formatPct(loc.payoutPercent)}\n`;
+        });
+        dataContext += `\n`;
+      }
+
+      if (bottomLocations && bottomLocations.length > 0) {
+        dataContext += `LOWEST PERFORMING LOCATIONS:\n`;
+        bottomLocations.forEach((loc: any, i: number) => {
+          dataContext += `${i + 1}. ${loc.name} - Sales: ${formatCurrency(loc.sales)}, ROAS: ${loc.roas.toFixed(2)}x, Payout: ${formatPct(loc.payoutPercent)}\n`;
+        });
+        dataContext += `\n`;
+      }
+
+      if (platformBreakdown && platformBreakdown.length > 0) {
+        dataContext += `PLATFORM BREAKDOWN:\n`;
+        platformBreakdown.forEach((p: any) => {
+          const label = p.platform === "ubereats" ? "Uber Eats" : p.platform === "doordash" ? "DoorDash" : "Grubhub";
+          dataContext += `- ${label}: Sales ${formatCurrency(p.totalSales)}, Orders ${p.totalOrders}, Payout ${formatPct(p.netPayoutPercent)}\n`;
+        });
+      }
+
+      const response = await anthropic.messages.create({
+        model: "claude-sonnet-4-5",
+        max_tokens: 1500,
+        messages: [
+          {
+            role: "user",
+            content: `You are a delivery platform analytics expert working for a growth management agency called Spicy. Analyze this weekly performance data and provide:
+
+1. An executive summary (2-3 concise paragraphs) covering: overall performance highlights, notable trends, and areas of concern. Be specific with numbers and comparisons.
+
+2. 4-6 specific, actionable recommendations that a growth manager should take in the coming week. Each should be concrete and reference specific metrics or locations.
+
+Respond in JSON format:
+{
+  "executiveSummary": "...",
+  "actionItems": ["action 1", "action 2", ...]
+}
+
+DATA:
+${dataContext}
+
+Important: Be data-driven and specific. Reference actual numbers and locations. Focus on actionable insights, not generic advice. If marketing spend % is high relative to ROAS, flag it. If certain locations are underperforming, call them out. If there's a WoW decline, explain potential causes and remedies.`,
+          },
+        ],
+      });
+
+      const textContent = response.content.find((c: any) => c.type === "text");
+      if (!textContent || textContent.type !== "text") {
+        throw new Error("No text response from AI");
+      }
+
+      const jsonMatch = textContent.text.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) {
+        throw new Error("Could not parse AI response as JSON");
+      }
+
+      const parsed = JSON.parse(jsonMatch[0]);
+      res.json({
+        executiveSummary: parsed.executiveSummary || "",
+        actionItems: parsed.actionItems || [],
+      });
+    } catch (error: any) {
+      console.error("Weekly summary generation error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   app.get("/api/analytics/data-quality", async (req, res) => {
     try {
       const { clientId } = req.query;
