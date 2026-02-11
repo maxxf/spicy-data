@@ -1,0 +1,54 @@
+﻿"Rank","Location","Avoidable Wait Time","Error Rate","Downtime %","Poor Rating %","Score"
+1,"Teleferic - Palo Alto",1.4,0,0.04,0,95.64
+2,"Teleferic - Los Angeles",1.4,0.74,0.07,0,95.14
+3,"Counter Service - Park Avenue",0.3,1.89,0.05,5.26,93.72
+4,"My Big Fat Shawarma - West Bloomfield Township",0.35,0.85,0,14.29,92.45
+5,"Ahipoki - Flagstaff - AZ",0.3,1.05,0.09,14.29,92.14
+6,"Teleferic - Roseville",2.08,0,0,0,91.88
+7,"Counter Service - 14TH",0.48,2.16,1.5,0,90.44
+8,"Ahipoki - Sylmar - CA",1.68,1.71,0,6.52,89.89
+9,"Teleferic - Los Gatos",2.64,0,0,0,87.65
+10,"Ahipoki - Avondale - AZ",1.32,1.89,1.93,5,87.41
+11,"Counter Service - New York - 1st Avenue",0.27,2.8,0,4.35,85.59
+12,"Ahipoki - Queen Creek - AZ",1.84,1.41,1.21,15.79,83.73
+13,"Ahipoki - Rialto - CA",2.27,1.66,0.05,12,83.62
+14,"BDS - Miami",2.13,1.94,0.27,13.04,82.35
+15,"Ahipoki - West Covina - CA",2.07,1.94,1.02,14.29,81.08
+16,"Ahipoki - Glendora - CA",1.53,2.46,0,15,80.65
+17,"Counter Service - 4th Street",0.23,3.21,0.87,0,80.44
+18,"Menya Ultra - La Jolla",1.58,2.55,1.47,9.52,80.4
+19,"Ahipoki - Balboa - CA",2.46,2.25,0.11,8.57,80.24
+20,"Ahipoki - Riverside - CA",2.94,1.68,0.18,8.33,79.84
+21,"Ahipoki - Upland - CA",2.52,2.66,0,0,77.98
+22,"Ahipoki - Scottsdale (Scottsdale Road) - AZ",1.63,2.67,0.41,14.29,77.92
+23,"Menya Ultra - Mira Mesa",2.31,2.05,2.76,0,77.3
+24,"My Big Fat Shawarma - Detroit",0.42,3.57,0,0,77.09
+25,"Ahipoki - Long Beach - CA",3.26,1.92,0.4,2.5,77.08
+26,"Ahipoki - Chandler - AZ",1.71,2.42,2.63,8,76.7
+27,"Ahipoki - Surprise - AZ",2.2,2.41,0,16.67,76.31
+28,"Ahipoki - 7th Ave- AZ",2.54,2.71,0.13,8.57,74.83
+29,"BDS - Garden City",0.19,2.71,3.38,10.53,72.36
+30,"Ahipoki - Rialto - Renaissance Parkway - CA",2.12,3.38,0.17,0,72.1
+31,"Ahipoki - Temple City - CA",1.38,3.68,0,7.89,71.24
+32,"Ahi Poki – Hawthorne - CA",2.51,3.13,1.16,5.88,69.66
+33,"Teleferic - Walnut Creek",2.03,3.7,0,0,69.53
+34,"BDS - Philadelphia - South Street",0.93,4.22,1.32,0,69.31
+35,"Ahipoki - Sacramento - CA",2.4,3.34,0.28,7.58,68.56
+36,"BDS - Dallas",0.93,4.42,0.99,5.97,67.85
+37,"Teleferic - Long Beach",2.44,3.57,0,0,67.84
+38,"Ahipoki - Tempe - AZ",2.28,3.14,0,17.39,66.84
+39,"Menya Ultra - Clairmont",1.3,1.96,10.43,16.67,66.02
+40,"My Big Fat Shawarma - Warren",1.17,5.24,0,11.63,63.52
+41,"Cal's Corner - N Wells St",2.5,3.6,0.52,14.71,60.87
+42,"Ahipoki - Stockton - CA",2.77,3.65,0.28,14.29,58.57
+43,"TCS - Newport Beach",3.23,2.77,3.69,1.96,56.4
+44,"BDS - New York - 78th Street",0.59,4.53,3.61,9.09,54.96
+45,"Abby's Bagels - Greenville ",2.11,3.29,5.48,0,54.74
+46,"Ahipoki - Gilbert - AZ",1.93,6.3,0.16,29.63,54.13
+47,"Ahipoki - Elk Grove - CA",2.24,4.84,0,31.58,53.31
+48,"Ahipoki - Huntington Beach - CA",2.47,4.8,0.12,27.27,51.58
+49,"BDS - New York - 1st Avenue",0.37,4.4,5.69,6.25,51.29
+50,"BDS - Philadelphia - Lancaster Avenue",0,66.67,89.96,0,50.2
+51,"Ahipoki - Redlands - CA",3.15,4.57,0.2,20.83,46.76
+52,"BDS - Philadelphia - Sansom Street",1.11,5.59,9.33,14.29,42.89
+53,"Ahipoki - Canyon Springs - CA",3.84,4.31,0.39,23.81,39.31
