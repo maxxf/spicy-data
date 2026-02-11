@@ -26,8 +26,16 @@ Implemented comprehensive three-tier role system:
 
 ## System Architecture
 
-### UI/UX Decisions
-The frontend is built with React 18+, TypeScript, and Vite, utilizing `shadcn/ui` (Radix UI) with Tailwind CSS for a custom "New York" design system. It features a data-dense layout, a custom color palette (teal brand, light/dark modes), and is responsive for data visualization. Navigation is handled by a sidebar, leading to key pages like Dashboard, Campaigns, Upload, Locations, Admin, and Income Statement, all supporting comprehensive filtering by week, client, location, platform, and location tags.
+### UI/UX Decisions — Growth Manager Workflow (February 2026)
+The app is organized around a **Spicy growth manager's** daily workflows. A persistent **Command Bar** in the header provides global client search (autocomplete) and platform toggles (UE/DD/GH) that lock context across all pages. The sidebar is divided into **Analytics** and **Management** sections.
+
+**Navigation Structure:**
+- **Analytics**: Assistant (/), Menu Performance (/menu-performance), Ops Signals (/ops-signals), Campaign Tracker (/campaigns), Profitability (/profitability), Income Statement (/income-statement)
+- **Management**: Locations (/locations), Data Ingestion (/automations, super_admin only), Admin (/admin, super_admin only)
+
+**Global Context (ClientContext):** Stores selectedClientId, selectedPlatforms[], and selectedWeek — shared across all pages via the Command Bar. Individual pages add page-specific filters (location, etc.) on top of the global context.
+
+The frontend is built with React 18+, TypeScript, and Vite, utilizing `shadcn/ui` (Radix UI) with Tailwind CSS for a custom "New York" design system. It features a data-dense layout, a custom color palette (teal brand, light/dark modes), and is responsive for data visualization.
 
 **Admin Page UX (October 29, 2025)**: Redesigned with tabbed interface for improved organization:
 - Five dedicated tabs: Transactions, Marketing, Locations, Migration (super admin only), Users (super admin only)

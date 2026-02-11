@@ -6,8 +6,6 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { PlatformBadge } from "@/components/platform-badge";
 import { LocationSelector } from "@/components/location-selector";
-import { PlatformSelector } from "@/components/platform-selector";
-import { ClientSelector } from "@/components/client-selector";
 import { useClientContext } from "@/contexts/client-context";
 import { WeekSelector } from "@/components/week-selector";
 import { CheckCircle2, AlertCircle, Link as LinkIcon, MapPin, Download } from "lucide-react";
@@ -21,31 +19,26 @@ import { TestLocationsReport } from "@/components/test-locations-report";
 export default function LocationsPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const { selectedClientId, setSelectedClientId } = useClientContext();
+  const { selectedClientId, setSelectedClientId, selectedPlatforms, selectedWeek, setSelectedWeek } = useClientContext();
 
   const [activeTab, setActiveTab] = useState("overview");
   const [selectedLocationId, setSelectedLocationId] = useState<string | null>(null);
-  const [selectedPlatform, setSelectedPlatform] = useState<string | null>(null);
-  const [selectedWeek, setSelectedWeek] = useState<{ weekStart: string; weekEnd: string } | null>(null);
+  const selectedPlatform = selectedPlatforms.length < 3 ? selectedPlatforms[0] || null : null;
 
-  // Fetch available weeks to default to most recent
   const { data: weeks } = useQuery<Array<{ weekStart: string; weekEnd: string }>>({
     queryKey: ["/api/analytics/weeks"],
   });
 
-  // Default to most recent week when weeks data loads
   useEffect(() => {
     if (weeks && weeks.length > 0 && !selectedWeek) {
-      setSelectedWeek(weeks[0]); // First week is most recent (sorted desc)
+      setSelectedWeek(weeks[0]);
     }
-  }, [weeks, selectedWeek]);
+  }, [weeks, selectedWeek, setSelectedWeek]);
 
-  // Reset location when client changes
   useEffect(() => {
     setSelectedLocationId(null);
   }, [selectedClientId]);
 
-  // Build query params for filters
   const buildQueryParams = () => {
     const params = new URLSearchParams();
     if (selectedClientId) params.append("clientId", selectedClientId);
@@ -72,7 +65,7 @@ export default function LocationsPage() {
       selectedWeek ? `${selectedWeek.weekStart}:${selectedWeek.weekEnd}` : "all"
     ],
     queryFn: async () => {
-      const response = await fetch(`/api/analytics/locations/consolidated${buildQueryParams()}`);
+      const response = await fetch(`/api/analytics/locations/consolidated${buildQueryParams()}`, { credentials: "include" });
       if (!response.ok) throw new Error("Failed to fetch location metrics");
       return response.json();
     },
@@ -374,20 +367,11 @@ export default function LocationsPage() {
         <TabsContent value="overview" className="space-y-6 mt-6">
           {weeks && weeks.length > 0 ? (
             <div className="flex flex-wrap gap-3">
-              <ClientSelector
-                selectedClientId={selectedClientId}
-                onClientChange={setSelectedClientId}
-                showAllOption={true}
-              />
               <LocationSelector
                 clientId={selectedClientId}
                 selectedLocationId={selectedLocationId}
                 onLocationChange={setSelectedLocationId}
                 showAllOption={true}
-              />
-              <PlatformSelector
-                selectedPlatform={selectedPlatform}
-                onPlatformChange={setSelectedPlatform}
               />
               <WeekSelector
                 weeks={weeks}

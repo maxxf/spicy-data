@@ -2,9 +2,7 @@ import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { MetricCard } from "@/components/metric-card";
 import { LocationSelector } from "@/components/location-selector";
-import { PlatformSelector } from "@/components/platform-selector";
 import { WeekSelector } from "@/components/week-selector";
-import { ClientSelector } from "@/components/client-selector";
 import { useClientContext } from "@/contexts/client-context";
 import { DataTable } from "@/components/data-table";
 import { PlatformBadge } from "@/components/platform-badge";
@@ -40,30 +38,25 @@ interface ClientPerformance {
 }
 
 export default function Dashboard() {
-  const { selectedClientId, setSelectedClientId } = useClientContext();
+  const { selectedClientId, setSelectedClientId, selectedPlatforms, selectedWeek, setSelectedWeek } = useClientContext();
   const [selectedLocationId, setSelectedLocationId] = useState<string | null>(null);
-  const [selectedPlatform, setSelectedPlatform] = useState<string | null>(null);
-  const [selectedWeek, setSelectedWeek] = useState<{ weekStart: string; weekEnd: string } | null>(null);
+  const selectedPlatform = selectedPlatforms.length < 3 ? selectedPlatforms[0] || null : null;
   const [showLocationDetails, setShowLocationDetails] = useState(false);
 
-  // Fetch available weeks to default to most recent
   const { data: weeks } = useQuery<Array<{ weekStart: string; weekEnd: string }>>({
     queryKey: ["/api/analytics/weeks"],
   });
 
-  // Default to most recent week when weeks data loads
   useEffect(() => {
     if (weeks && weeks.length > 0 && !selectedWeek) {
-      setSelectedWeek(weeks[0]); // First week is most recent (sorted desc)
+      setSelectedWeek(weeks[0]);
     }
-  }, [weeks, selectedWeek]);
+  }, [weeks, selectedWeek, setSelectedWeek]);
 
-  // Reset location when client changes
   useEffect(() => {
     setSelectedLocationId(null);
   }, [selectedClientId]);
 
-  // Build query params for filters
   const buildQueryParams = () => {
     const params = new URLSearchParams();
     if (selectedClientId) params.append("clientId", selectedClientId);
@@ -79,7 +72,7 @@ export default function Dashboard() {
   const { data: overview, isLoading: overviewLoading } = useQuery<DashboardOverview>({
     queryKey: ["/api/analytics/overview", selectedClientId, selectedLocationId, selectedPlatform, selectedWeek],
     queryFn: async () => {
-      const response = await fetch(`/api/analytics/overview${buildQueryParams()}`);
+      const response = await fetch(`/api/analytics/overview${buildQueryParams()}`, { credentials: "include" });
       if (!response.ok) throw new Error("Failed to fetch overview");
       return response.json();
     },
@@ -88,7 +81,7 @@ export default function Dashboard() {
   const { data: locationMetrics, isLoading: locationsLoading } = useQuery<ConsolidatedLocationMetrics[]>({
     queryKey: ["/api/analytics/locations/consolidated", selectedClientId, selectedLocationId, selectedPlatform, selectedWeek],
     queryFn: async () => {
-      const response = await fetch(`/api/analytics/locations/consolidated${buildQueryParams()}`);
+      const response = await fetch(`/api/analytics/locations/consolidated${buildQueryParams()}`, { credentials: "include" });
       if (!response.ok) throw new Error("Failed to fetch locations");
       return response.json();
     },
@@ -117,7 +110,7 @@ export default function Dashboard() {
       if (selectedLocationId) params.append("locationId", selectedLocationId);
       if (selectedPlatform) params.append("platform", selectedPlatform);
       const queryString = params.toString() ? `?${params.toString()}` : "";
-      const response = await fetch(`/api/analytics/weekly-trend${queryString}`);
+      const response = await fetch(`/api/analytics/weekly-trend${queryString}`, { credentials: "include" });
       if (!response.ok) throw new Error("Failed to fetch weekly trend");
       return response.json();
     },
@@ -135,7 +128,7 @@ export default function Dashboard() {
       const params = new URLSearchParams();
       if (selectedClientId) params.append("clientId", selectedClientId);
       const queryString = params.toString() ? `?${params.toString()}` : "";
-      const response = await fetch(`/api/analytics/data-quality${queryString}`);
+      const response = await fetch(`/api/analytics/data-quality${queryString}`, { credentials: "include" });
       if (!response.ok) throw new Error("Failed to fetch data quality");
       return response.json();
     },
@@ -381,18 +374,13 @@ export default function Dashboard() {
       <div className="flex justify-between items-start gap-4 flex-wrap">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight mb-2">
-            {isPortfolioView ? "Portfolio Overview" : "Client Dashboard"}
+            Profitability & Payouts
           </h1>
           <p className="text-sm text-muted-foreground">
-            {isPortfolioView ? "Multi-platform delivery performance overview" : "Client-specific performance metrics"}
+            {isPortfolioView ? "Portfolio-wide payout tracking and margin analysis" : "Client payout tracking and margin analysis"}
           </p>
         </div>
         <div className="flex items-center gap-3 flex-wrap">
-          <ClientSelector
-            selectedClientId={selectedClientId}
-            onClientChange={setSelectedClientId}
-            showAllOption={true}
-          />
           <WeekSelector
             weeks={weeks}
             selectedWeek={selectedWeek}
@@ -404,10 +392,6 @@ export default function Dashboard() {
             selectedLocationId={selectedLocationId}
             onLocationChange={setSelectedLocationId}
             showAllOption={true}
-          />
-          <PlatformSelector
-            selectedPlatform={selectedPlatform}
-            onPlatformChange={setSelectedPlatform}
           />
         </div>
       </div>

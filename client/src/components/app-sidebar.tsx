@@ -4,11 +4,11 @@ import {
   Megaphone, 
   MapPin, 
   Settings, 
-  FileText, 
   LogOut, 
-  Clock,
-  BarChart3,
-  Upload
+  Upload,
+  UtensilsCrossed,
+  Activity,
+  FileText,
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import {
@@ -16,6 +16,7 @@ import {
   SidebarContent,
   SidebarGroup,
   SidebarGroupContent,
+  SidebarGroupLabel,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
@@ -28,36 +29,44 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import logoImage from "@assets/a5b36301-f70a-4a41-907e-9f34a1a70b80_1760998717264.png";
 
-const navigation = [
+const analyticsNav = [
   {
     title: "Assistant",
     url: "/",
     icon: Sparkles,
   },
   {
-    title: "Payouts",
-    url: "/overview",
-    icon: DollarSign,
+    title: "Menu Performance",
+    url: "/menu-performance",
+    icon: UtensilsCrossed,
   },
   {
-    title: "Campaigns",
+    title: "Ops Signals",
+    url: "/ops-signals",
+    icon: Activity,
+  },
+  {
+    title: "Campaign Tracker",
     url: "/campaigns",
     icon: Megaphone,
   },
   {
-    title: "Financials",
+    title: "Profitability",
+    url: "/profitability",
+    icon: DollarSign,
+  },
+  {
+    title: "Income Statement",
     url: "/income-statement",
     icon: FileText,
   },
+];
+
+const adminNav = [
   {
     title: "Locations",
     url: "/locations",
     icon: MapPin,
-  },
-  {
-    title: "Reporting",
-    url: "/reporting",
-    icon: BarChart3,
   },
   {
     title: "Data Ingestion",
@@ -73,7 +82,7 @@ const navigation = [
 
 export function AppSidebar() {
   const [location] = useLocation();
-  const { user } = useAuth();
+  const { user, isSuperAdmin } = useAuth();
 
   const userInitials = user?.firstName && user?.lastName
     ? `${user.firstName[0]}${user.lastName[0]}`
@@ -89,6 +98,27 @@ export function AppSidebar() {
     ? "Brand Admin" 
     : "User";
 
+  const renderNavItem = (item: typeof analyticsNav[0]) => {
+    const isActive = location === item.url;
+    return (
+      <SidebarMenuItem key={item.title}>
+        <SidebarMenuButton
+          asChild
+          className={cn(
+            "h-9 text-sm",
+            isActive && "bg-sidebar-accent text-sidebar-accent-foreground"
+          )}
+          data-testid={`link-nav-${item.title.toLowerCase().replace(/\s+/g, "-")}`}
+        >
+          <Link href={item.url}>
+            <item.icon className="w-4 h-4" />
+            <span>{item.title}</span>
+          </Link>
+        </SidebarMenuButton>
+      </SidebarMenuItem>
+    );
+  };
+
   return (
     <Sidebar data-testid="sidebar-main">
       <SidebarHeader className="px-4 py-5 border-b">
@@ -101,28 +131,26 @@ export function AppSidebar() {
       </SidebarHeader>
       <SidebarContent className="px-2 py-2">
         <SidebarGroup>
+          <SidebarGroupLabel className="text-xs text-muted-foreground px-2">Analytics</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {navigation.map((item) => {
-                const isActive = location === item.url;
-                return (
-                  <SidebarMenuItem key={item.title}>
-                    <SidebarMenuButton
-                      asChild
-                      className={cn(
-                        "h-9 text-sm",
-                        isActive && "bg-sidebar-accent text-sidebar-accent-foreground"
-                      )}
-                      data-testid={`link-nav-${item.title.toLowerCase().replace(/\s+/g, "-")}`}
-                    >
-                      <Link href={item.url}>
-                        <item.icon className="w-4 h-4" />
-                        <span>{item.title}</span>
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                );
-              })}
+              {analyticsNav.map(renderNavItem)}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarGroup>
+          <SidebarGroupLabel className="text-xs text-muted-foreground px-2">Management</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {adminNav
+                .filter((item) => {
+                  if (item.url === "/automations" || item.url === "/admin") {
+                    return isSuperAdmin;
+                  }
+                  return true;
+                })
+                .map(renderNavItem)}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>

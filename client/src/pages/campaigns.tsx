@@ -1,8 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { LocationSelector } from "@/components/location-selector";
-import { PlatformSelector } from "@/components/platform-selector";
-import { ClientSelector } from "@/components/client-selector";
 import { useClientContext } from "@/contexts/client-context";
 import { WeekSelector } from "@/components/week-selector";
 import { MetricCard } from "@/components/metric-card";
@@ -22,25 +20,21 @@ const statusColors = {
 };
 
 export default function PromosPage() {
-  const { selectedClientId, setSelectedClientId } = useClientContext();
+  const { selectedClientId, setSelectedClientId, selectedPlatforms, selectedWeek, setSelectedWeek } = useClientContext();
   const [selectedLocationId, setSelectedLocationId] = useState<string | null>(null);
-  const [selectedPlatform, setSelectedPlatform] = useState<string | null>(null);
+  const selectedPlatform = selectedPlatforms.length < 3 ? selectedPlatforms[0] || null : null;
   const [selectedStatus, setSelectedStatus] = useState<string>("all");
-  const [selectedWeek, setSelectedWeek] = useState<{ weekStart: string; weekEnd: string } | null>(null);
 
-  // Fetch available weeks to default to most recent
   const { data: weeks } = useQuery<Array<{ weekStart: string; weekEnd: string }>>({
     queryKey: ["/api/analytics/weeks"],
   });
 
-  // Default to most recent week when weeks data loads
   useEffect(() => {
     if (weeks && weeks.length > 0 && !selectedWeek) {
       setSelectedWeek(weeks[0]);
     }
-  }, [weeks, selectedWeek]);
+  }, [weeks, selectedWeek, setSelectedWeek]);
 
-  // Reset location when client changes
   useEffect(() => {
     setSelectedLocationId(null);
   }, [selectedClientId]);
@@ -183,19 +177,14 @@ export default function PromosPage() {
     <div className="p-8 space-y-8" data-testid="page-campaigns">
       <div className="flex justify-between items-start gap-4 flex-wrap">
         <div>
-          <h1 className="text-3xl font-semibold tracking-tight" data-testid="text-page-title">
-            Promos
+          <h1 className="text-2xl font-semibold tracking-tight" data-testid="text-page-title">
+            Campaign Tracker
           </h1>
-          <p className="text-muted-foreground mt-1">
-            Track promotional offers and paid advertising performance
+          <p className="text-sm text-muted-foreground mt-1">
+            Promotion ROI, ad spend efficiency, and marketing attribution
           </p>
         </div>
         <div className="flex items-center gap-3 flex-wrap">
-          <ClientSelector
-            selectedClientId={selectedClientId}
-            onClientChange={setSelectedClientId}
-            showAllOption={true}
-          />
           <WeekSelector
             weeks={weeks}
             selectedWeek={selectedWeek}
@@ -207,10 +196,6 @@ export default function PromosPage() {
             selectedLocationId={selectedLocationId}
             onLocationChange={setSelectedLocationId}
             showAllOption={true}
-          />
-          <PlatformSelector
-            selectedPlatform={selectedPlatform}
-            onPlatformChange={setSelectedPlatform}
           />
         </div>
       </div>

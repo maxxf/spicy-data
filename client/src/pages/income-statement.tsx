@@ -13,14 +13,8 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
+import { useClientContext } from "@/contexts/client-context";
 import type { Client } from "@shared/schema";
 
 interface PlatformData {
@@ -92,7 +86,8 @@ const CategoryIndicator = ({ color = "orange" }: { color?: string }) => {
 };
 
 export default function IncomeStatement() {
-  const [clientId, setClientId] = useState('83506705-b408-4f0a-a9b0-e5b585db3b7d');
+  const { selectedClientId } = useClientContext();
+  const clientId = selectedClientId || '';
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
 
@@ -107,7 +102,7 @@ export default function IncomeStatement() {
       if (clientId) params.append('clientId', clientId);
       if (startDate) params.append('startDate', startDate);
       if (endDate) params.append('endDate', endDate);
-      const response = await fetch(`/api/analytics/income-statement?${params.toString()}`);
+      const response = await fetch(`/api/analytics/income-statement?${params.toString()}`, { credentials: "include" });
       if (!response.ok) throw new Error('Failed to fetch income statement');
       return response.json();
     },
@@ -336,19 +331,6 @@ export default function IncomeStatement() {
 
       {/* Filters Bar */}
       <div className="flex flex-wrap items-center gap-3">
-        <Select value={clientId} onValueChange={setClientId}>
-          <SelectTrigger className="w-[200px]" data-testid="select-client">
-            <SelectValue placeholder="Select Client" />
-          </SelectTrigger>
-          <SelectContent>
-            {clients?.map((client) => (
-              <SelectItem key={client.id} value={client.id}>
-                {client.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
         <div className="flex items-center gap-2 px-3 py-2 border rounded-md bg-background">
           <Input
             type="date"

@@ -6,23 +6,19 @@ import { useClientContext } from "@/contexts/client-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Card } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   Sparkles,
   Send,
-  ShoppingCart,
-  Users,
+  UtensilsCrossed,
+  Activity,
   Megaphone,
-  MoreHorizontal,
-  TrendingUp,
   DollarSign,
+  TrendingUp,
   MapPin,
-  ChevronDown,
-  BarChart3,
 } from "lucide-react";
 import { useLocation } from "wouter";
+import type { Client } from "@shared/schema";
 
 interface Message {
   role: "user" | "assistant";
@@ -30,17 +26,19 @@ interface Message {
 }
 
 const shortcuts = [
-  { label: "Orders", icon: ShoppingCart, description: "View order analytics" },
-  { label: "Customers", icon: Users, description: "Customer insights" },
-  { label: "Campaigns", icon: Megaphone, description: "Campaign performance" },
-  { label: "More", icon: MoreHorizontal, description: "Additional options" },
+  { label: "Menu Performance", icon: UtensilsCrossed, url: "/menu-performance", description: "Sales rankings & AOV" },
+  { label: "Ops Signals", icon: Activity, url: "/ops-signals", description: "Operational health" },
+  { label: "Campaigns", icon: Megaphone, url: "/campaigns", description: "Marketing ROI" },
+  { label: "Profitability", icon: DollarSign, url: "/profitability", description: "Payouts & margins" },
 ];
 
 const suggestedQuestions = [
-  "What were our top performing locations last week?",
-  "How is our marketing ROI trending?",
-  "Which platform has the best payout percentage?",
-  "Show me locations with declining sales",
+  "What were our top 5 locations by sales last week?",
+  "Which platform has the best ROAS right now?",
+  "Show me locations with low payout percentages",
+  "How is our marketing spend trending vs. sales?",
+  "Which locations need attention based on recent performance?",
+  "Compare DoorDash vs Uber Eats profitability",
 ];
 
 export default function AssistantPage() {
@@ -54,7 +52,13 @@ export default function AssistantPage() {
 
   const hasMessages = messages.length > 0;
 
-  const { selectedClientId } = useClientContext();
+  const { selectedClientId, selectedPlatforms } = useClientContext();
+
+  const { data: clients } = useQuery<Client[]>({
+    queryKey: ["/api/clients"],
+  });
+
+  const selectedClient = clients?.find((c) => c.id === selectedClientId);
 
   const chatMutation = useMutation({
     mutationFn: async (message: string) => {
@@ -62,6 +66,7 @@ export default function AssistantPage() {
         message,
         history: messages,
         clientId: selectedClientId,
+        platforms: selectedPlatforms,
       });
       return res.json();
     },
@@ -88,21 +93,8 @@ export default function AssistantPage() {
     chatMutation.mutate(trimmed);
   };
 
-  const handleShortcut = (label: string) => {
-    switch (label) {
-      case "Orders":
-        navigate("/overview");
-        break;
-      case "Campaigns":
-        navigate("/campaigns");
-        break;
-      case "Customers":
-        navigate("/locations");
-        break;
-      case "More":
-        navigate("/admin");
-        break;
-    }
+  const handleShortcut = (url: string) => {
+    navigate(url);
   };
 
   const handleSuggestion = (question: string) => {
@@ -118,14 +110,27 @@ export default function AssistantPage() {
     }
   }, [messages]);
 
+  const contextLabel = selectedClient
+    ? selectedClient.name
+    : "All Clients";
+
+  const platformLabel = selectedPlatforms.length === 3
+    ? "All Platforms"
+    : selectedPlatforms.map((p) => p === "ubereats" ? "UE" : p === "doordash" ? "DD" : "GH").join(", ");
+
   return (
     <div className="flex flex-col h-full" data-testid="assistant-page">
       {!hasMessages ? (
         <div className="flex-1 flex flex-col items-center justify-center px-6">
           <div className="w-full max-w-2xl flex flex-col items-center gap-8">
-            <h1 className="text-3xl font-light text-foreground" data-testid="text-assistant-heading">
-              What can I help with?
-            </h1>
+            <div className="text-center">
+              <h1 className="text-3xl font-light text-foreground mb-2" data-testid="text-assistant-heading">
+                What can I help with?
+              </h1>
+              <p className="text-sm text-muted-foreground">
+                Analyzing {contextLabel} across {platformLabel}
+              </p>
+            </div>
 
             <div className="w-full relative">
               <div className="flex items-center gap-2 border rounded-md bg-card px-4 py-2">
@@ -135,7 +140,7 @@ export default function AssistantPage() {
                   value={inputValue}
                   onChange={(e) => setInputValue(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && handleSend()}
-                  placeholder="Ask anything or select from shortcuts"
+                  placeholder="Ask about sales, campaigns, locations, profitability..."
                   className="border-0 shadow-none focus-visible:ring-0 px-0 text-sm"
                   data-testid="input-assistant-chat"
                 />
@@ -164,12 +169,11 @@ export default function AssistantPage() {
                   variant="outline"
                   size="sm"
                   className="gap-1.5"
-                  onClick={() => handleShortcut(shortcut.label)}
-                  data-testid={`button-shortcut-${shortcut.label.toLowerCase()}`}
+                  onClick={() => handleShortcut(shortcut.url)}
+                  data-testid={`button-shortcut-${shortcut.label.toLowerCase().replace(/\s+/g, "-")}`}
                 >
                   <shortcut.icon className="w-3.5 h-3.5" />
                   {shortcut.label}
-                  <ChevronDown className="w-3 h-3 text-muted-foreground" />
                 </Button>
               ))}
             </div>
