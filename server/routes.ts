@@ -2126,6 +2126,17 @@ Otherwise, just respond conversationally to continue gathering information.`;
             locationTag: locationTag as string | undefined,
           };
           const overview = await storage.getDashboardOverview(filters);
+          const marketingDrivenSales = overview.platformBreakdown.reduce((sum, p) => sum + (p.marketingDrivenSales || 0), 0);
+          const organicSales = overview.platformBreakdown.reduce((sum, p) => sum + (p.organicSales || 0), 0);
+          const ordersFromMarketing = overview.platformBreakdown.reduce((sum, p) => sum + (p.ordersFromMarketing || 0), 0);
+          const organicOrders = overview.platformBreakdown.reduce((sum, p) => sum + (p.organicOrders || 0), 0);
+          const adSpend = overview.platformBreakdown.reduce((sum, p) => sum + (p.adSpend || 0), 0);
+          const offerDiscountValue = overview.platformBreakdown.reduce((sum, p) => sum + (p.offerDiscountValue || 0), 0);
+          const netPayout = overview.platformBreakdown.reduce((sum, p) => sum + (p.netPayout || 0), 0);
+          const totalMarketingSpend = adSpend + offerDiscountValue;
+          const marketingSpendPercent = overview.totalSales > 0 ? (totalMarketingSpend / overview.totalSales) * 100 : 0;
+          const marketingRoas = totalMarketingSpend > 0 ? marketingDrivenSales / totalMarketingSpend : 0;
+          const cpo = ordersFromMarketing > 0 ? totalMarketingSpend / ordersFromMarketing : 0;
           return {
             weekStart: week.weekStart,
             weekEnd: week.weekEnd,
@@ -2136,6 +2147,17 @@ Otherwise, just respond conversationally to continue gathering information.`;
             totalMarketingInvestment: overview.totalMarketingInvestment,
             blendedRoas: overview.blendedRoas,
             netPayoutPercent: overview.netPayoutPercent,
+            marketingDrivenSales,
+            organicSales,
+            ordersFromMarketing,
+            organicOrders,
+            adSpend,
+            offerDiscountValue,
+            totalMarketingSpend,
+            marketingSpendPercent,
+            marketingRoas,
+            cpo,
+            netPayout,
           };
         })
       );

@@ -33,6 +33,12 @@ The app is organized around a **Spicy growth manager's** daily workflows. A pers
 - **Analytics**: Assistant (/), Menu Performance (/menu-performance), Ops Signals (/ops-signals), Campaign Tracker (/campaigns), Profitability (/profitability), Income Statement (/income-statement)
 - **Management**: Locations (/locations), Data Ingestion (/automations, super_admin only), Admin (/admin, super_admin only)
 
+**Campaign Tracker Redesign (February 2026)**: Complete rebuild with three major sections:
+- **Marketing Attribution Summary**: Top-level cards showing Marketing Driven Sales, Organic Sales, Marketing ROAS, and Marketing Spend % for latest week — derived from weekly-trend endpoint
+- **Weekly Trending Charts**: 4 charts showing week-over-week trends: (1) Marketing vs Organic Sales stacked area, (2) ROAS & CPO dual-axis line, (3) Marketing Spend % of Sales composed chart, (4) Ad Spend vs Offer Discounts stacked bar
+- **Two tabs**: "By Campaign" (promotions + paid ads tables with marketing mix breakdown) and "By Location" (location-level marketing metrics table with marketing-driven sales, organic sales, ROAS, spend %, AOV)
+- Weekly-trend endpoint (`/api/analytics/weekly-trend`) extended to return marketing split fields: marketingDrivenSales, organicSales, ordersFromMarketing, organicOrders, adSpend, offerDiscountValue, totalMarketingSpend, marketingSpendPercent, marketingRoas, cpo, netPayout
+
 **Global Context (ClientContext):** Stores selectedClientId, selectedPlatforms[], and selectedWeek — shared across all pages via the Command Bar. Individual pages add page-specific filters (location, etc.) on top of the global context.
 
 The frontend is built with React 18+, TypeScript, and Vite, utilizing `shadcn/ui` (Radix UI) with Tailwind CSS for a custom "New York" design system. It features a data-dense layout, a custom color palette (teal brand, light/dark modes), and is responsive for data visualization.
