@@ -186,8 +186,17 @@ async function findOrCreateLocationByAddress(
     }
   }
 
-  // NO FUZZY MATCHING - NO AUTO-CREATION
-  // If we didn't find a match, return the unmapped bucket
+  // Auto-create location for new/unmatched entries (handles new clients)
+  const normalizedNameAddr = locationName.trim();
+  if (normalizedNameAddr && normalizedNameAddr !== "") {
+    const newLoc = await storage.createLocation({
+      clientId,
+      canonicalName: normalizedNameAddr,
+      grubhubName: normalizedNameAddr,
+    });
+    return newLoc.id;
+  }
+
   return getUnmappedLocationBucket(clientId);
 }
 
@@ -406,8 +415,19 @@ async function findOrCreateLocation(
     }
   }
 
-  // NO FUZZY MATCHING - NO AUTO-CREATION
-  // If we didn't find a match, return the unmapped bucket
+  // Auto-create location for new/unmatched entries (handles new clients)
+  const normalizedLocName = locationName.trim();
+  if (normalizedLocName && normalizedLocName !== "") {
+    const newLocation = await storage.createLocation({
+      clientId,
+      canonicalName: normalizedLocName,
+      uberEatsName: platform === "ubereats" ? normalizedLocName : undefined,
+      doordashName: platform === "doordash" ? normalizedLocName : undefined,
+      grubhubName: platform === "grubhub" ? normalizedLocName : undefined,
+    });
+    return newLocation.id;
+  }
+
   return getUnmappedLocationBucket(clientId);
 }
 
@@ -881,10 +901,10 @@ Otherwise, just respond conversationally to continue gathering information.`;
 
           // Parse all financial columns
           const subtotal = parseNegativeFloat(getColumnValue(row, "Subtotal", "Order Subtotal", "Order_Subtotal", "order_subtotal"));
-          const taxes = parseNegativeFloat(getColumnValue(row, "Subtotal tax passed to merchant", "Subtotal Tax Passed by DoorDash to Merchant", "Taxes", "taxes"));
+          const taxes = parseNegativeFloat(getColumnValue(row, "Tax (subtotal)", "Subtotal tax passed to merchant", "Subtotal Tax Passed by DoorDash to Merchant", "Taxes", "taxes"));
           const commission = parseNegativeFloat(getColumnValue(row, "Commission", "commission"));
           const totalTips = parseNegativeFloat(getColumnValue(row, "Total Tips", "total_tips"));
-          const marketingFees = parseNegativeFloat(getColumnValue(row, "Marketing fees | (including any applicable taxes)", "Marketing Fees | (Including any applicable taxes)", "other_payments"));
+          const marketingFees = parseNegativeFloat(getColumnValue(row, "Marketing fees", "Marketing fees | (including any applicable taxes)", "Marketing Fees | (Including any applicable taxes)", "other_payments"));
           const paymentProcessingFee = parseNegativeFloat(getColumnValue(row, "Payment Processing Fee", "payment_processing_fee"));
           const deliveryOrderFee = parseNegativeFloat(getColumnValue(row, "Delivery Order Fee", "delivery_order_fee"));
           const pickupOrderFee = parseNegativeFloat(getColumnValue(row, "Pickup Order Fee", "pickup_order_fee"));
@@ -899,6 +919,7 @@ Otherwise, just respond conversationally to continue gathering information.`;
             "Offers on items (incl. tax)",
             "offers_on_items"
           ));
+          const adjustments = parseNegativeFloat(getColumnValue(row, "Adjustments", "adjustments"));
           const deliveryOfferRedemptions = parseNegativeFloat(getColumnValue(
             row,
             "Customer discounts from marketing | (funded by DoorDash)",
@@ -965,8 +986,8 @@ Otherwise, just respond conversationally to continue gathering information.`;
             thirdPartyContribution,
             
             // Other payments (ad spend, credits, etc.)
-            otherPayments: Math.abs(marketingFees),
-            otherPaymentsDescription: marketingFees !== 0 
+            otherPayments: Math.abs(marketingFees) + Math.abs(adjustments),
+            otherPaymentsDescription: marketingFees !== 0 || adjustments !== 0
               ? (getColumnValue(row, "Description", "Other payments description", "other_payments_description") || "Marketing Fees")
               : null,
             
@@ -1008,17 +1029,18 @@ Otherwise, just respond conversationally to continue gathering information.`;
           const locationName = getColumnValue(row, "store_name", "Restaurant", "Store_Name", "store name");
           const address = getColumnValue(row, "street_address", "store_address", "Address", "Store_Address", "address") || undefined;
           const storeNumber = getColumnValue(row, "store_number", "Store_Number", "store number") || undefined;
+          const grubhubStoreId = getColumnValue(row, "grubhub_store_id", "Grubhub_Store_ID", "grubhub store id") || undefined;
           
-          // Create unique key: use address if available, otherwise fall back to store_number
-          // IMPORTANT: Skip rows with no address AND no store_number - they'll go to unmapped bucket
           const cleanStoreNumber = storeNumber?.replace(/['"]/g, '').trim() || '';
+          const cleanGrubhubId = grubhubStoreId?.replace(/['"]/g, '').trim() || '';
           
-          // Only create addressKey if we have either address or store_number
           const addressKey = address 
             ? normalizeAddress(address) 
             : cleanStoreNumber 
             ? `store:${cleanStoreNumber}`
-            : null; // null means unmapped
+            : cleanGrubhubId
+            ? `store:${cleanGrubhubId}`
+            : null;
           
           if (locationName && locationName.trim() !== "" && addressKey) {
             // Store the first occurrence of each unique address/store combo
@@ -1040,12 +1062,12 @@ Otherwise, just respond conversationally to continue gathering information.`;
         for (const row of rows) {
           const locationName = getColumnValue(row, "store_name", "Restaurant", "Store_Name", "store name");
           
-          // Skip rows without order number OR transaction ID
           const orderNumber = getColumnValue(row, "order_number", "Order_Id", "order number", "order_id");
           const transactionId = getColumnValue(row, "transaction_id", "Transaction_Id", "transaction id");
-          if (!orderNumber || orderNumber.trim() === "" || !transactionId || transactionId.trim() === "") {
+          if (!transactionId || transactionId.trim() === "") {
             continue;
           }
+          const effectiveOrderNumber = orderNumber && orderNumber.trim() !== "" ? orderNumber : transactionId;
 
           // Reconstruct the same addressKey used for deduplication
           const address = getColumnValue(row, "street_address", "store_address", "Address", "Store_Address", "address") || undefined;
@@ -1070,7 +1092,7 @@ Otherwise, just respond conversationally to continue gathering information.`;
           transactions.push({
             clientId,
             locationId,
-            orderId: orderNumber,
+            orderId: effectiveOrderNumber,
             orderDate: getColumnValue(row, "transaction_date", "Order_Date", "transaction date", "order_date"),
             transactionType: getColumnValue(row, "transaction_type", "Transaction_Type", "transaction type"),
             transactionId: transactionId,
