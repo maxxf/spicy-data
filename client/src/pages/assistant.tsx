@@ -54,11 +54,14 @@ export default function AssistantPage() {
 
   const hasMessages = messages.length > 0;
 
+  const { selectedClientId } = useClientContext();
+
   const chatMutation = useMutation({
     mutationFn: async (message: string) => {
       const res = await apiRequest("POST", "/api/assistant/chat", {
         message,
         history: messages,
+        clientId: selectedClientId,
       });
       return res.json();
     },

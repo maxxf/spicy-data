@@ -3557,7 +3557,7 @@ Otherwise, just respond conversationally to continue gathering information.`;
 
   app.post("/api/assistant/chat", isAuthenticated, async (req, res) => {
     try {
-      const { message, history } = req.body;
+      const { message, history, clientId: requestClientId } = req.body;
       if (!message || typeof message !== "string") {
         return res.status(400).json({ error: "Message is required" });
       }
@@ -3565,24 +3565,53 @@ Otherwise, just respond conversationally to continue gathering information.`;
       const user = await getCurrentUser(req);
       const allowedClientIds = await getAllowedClientIds(req);
 
+      const effectiveClientId = requestClientId || (allowedClientIds && allowedClientIds.length === 1 ? allowedClientIds[0] : undefined);
+
       let contextData = "";
       try {
+        const clients = await storage.getAllClients();
+        const filteredClients = allowedClientIds
+          ? clients.filter((c: any) => allowedClientIds.includes(c.id))
+          : clients;
+
         const locations = await storage.getAllLocations();
-        const filteredLocations = allowedClientIds 
+        const filteredLocations = allowedClientIds
           ? locations.filter((l: any) => allowedClientIds.includes(l.clientId))
           : locations;
-        contextData = `Number of tracked locations: ${filteredLocations.length}`;
+
+        const clientSummaries: string[] = [];
+        for (const client of filteredClients) {
+          const clientLocations = filteredLocations.filter((l: any) => l.clientId === client.id);
+          try {
+            const overview = await storage.getDashboardOverview({ clientId: client.id });
+            const platformLines = overview.platformBreakdown.map((p: any) =>
+              `  ${p.platform}: $${p.totalSales.toLocaleString()} sales, ${p.totalOrders} orders, AOV $${p.aov.toFixed(2)}, ROAS ${p.marketingRoas.toFixed(1)}x, Payout ${p.netPayoutPercent.toFixed(1)}%`
+            ).join("\n");
+
+            const topLocations = clientLocations
+              .filter((l: any) => l.canonicalName && !l.canonicalName.includes("Unmapped"))
+              .slice(0, 10)
+              .map((l: any) => l.canonicalName)
+              .join(", ");
+
+            clientSummaries.push(
+`CLIENT: ${client.name} (${clientLocations.length} locations)
+All-Time Totals: $${overview.totalSales.toLocaleString()} sales, ${overview.totalOrders} orders, AOV $${overview.averageAov.toFixed(2)}
+Marketing: $${overview.totalMarketingInvestment.toLocaleString()} invested, ROAS ${overview.blendedRoas.toFixed(1)}x
+Net Payout: $${overview.totalNetPayout.toLocaleString()} (${overview.netPayoutPercent.toFixed(1)}%)
+Platform Breakdown:
+${platformLines}
+Locations: ${topLocations}`
+            );
+          } catch (e) {
+            clientSummaries.push(`CLIENT: ${client.name} (${clientLocations.length} locations) - No transaction data available`);
+          }
+        }
+
+        contextData = clientSummaries.join("\n\n");
       } catch (e) {
         contextData = "Analytics data is currently unavailable.";
       }
-
-      let locationCount = 0;
-      try {
-        const locations = await storage.getAllLocations();
-        locationCount = allowedClientIds 
-          ? locations.filter((l: any) => allowedClientIds.includes(l.clientId)).length
-          : locations.length;
-      } catch (e) {}
 
       const Anthropic = (await import("@anthropic-ai/sdk")).default;
       const anthropic = new Anthropic({
@@ -3593,14 +3622,22 @@ Otherwise, just respond conversationally to continue gathering information.`;
       const systemPrompt = `You are the Spicy Data analytics assistant for restaurant delivery platforms (Uber Eats, DoorDash, Grubhub). You help restaurant brands understand their delivery performance data.
 
 Current user: ${user?.email || "Unknown"} (${user?.role || "user"})
+
+=== LIVE ANALYTICS DATA ===
 ${contextData}
+=== END DATA ===
 
 Guidelines:
-- Be concise and helpful. Use specific numbers when available.
+- Use the LIVE ANALYTICS DATA above to answer questions with specific numbers. This is real data from the database.
 - Format currency with $ and commas. Format percentages with one decimal.
-- If asked about specific data you don't have, suggest they check the relevant dashboard page (Payouts, Campaigns, Locations, Financials, or Reporting).
-- You can discuss ROAS, net payout percentages, AOV, marketing attribution, and location performance.
-- Keep responses under 300 words unless a detailed analysis is requested.`;
+- When comparing platforms, reference their specific metrics (sales, orders, AOV, ROAS, payout %).
+- ROAS = Return on Ad Spend (marketing-driven sales / total marketing investment). Higher is better.
+- Net Payout % = what the restaurant keeps after platform fees. Higher is better.
+- AOV = Average Order Value. Higher generally better but depends on the brand.
+- True CPO = Cost Per Order for marketing-attributed orders.
+- If asked about weekly trends or date-specific data not in the context, suggest they check the Dashboard or use date filters.
+- Keep responses under 300 words unless a detailed analysis is requested.
+- Be direct with insights - tell them what's good, what needs attention, and actionable recommendations.`;
 
       const anthropicMessages: { role: "user" | "assistant"; content: string }[] = [];
 
