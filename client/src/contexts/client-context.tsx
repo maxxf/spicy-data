@@ -8,7 +8,7 @@ interface ClientContextType {
 const ClientContext = createContext<ClientContextType | undefined>(undefined);
 
 export function ClientProvider({ children }: { children: ReactNode }) {
-  const [selectedClientId, setSelectedClientId] = useState<string | null>("83506705-b408-4f0a-a9b0-e5b585db3b7d");
+  const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
 
   return (
     <ClientContext.Provider value={{ selectedClientId, setSelectedClientId }}>

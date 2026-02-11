@@ -424,8 +424,8 @@ export default function Dashboard() {
               {comparison && (
                 <div className="text-right">
                   <p className="text-xs text-muted-foreground">vs. Previous Week</p>
-                  <p className={`text-sm font-medium ${comparison.totalSales > 0 ? 'text-green-600 dark:text-green-500' : comparison.totalSales < 0 ? 'text-red-600 dark:text-red-500' : 'text-muted-foreground'}`}>
-                    {comparison.totalSales > 0 ? '+' : ''}{comparison.totalSales?.toFixed(1)}%
+                  <p className={`text-sm font-medium ${(comparison.totalSales ?? 0) > 0 ? 'text-green-600 dark:text-green-500' : (comparison.totalSales ?? 0) < 0 ? 'text-red-600 dark:text-red-500' : 'text-muted-foreground'}`}>
+                    {(comparison.totalSales ?? 0) > 0 ? '+' : ''}{comparison.totalSales?.toFixed(1)}%
                   </p>
                 </div>
               )}
