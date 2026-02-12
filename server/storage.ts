@@ -120,6 +120,13 @@ export interface IStorage {
   createDataSyncJob(data: Partial<DataSyncJob>): Promise<DataSyncJob>;
   getDataSyncJobs(clientId?: string, limit?: number): Promise<DataSyncJob[]>;
   updateDataSyncJob(id: string, data: Partial<DataSyncJob>): Promise<void>;
+
+  getTransactionCounts(clientId: string, locationId?: string): Promise<{ platform: string; count: number }[]>;
+  getClientDataStatus(clientId: string): Promise<{
+    platforms: Array<{ platform: string; count: number; dateRange: { minDate: string | null; maxDate: string | null } }>;
+    locationCount: number;
+    totalTransactions: number;
+  }>;
 }
 
 export class MemStorage implements IStorage {
@@ -995,6 +1002,21 @@ export class MemStorage implements IStorage {
   async createDataSyncJob(data: Partial<DataSyncJob>): Promise<DataSyncJob> { return { ...data, id: randomUUID(), createdAt: new Date() } as DataSyncJob; }
   async getDataSyncJobs(_clientId?: string, _limit?: number): Promise<DataSyncJob[]> { return []; }
   async updateDataSyncJob(_id: string, _data: Partial<DataSyncJob>): Promise<void> {}
+
+  async getTransactionCounts(_clientId: string): Promise<{ platform: string; count: number }[]> {
+    return [
+      { platform: "Uber Eats", count: 0 },
+      { platform: "DoorDash", count: 0 },
+      { platform: "Grubhub", count: 0 },
+    ];
+  }
+  async getClientDataStatus(_clientId: string): Promise<{
+    platforms: Array<{ platform: string; count: number; dateRange: { minDate: string | null; maxDate: string | null } }>;
+    locationCount: number;
+    totalTransactions: number;
+  }> {
+    return { platforms: [], locationCount: 0, totalTransactions: 0 };
+  }
 }
 
 import { DbStorage } from "./db-storage";

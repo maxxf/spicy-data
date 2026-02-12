@@ -495,6 +495,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/admin/data-status", isAuthenticated, async (req, res) => {
+    try {
+      const { clientId } = req.query;
+      if (!clientId) {
+        return res.status(400).json({ error: "clientId is required" });
+      }
+
+      const dataStatus = await storage.getClientDataStatus(clientId as string);
+      res.json(dataStatus);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // User Management routes (super admin only)
   app.get("/api/users", isSuperAdmin, async (req, res) => {
     try {

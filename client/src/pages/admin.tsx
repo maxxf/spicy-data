@@ -8,7 +8,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { Database, Settings, Upload, CheckCircle2, AlertCircle, TrendingUp, Download, Users, FileSpreadsheet } from "lucide-react";
+import { Database, Settings, Upload, CheckCircle2, AlertCircle, TrendingUp, Download, Users, FileSpreadsheet, MapPin, Calendar } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { FileUploadZone } from "@/components/file-upload-zone";
 import { UserManagement } from "@/components/user-management";
@@ -24,7 +24,7 @@ type UploadStatus = {
 };
 
 export default function AdminPage() {
-  const [selectedClient, setSelectedClient] = useState<string>("83506705-b408-4f0a-a9b0-e5b585db3b7d");
+  const [selectedClient, setSelectedClient] = useState<string>("");
   const [masterListUrl, setMasterListUrl] = useState<string>("");
   const [selectedFiles, setSelectedFiles] = useState<Record<Platform, File | null>>({
     ubereats: null,
@@ -42,7 +42,6 @@ export default function AdminPage() {
   const queryClient = useQueryClient();
   const clearTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Cleanup timeout on unmount
   useEffect(() => {
     return () => {
       if (clearTimeoutRef.current) {
@@ -57,6 +56,28 @@ export default function AdminPage() {
 
   const { data: clients } = useQuery<Client[]>({
     queryKey: ["/api/clients"],
+  });
+
+  useEffect(() => {
+    if (clients?.length && !selectedClient) {
+      setSelectedClient(clients[0].id);
+    }
+  }, [clients, selectedClient]);
+
+  type DataStatus = {
+    platforms: Array<{ platform: string; count: number; dateRange: { minDate: string | null; maxDate: string | null } }>;
+    locationCount: number;
+    totalTransactions: number;
+  };
+
+  const { data: dataStatus } = useQuery<DataStatus>({
+    queryKey: ["/api/admin/data-status", selectedClient],
+    queryFn: async () => {
+      const res = await fetch(`/api/admin/data-status?clientId=${selectedClient}`, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch data status");
+      return res.json();
+    },
+    enabled: !!selectedClient,
   });
 
   const uploadMutation = useMutation({
@@ -104,6 +125,7 @@ export default function AdminPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/analytics/locations"] });
       queryClient.invalidateQueries({ queryKey: ["/api/locations"] });
       queryClient.invalidateQueries({ queryKey: ["/api/locations/suggestions"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/data-status", selectedClient] });
     },
     onError: ({ error, platform }: { error: any; platform: Platform }) => {
       const platformNames: Record<Platform, string> = {
@@ -368,6 +390,53 @@ export default function AdminPage() {
           </div>
         </CardContent>
       </Card>
+
+      {selectedClient && dataStatus && (
+        <Card data-testid="card-data-status">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Database className="w-4 h-4" />
+              Data Status
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+              {dataStatus.platforms.map((p) => (
+                <div key={p.platform} className="space-y-1" data-testid={`status-${p.platform.toLowerCase().replace(/\s/g, "-")}`}>
+                  <p className="text-xs text-muted-foreground">{p.platform}</p>
+                  <p className="text-lg font-semibold tabular-nums">
+                    {p.count.toLocaleString()}
+                  </p>
+                  {p.count > 0 && p.dateRange?.minDate && (
+                    <p className="text-xs text-muted-foreground flex items-center gap-1">
+                      <Calendar className="w-3 h-3" />
+                      {new Date(p.dateRange.minDate + "T00:00:00Z").toLocaleDateString("en-US", { month: "short", year: "2-digit" })}
+                      {" - "}
+                      {new Date(p.dateRange.maxDate! + "T00:00:00Z").toLocaleDateString("en-US", { month: "short", year: "2-digit" })}
+                    </p>
+                  )}
+                  {p.count === 0 && (
+                    <Badge variant="outline" className="text-xs">No data</Badge>
+                  )}
+                </div>
+              ))}
+              <div className="space-y-1" data-testid="status-locations">
+                <p className="text-xs text-muted-foreground">Locations</p>
+                <p className="text-lg font-semibold tabular-nums flex items-center gap-1">
+                  <MapPin className="w-4 h-4 text-muted-foreground" />
+                  {dataStatus.locationCount}
+                </p>
+              </div>
+              <div className="space-y-1" data-testid="status-total">
+                <p className="text-xs text-muted-foreground">Total Transactions</p>
+                <p className="text-lg font-semibold tabular-nums">
+                  {dataStatus.totalTransactions.toLocaleString()}
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Tabbed Interface */}
       <Tabs defaultValue="transactions" className="space-y-4" data-testid="tabs-admin">

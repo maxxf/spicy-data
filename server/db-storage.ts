@@ -1075,6 +1075,46 @@ export class DbStorage implements IStorage {
     ];
   }
 
+  async getClientDataStatus(clientId: string): Promise<{
+    platforms: Array<{ platform: string; count: number; dateRange: { minDate: string | null; maxDate: string | null } }>;
+    locationCount: number;
+    totalTransactions: number;
+  }> {
+    const counts = await this.getTransactionCounts(clientId);
+
+    const [ueRange, ddRange, ghRange] = await Promise.all([
+      this.db.select({
+        minDate: sql<string>`MIN(${uberEatsTransactions.date})`,
+        maxDate: sql<string>`MAX(${uberEatsTransactions.date})`,
+      }).from(uberEatsTransactions).where(eq(uberEatsTransactions.clientId, clientId)),
+      this.db.select({
+        minDate: sql<string>`MIN(${doordashTransactions.transactionDate})`,
+        maxDate: sql<string>`MAX(${doordashTransactions.transactionDate})`,
+      }).from(doordashTransactions).where(eq(doordashTransactions.clientId, clientId)),
+      this.db.select({
+        minDate: sql<string>`MIN(${grubhubTransactions.orderDate})`,
+        maxDate: sql<string>`MAX(${grubhubTransactions.orderDate})`,
+      }).from(grubhubTransactions).where(eq(grubhubTransactions.clientId, clientId)),
+    ]);
+
+    const locationCount = await this.db.select({ count: sql<number>`count(*)::int` })
+      .from(locations)
+      .where(eq(locations.clientId, clientId))
+      .then(r => r[0]?.count || 0);
+
+    const ranges = [ueRange[0], ddRange[0], ghRange[0]];
+
+    return {
+      platforms: counts.map((c, i) => ({
+        platform: c.platform,
+        count: c.count,
+        dateRange: ranges[i] || { minDate: null, maxDate: null },
+      })),
+      locationCount,
+      totalTransactions: counts.reduce((sum, c) => sum + c.count, 0),
+    };
+  }
+
   async getLocationMetrics(filters?: AnalyticsFilters): Promise<LocationMetrics[]> {
     // Build base location query for getting location names
     const locationConditions = [];
