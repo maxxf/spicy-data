@@ -2128,9 +2128,9 @@ Otherwise, just respond conversationally to continue gathering information.`;
       // Get all available weeks
       const weeks = await storage.getAvailableWeeks();
       
-      // Get overview for each week
-      const weeklyData = await Promise.all(
-        weeks.map(async (week) => {
+      // Process weeks sequentially to avoid overwhelming DB connections
+      const weeklyData = [];
+      for (const week of weeks) {
           const filters: AnalyticsFilters = {
             clientId: clientId as string | undefined,
             locationId: locationId as string | undefined,
@@ -2151,7 +2151,7 @@ Otherwise, just respond conversationally to continue gathering information.`;
           const marketingSpendPercent = overview.totalSales > 0 ? (totalMarketingSpend / overview.totalSales) * 100 : 0;
           const marketingRoas = totalMarketingSpend > 0 ? marketingDrivenSales / totalMarketingSpend : 0;
           const cpo = ordersFromMarketing > 0 ? totalMarketingSpend / ordersFromMarketing : 0;
-          return {
+          weeklyData.push({
             weekStart: week.weekStart,
             weekEnd: week.weekEnd,
             weekLabel: `${week.weekStart.slice(5)} - ${week.weekEnd.slice(5)}`,
@@ -2172,9 +2172,8 @@ Otherwise, just respond conversationally to continue gathering information.`;
             marketingRoas,
             cpo,
             netPayout,
-          };
-        })
-      );
+          });
+      }
       
       res.json(weeklyData);
     } catch (error: any) {
